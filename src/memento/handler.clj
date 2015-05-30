@@ -1,7 +1,6 @@
 (ns memento.handler
   (:require [compojure.core :refer [defroutes routes wrap-routes]]
             [memento.routes.home :refer [home-routes]]
-            
             [memento.middleware :as middleware]
             [memento.session :as session]
             [compojure.route :as route]

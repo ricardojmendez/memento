@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Bootswatch: Slate</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <link rel="stylesheet" href="/assets/bootswatch/bootstrap.min.css" media="screen">
+    <link rel="stylesheet" href="/assets/bootswatch/bootswatch.min.css">
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+    <script src="/assets/bower_components/html5shiv/dist/html5shiv.js"></script>
+    <script src="/assets/bower_components/respond/dest/respond.min.js"></script>
+    <![endif]-->
+</head>
+<body>
+<div class="container">
+    <div class="bs-docs-section">
+        <div class="row">
+            <div class="col-lg-6 col-lg-offset-3">
+                <div class="page-header">
+                    <h1 id="forms">Make a new memory</h1>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2">
+                <div class="well bs-component">
+                    <div class="form-horizontal" id="write-section">
+                        Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="row">
+            <div class="col-md-6 col-md-offset-4">
+                <p>&copy <a href="http://numergent.com" target="_new">Numergent Limited</a>.
+                    Original template by <a href="https://bootswatch.com/" target="_new">Thomas Park</a>.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+</div>
+
+
+
+<script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
+<script src="/assets/bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
+{% if dev %}
+{% script "/js/out/goog/base.js" %}
+{% script "/js/app.js" %}
+<script type="text/javascript">goog.require("memento.app");</script>
+{% else %}
+{% script "/js/app.js" %}
+{% endif %}
+
+</body>
+</html>
