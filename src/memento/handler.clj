@@ -3,6 +3,7 @@
             [memento.routes.home :refer [home-routes]]
             [memento.middleware :as middleware]
             [memento.session :as session]
+            [memento.routes.api :refer [api-routes]]
             [compojure.route :as route]
             [taoensso.timbre :as timbre]
             [taoensso.timbre.appenders.rotor :as rotor]
@@ -65,7 +66,7 @@
 
 (def app
   (-> (routes
-        
+        api-routes
         (wrap-routes home-routes middleware/wrap-csrf)
         base-routes)
       middleware/wrap-base))
