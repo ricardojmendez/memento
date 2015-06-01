@@ -58,9 +58,9 @@
   :save-note
   (fn [app-state _]
     (let [note (get-in app-state [:note :current-note])]
-      (POST "/api/memento" {:params        {:text note}
-                            :handler       #(dispatch [:save-note-success note])
-                            :error-handler #(dispatch [:save-note-error (str "Error saving note: " %)])}))
+      (POST "/api/memory" {:params        {:text note}
+                           :handler       #(dispatch [:save-note-success note])
+                           :error-handler #(dispatch [:save-note-error (str "Error saving note: " %)])}))
     app-state
     ))
 

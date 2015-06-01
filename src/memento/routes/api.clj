@@ -16,7 +16,7 @@
                                      "application/transit+msgpack"
                                      "application/json"])
 
-(defresource memento
+(defresource memory
              :allowed-methods [:post :get]
              :handle-ok "Hello!"
              ; TODO: Reject empty POSTs. We'll do that once we are also validating it's a registered user.
@@ -34,5 +34,5 @@
 
 (defroutes api-routes
            (ANY "/api/echo/:val" [val] echo)
-           (ANY "/api/memento" request memento)
+           (ANY "/api/memory" request memory)
            )
