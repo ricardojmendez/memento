@@ -23,10 +23,12 @@
                            [cljsjs/react "0.13.3-0"]
                            [reagent-forms "0.5.1"]
                            [reagent-utils "0.1.4"]
-                           [secretary "1.2.3"]
                            [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                            [cljs-ajax "0.3.11"]
                            [re-frame "0.4.1"]
+                           [liberator "0.13"]
+                           [io.clojure/liberator-transit "0.3.0"]
+                           [clojurewerkz/elastisch "2.1.0"]
                            ]
 
             :min-lein-version "2.0.0"
@@ -50,8 +52,7 @@
                    :destroy      memento.handler/destroy
                    :uberwar-name "memento.war"}
 
-
-            :clean-targets ^{:protect false} ["resources/public/js"]
+            :clean-targets ^{:protect false} ["resources/public/js" "target"]
 
             :cljsbuild
             {:builds
@@ -67,7 +68,10 @@
 
             :profiles
             {:uberjar {:omit-source true
-                       :env         {:production true}
+                       :env         {:production   true
+                                     :cluster-name "memento"
+                                     :index-name   "memento"
+                                     :host-name    "localhost"}
                        :hooks       [leiningen.cljsbuild]
                        :cljsbuild
                                     {:jar true
@@ -75,7 +79,6 @@
                                           {:app
                                            {:source-paths ["env/prod/cljs"]
                                             :compiler     {:optimizations :advanced :pretty-print false}}}}
-
                        :aot         :all}
              :dev     {:dependencies [[ring-mock "0.1.5"]
                                       [ring/ring-devel "1.3.2"]
@@ -99,4 +102,7 @@
                        :repl-options {:init-ns memento.core}
                        :injections   [(require 'pjstadig.humane-test-output)
                                       (pjstadig.humane-test-output/activate!)]
-                       :env          {:dev true}}})
+                       :env          {:dev          true
+                                      :cluster-name "memento"
+                                      :index-name   "memento"
+                                      :host-name    "localhost"}}})
