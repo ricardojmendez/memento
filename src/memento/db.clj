@@ -2,7 +2,8 @@
   (:require [environ.core :refer [env]]
             [clojurewerkz.elastisch.native :as es]
             [clojurewerkz.elastisch.native.index :as esi]
-            [clojurewerkz.elastisch.native.document :as esd])
+            [clojurewerkz.elastisch.native.document :as esd]
+            [clojurewerkz.elastisch.query :as q])
   (:import (java.util Date)))
 
 
@@ -31,3 +32,14 @@
   "Trivial save. For now everything will go to one user."
   [memory]
   (esd/create (get-connection) index-name "memory" (merge {:date (now) :username "ricardo"} memory)))
+
+
+(defn query-memories
+  "Trivial query - return everything from one user"
+  []
+  (-> (esd/search (get-connection) index-name "memory"
+                  :query (q/term :username "ricardo")
+                  :sort {:date "desc"}
+                  :size 25)
+      (get-in [:hits :hits])
+      doall))

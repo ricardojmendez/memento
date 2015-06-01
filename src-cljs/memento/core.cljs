@@ -39,6 +39,8 @@
 (register-handler
   :set-ui-section
   (fn [app-state [_ section]]
+    (if (= :remember section)
+      (dispatch [:load-memories]))
     (assoc-in app-state [:ui-state :section] section)))
 
 (register-handler
@@ -57,6 +59,21 @@
   (fn [app-state [_ note]]
     (assoc-in app-state [:note :current-note] note)))
 
+(register-handler
+  :load-memories
+  (fn [app-state _]
+    (GET "/api/memory" {:handler       #(dispatch [:load-memories-done %])
+                        :error-handler #(dispatch [:set-message (str "Error remembering. " %) "alert-danger"])
+                        })
+    (assoc-in app-state [:ui-state :memories] [])
+    ))
+
+(register-handler
+  :load-memories-done
+  (fn [app-state [_ memories]]
+    (assoc-in app-state [:ui-state :memories] memories)
+    ))
+
 
 (register-handler
   :save-note
@@ -71,7 +88,6 @@
 (register-handler
   :save-note-success
   (fn [app-state [_ msg]]
-    (.log js/console "Done")
     (dispatch [:set-message (str "Saved: " msg) "alert-success"])
     (-> app-state
         (assoc-in [:ui-state :is-busy] false)
@@ -131,8 +147,8 @@
 
 
 (defn write-section []
-  (let [note      (subscribe [:note :current-note])
-        is-busy?  (subscribe [:ui-state :is-busy])]
+  (let [note     (subscribe [:note :current-note])
+        is-busy? (subscribe [:ui-state :is-busy])]
     (fn []
       [:fielset
        [:div {:class "form-horizontal"}
@@ -154,12 +170,43 @@
         ]]
       )))
 
+(defn panel [title msg class]
+  [:div {:class (str "panel " class)}
+   [:div {:class "panel-heading"}
+    [:h3 {:class "panel-title"} title]
+    ]
+   [:div {:class "panel-body"} msg]
+   ]
+  )
+
+
+
+(defn memory-list []
+  (let [memories (subscribe [:ui-state :memories])]
+    (fn []
+      (if (empty? @memories)
+        [panel "Loading..." "Please wait while your memories are being loaded" "panel-info"]
+        [panel "Memories"
+         [:span
+          (for [memory @memories]
+            ^{:key (:_id memory)}
+            [:blockquote
+             [:p (get-in memory [:_source :text])]
+             [:small (get-in memory [:_source :date])]
+             ]
+            )
+          ]
+         "panel-primary"
+         ]
+        ))
+    ))
+
 
 (defn content-section []
   (let [current (subscribe [:ui-state :section])]
     (condp = @current
       :write [write-section]
-      :remember [:p]
+      :remember [memory-list]
       )
     )
   )
