@@ -18,13 +18,14 @@
 
 (defresource memory
              :allowed-methods [:post :get]
-             :handle-ok "Hello!"
+             :handle-ok (fn [_]
+                          (db/query-memories))
              ; TODO: Reject empty POSTs. We'll do that once we are also validating it's a registered user.
              :post! (fn [ctx]
                       (let [reader  (transit/reader (get-in ctx [:request :body]) :json)
                             content (transit/read reader)]
                         (when (not-empty content)
-                          {:save-result (db/save-memory content)})))
+                          {:save-result (db/save-memory! content)})))
              :handle-created (fn [ctx]
                                {:id (get-in ctx [:save-result :id])})
              :available-media-types ["application/transit+json"

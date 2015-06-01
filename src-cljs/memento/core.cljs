@@ -33,9 +33,15 @@
 
 (register-handler
   :initialize
-  (fn
-    [app-state _]
-    (merge app-state {:ui-state {:is-busy false}})))
+  (fn [app-state _]
+    (merge app-state {:ui-state {:is-busy false :section :write}})))
+
+(register-handler
+  :set-ui-section
+  (fn [app-state [_ section]]
+    (if (= :remember section)
+      (dispatch [:load-memories]))
+    (assoc-in app-state [:ui-state :section] section)))
 
 (register-handler
   :log-message
@@ -53,6 +59,21 @@
   (fn [app-state [_ note]]
     (assoc-in app-state [:note :current-note] note)))
 
+(register-handler
+  :load-memories
+  (fn [app-state _]
+    (GET "/api/memory" {:handler       #(dispatch [:load-memories-done %])
+                        :error-handler #(dispatch [:set-message (str "Error remembering. " %) "alert-danger"])
+                        })
+    (assoc-in app-state [:ui-state :memories] [])
+    ))
+
+(register-handler
+  :load-memories-done
+  (fn [app-state [_ memories]]
+    (assoc-in app-state [:ui-state :memories] memories)
+    ))
+
 
 (register-handler
   :save-note
@@ -67,7 +88,6 @@
 (register-handler
   :save-note-success
   (fn [app-state [_ msg]]
-    (.log js/console "Done")
     (dispatch [:set-message (str "Saved: " msg) "alert-success"])
     (-> app-state
         (assoc-in [:ui-state :is-busy] false)
@@ -82,13 +102,37 @@
     ))
 
 
-
-
-
 ;------------------------------
 ; Components
 ;------------------------------
 
+
+(defn navbar-item
+  "Renders a navbar item. Having each navbar item have its own subscription will probably
+  have a bit of overhead, but I don't imagine it'll be anything major since we won't have
+  more than a couple of them."
+  [name section]
+  (let [current     (subscribe [:ui-state :section])
+        is-current? (reaction (= section @current))
+        class       (when @is-current? "active")]
+    [:li {:class class} [:a {:on-click #(dispatch [:set-ui-section section])} name
+                         (if @is-current?
+                           [:span {:class "sr-only"} "(current)"])]]))
+
+
+(defn navbar []
+  [:nav {:class "navbar navbar-default navbar-fixed-top"}
+   [:div {:class "container-fluid"}
+    [:div {:class "navbar-header"}
+     [:a {:class "navbar-brand"} "Memento"]
+     ]
+    [:div {:class "collapse navbar-collapse" :id "navbar-items"}
+     [:ul {:class "nav navbar-nav"}
+      [navbar-item "Write" :write]
+      [navbar-item "Remember" :remember]
+      ]]
+    ]
+   ])
 
 
 (defn alert []
@@ -107,25 +151,65 @@
         is-busy? (subscribe [:ui-state :is-busy])]
     (fn []
       [:fielset
-       [:legend ""
-        [:div {:class "form-horizontal"}
-         [:div {:class "form-group"}
-          [:div {:class "col-lg-12"}
-           [:textarea {:class       "form-control"
-                       :placeholder "I was thinking..."
-                       :rows        12
-                       :style       {:font-size "18px"}
-                       :on-change   #(dispatch-sync [:update-note (-> % .-target .-value)])
-                       :value       @note
-                       }]
-           ]]
-         [:div {:class "form-group"}
-          [:div {:class "col-lg-12"}
-           [:button {:type "reset" :class "btn btn-default" :on-click #(dispatch [:update-note ""])} "Clear"]
-           [:button {:type "submit" :disabled (or @is-busy? (empty? @note)) :class "btn btn-primary" :on-click #(dispatch [:save-note])} "Submit"]
-           ]]
-         ]]]
+       [:div {:class "form-horizontal"}
+        [:div {:class "form-group"}
+         [:div {:class "col-lg-12"}
+          [:textarea {:class       "form-control"
+                      :placeholder "I was thinking..."
+                      :rows        12
+                      :style       {:font-size "18px"}
+                      :on-change   #(dispatch-sync [:update-note (-> % .-target .-value)])
+                      :value       @note
+                      }]
+          ]]
+        [:div {:class "form-group"}
+         [:div {:class "col-lg-12"}
+          [:button {:type "reset" :class "btn btn-default" :on-click #(dispatch [:update-note ""])} "Clear"]
+          [:button {:type "submit" :disabled (or @is-busy? (empty? @note)) :class "btn btn-primary" :on-click #(dispatch [:save-note])} "Submit"]
+          ]]
+        ]]
       )))
+
+(defn panel [title msg class]
+  [:div {:class (str "panel " class)}
+   [:div {:class "panel-heading"}
+    [:h3 {:class "panel-title"} title]
+    ]
+   [:div {:class "panel-body"} msg]
+   ]
+  )
+
+
+
+(defn memory-list []
+  (let [memories (subscribe [:ui-state :memories])]
+    (fn []
+      (if (empty? @memories)
+        [panel "Loading..." "Please wait while your memories are being loaded" "panel-info"]
+        [panel "Memories"
+         [:span
+          (for [memory @memories]
+            ^{:key (:_id memory)}
+            [:blockquote
+             [:p (get-in memory [:_source :text])]
+             [:small (get-in memory [:_source :date])]
+             ]
+            )
+          ]
+         "panel-primary"
+         ]
+        ))
+    ))
+
+
+(defn content-section []
+  (let [current (subscribe [:ui-state :section])]
+    (condp = @current
+      :write [write-section]
+      :remember [memory-list]
+      )
+    )
+  )
 
 
 
@@ -150,8 +234,8 @@
   (GET "/docs" {:handler #(session/put! :docs %)}))
 
 (defn mount-components []
-  #_ (reagent/render-component [#'navbar] (.getElementById js/document "navbar"))
-  (reagent/render-component [write-section] (.getElementById js/document "write-section"))
+  (reagent/render-component [navbar] (.getElementById js/document "navbar"))
+  (reagent/render-component [content-section] (.getElementById js/document "content-section"))
   (reagent/render-component [alert] (.getElementById js/document "alert"))
   )
 
