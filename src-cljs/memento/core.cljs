@@ -45,27 +45,41 @@
 
 (register-handler
   :set-message
-  (fn [app-state [_ msg]]
-    (.log js/console (str "Will set " msg))
-    (assoc-in app-state [:ui-state :last-message] msg)))
+  (fn [app-state [_ msg class]]
+    (assoc-in app-state [:ui-state :last-message] {:text msg :class class})))
+
+(register-handler
+  :update-note
+  (fn [app-state [_ note]]
+    (assoc-in app-state [:note :current-note] note)))
 
 
 (register-handler
   :save-note
-  (fn [app-state [_ msg]]
-    (POST "/api/memento" {:params {:text msg}
-                          :handler #(.log js/console %) #_ #(dispatch [:save-note-done "Success"])
-                          :error-handler #(dispatch [:save-note-done (str "Error saving note: " %)])})
+  (fn [app-state _]
+    (let [note (get-in app-state [:note :current-note])]
+      (POST "/api/memento" {:params        {:text note}
+                            :handler       #(dispatch [:save-note-success note])
+                            :error-handler #(dispatch [:save-note-error (str "Error saving note: " %)])}))
     app-state
     ))
 
 (register-handler
-  :save-note-done
+  :save-note-success
   (fn [app-state [_ msg]]
     (.log js/console "Done")
-    (dispatch [:set-message msg])
-    (assoc-in app-state [:ui-state :is-busy] false)))
+    (dispatch [:set-message (str "Saved: " msg) "alert-success"])
+    (-> app-state
+        (assoc-in [:ui-state :is-busy] false)
+        (assoc-in [:note :current-note] "")
+        )))
 
+(register-handler
+  :save-note-error
+  (fn [app-state [_ msg]]
+    (dispatch [:set-message (str "Error saving note: " msg) "alert-danger"])
+    (assoc-in app-state [:ui-state :is-busy] false)
+    ))
 
 
 
@@ -77,43 +91,40 @@
 
 
 
-(def thought-field
-  [:textarea {:field       :textarea
-              :class       "form-control"
-              :placeholder "I was thinking..."
-              :rows        12
-              :id          :thought
-              :style       {:font-size "18px"}
-              }])
-
-
 (defn alert []
   (let [msg (subscribe [:ui-state :last-message])]
     (fn []
-      (if (not-empty @msg)
-        [:div {:class "alert alert-info"}
+      (if (not-empty (:text @msg))
+        [:div {:class (str "alert " (:class @msg))}
          [:button {:type :button :class "close" :on-click #(dispatch [:set-message ""])} "x"]
-         [:strong "Heads up! "] @msg]
+         (:text @msg)]
         )
       )))
 
+
 (defn write-section []
-  (let [doc      (atom {})
-        is-busy? (subscribe [:ui-state :is-busy])
-        ]
+  (let [note     (subscribe [:note :current-note])
+        is-busy? (subscribe [:ui-state :is-busy])]
     (fn []
       [:fielset
        [:legend ""
-        [:div {:class "form-group"}
-         [:div {:class "col-lg-12"}
-          [bind-fields thought-field doc]]
-         ]
-        [:div {:class "form-group"}
-         [:div {:class "col-lg-12"}
-          [:button {:type "reset" :class "btn btn-default" :on-click #(dispatch [:set-note ""])} "Clear"]
-          [:button {:type "submit" :disabled @is-busy? :class "btn btn-primary" :on-click #(dispatch [:save-note (:thought @doc)])} "Submit"]
-          ]]
-        ]]
+        [:div {:class "form-horizontal"}
+         [:div {:class "form-group"}
+          [:div {:class "col-lg-12"}
+           [:textarea {:class       "form-control"
+                       :placeholder "I was thinking..."
+                       :rows        12
+                       :style       {:font-size "18px"}
+                       :on-change   #(dispatch-sync [:update-note (-> % .-target .-value)])
+                       :value       @note
+                       }]
+           ]]
+         [:div {:class "form-group"}
+          [:div {:class "col-lg-12"}
+           [:button {:type "reset" :class "btn btn-default" :on-click #(dispatch [:update-note ""])} "Clear"]
+           [:button {:type "submit" :disabled (or @is-busy? (empty? @note)) :class "btn btn-primary" :on-click #(dispatch [:save-note])} "Submit"]
+           ]]
+         ]]]
       )))
 
 

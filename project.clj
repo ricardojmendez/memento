@@ -68,7 +68,10 @@
 
             :profiles
             {:uberjar {:omit-source true
-                       :env         {:production true}
+                       :env         {:production   true
+                                     :cluster-name "memento"
+                                     :index-name   "memento"
+                                     :host-name    "localhost"}
                        :hooks       [leiningen.cljsbuild]
                        :cljsbuild
                                     {:jar true
