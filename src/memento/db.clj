@@ -15,7 +15,8 @@
 (defn now [] (Date.))
 
 
-(defn initialize-index []
+
+(defn initialize-index! []
   (let [conn          (get-connection)
         mapping-types {"memory" {:properties {:username {:type "string" :store "yes"}
                                               :date     {:type "date" :store "yes"}
@@ -26,7 +27,7 @@
     (esi/create conn index-name :mappings mapping-types)
     ))
 
-(defn save-memory
+(defn save-memory!
   "Trivial save. For now everything will go to one user."
   [memory]
   (esd/create (get-connection) index-name "memory" (merge {:date (now) :username "ricardo"} memory)))

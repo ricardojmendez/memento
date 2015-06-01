@@ -24,7 +24,7 @@
                       (let [reader  (transit/reader (get-in ctx [:request :body]) :json)
                             content (transit/read reader)]
                         (when (not-empty content)
-                          {:save-result (db/save-memory content)})))
+                          {:save-result (db/save-memory! content)})))
              :handle-created (fn [ctx]
                                {:id (get-in ctx [:save-result :id])})
              :available-media-types ["application/transit+json"
