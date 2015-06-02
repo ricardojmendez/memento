@@ -62,7 +62,8 @@
                              {:output-dir    "resources/public/js/out"
                               :externs       ["react/externs/react.js"]
                               :optimizations :none
-                              :output-to     "resources/public/js/app.js"
+                              :output-to     "resources/public/js/memento.js"
+                              :source-map    "resources/public/js/memento.js.map"
                               :pretty-print  true}}}}
 
 
@@ -88,9 +89,7 @@
                        :source-paths ["env/dev/clj"]
                        :plugins      [[lein-figwheel "0.3.3"]]
                        :cljsbuild
-                                     {:builds
-                                      {:app
-                                       {:source-paths ["env/dev/cljs"] :compiler {:source-map true}}}}
+                                     {:builds {:app {:source-paths ["env/dev/cljs"]}}}
 
                        :figwheel
                                      {:http-server-root "public"
