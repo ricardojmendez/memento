@@ -36,6 +36,7 @@
   (fn [app-state _]
     (merge app-state {:ui-state {:is-busy?      false
                                  :section       :write
+                                 :current-query ""
                                  :is-searching? false}})))
 
 (register-handler
