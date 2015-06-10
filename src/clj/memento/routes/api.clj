@@ -36,7 +36,6 @@
 (defresource memory-search
              :allowed-methods [:get]
              :handle-ok (fn [{{query :query-params} :request}]
-                          (clojure.pprint/pprint query)
                           (db/query-memories (db/get-connection) (query "q")))
 
              :available-media-types ["application/transit+json"

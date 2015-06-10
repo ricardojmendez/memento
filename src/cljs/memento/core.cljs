@@ -34,7 +34,9 @@
 (register-handler
   :initialize
   (fn [app-state _]
-    (merge app-state {:ui-state {:is-busy false :section :write}})))
+    (merge app-state {:ui-state {:is-busy?      false
+                                 :section       :write
+                                 :is-searching? false}})))
 
 (register-handler
   :set-ui-section
@@ -71,13 +73,17 @@
                                 :handler       #(dispatch [:load-memories-done %])
                                 :error-handler #(dispatch [:set-message (str "Error remembering. " %) "alert-danger"])
                                 })
-    (assoc-in app-state [:ui-state :memories] [])
+    (-> app-state
+        (assoc-in [:ui-state :memories] [])
+        (assoc-in [:ui-state :is-searching?] true))
     ))
 
 (register-handler
   :load-memories-done
   (fn [app-state [_ memories]]
-    (assoc-in app-state [:ui-state :memories] memories)
+    (-> app-state
+        (assoc-in [:ui-state :memories] memories)
+        (assoc-in [:ui-state :is-searching?] false))
     ))
 
 
@@ -96,7 +102,7 @@
   (fn [app-state [_ msg]]
     (dispatch [:set-message (str "Saved: " msg) "alert-success"])
     (-> app-state
-        (assoc-in [:ui-state :is-busy] false)
+        (assoc-in [:ui-state :is-busy?] false)
         (assoc-in [:note :current-note] "")
         )))
 
@@ -104,7 +110,7 @@
   :save-note-error
   (fn [app-state [_ msg]]
     (dispatch [:set-message (str "Error saving note: " msg) "alert-danger"])
-    (assoc-in app-state [:ui-state :is-busy] false)
+    (assoc-in app-state [:ui-state :is-busy?] false)
     ))
 
 
@@ -154,7 +160,7 @@
 
 (defn write-section []
   (let [note     (subscribe [:note :current-note])
-        is-busy? (subscribe [:ui-state :is-busy])]
+        is-busy? (subscribe [:ui-state :is-busy?])]
     (fn []
       [:fielset
        [:div {:class "form-horizontal"}
@@ -193,6 +199,7 @@
 
 (defn memory-list []
   (let [query    (subscribe [:ui-state :current-query])
+        busy?    (subscribe [:ui-state :is-searching?])
         memories (subscribe [:ui-state :memories])]
     (fn []
       [:span
@@ -212,17 +219,19 @@
           ]
          ]
         ]
-       (if (empty? @memories)
+       (if @busy?
          [panel "Loading..." "Please wait while your memories are being loaded" "panel-info"]
          [panel "Memories"
           [:span
-           (for [memory @memories]
-             ^{:key (:_id memory)}
-             [:blockquote
-              [:p (get-in memory [:_source :text])]
-              [:small (get-in memory [:_source :date])]
-              ]
-             )
+           (if (empty? @memories)
+             [:p "Nothing."]
+             (for [memory @memories]
+               ^{:key (:_id memory)}
+               [:blockquote
+                [:p (get-in memory [:_source :text])]
+                [:small (get-in memory [:_source :date])]
+                ]
+               ))
            ]
           "panel-primary"
           ]
