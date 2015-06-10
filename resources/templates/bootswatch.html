@@ -56,7 +56,7 @@
     <div class="bs-docs-section">
         <div class="row">
             <div class="col-lg-6 col-lg-offset-3">
-                <div class="page-header">
+                <div class="page-header" id="header">
                     <h1 id="forms">Make a new memory</h1>
                 </div>
             </div>
@@ -99,7 +99,7 @@
 
 {% if dev %}
 {% script "/assets/jquery-1.10.2.min.js" %}
-{% script "/js/out/goog/base.js" %}
+{% script "/js/goog/base.js" %}
 {% script "/js/memento.js" %}
 <script type="text/javascript">goog.require("memento.app");</script>
 {% else %}

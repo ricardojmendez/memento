@@ -16,30 +16,42 @@
 (defn now [] (Date.))
 
 
+(defn flush-index! [conn]
+  (esi/flush conn index-name))
 
-(defn initialize-index! []
+(defn initialize-index! [conn]
   (let [conn          (get-connection)
         mapping-types {"memory" {:properties {:username {:type "string" :store "yes"}
                                               :date     {:type "date" :store "yes"}
                                               :text     {:type "string" :analyzer "snowball" :term_vector "with_positions_offsets"}
                                               }}}]
-    ; Commented out by default so that we don't accidentally wipe everything
-    #_ (esi/delete conn index-name)
+    ; Sanity check - we do not run this unless it's an index with "test" on the name.
+    ; Yes, this means we'll need to figure out initialization for launch, but will deal
+    ; with that when I deploy.
+    (if (not (re-seq #"-test" index-name))
+      (throw (Exception. (str "Not allowed on any but a test index. Current index: " index-name))))
+    (if (esi/exists? conn index-name)
+      (esi/delete conn index-name))
     (esi/create conn index-name :mappings mapping-types)
+    (flush-index! conn)
     ))
 
 (defn save-memory!
   "Trivial save. For now everything will go to one user."
-  [memory]
-  (esd/create (get-connection) index-name "memory" (merge {:date (now) :username "ricardo"} memory)))
+  [conn memory]
+  (esd/create conn index-name "memory" (merge {:date (now) :username "ricardo"} memory)))
 
 
 (defn query-memories
   "Trivial query - return everything from one user"
-  []
-  (-> (esd/search (get-connection) index-name "memory"
-                  :query (q/term :username "ricardo")
-                  :sort {:date "desc"}
-                  :size 25)
-      (get-in [:hits :hits])
-      doall))
+  ([conn]
+   (query-memories conn nil))
+  ([conn query-str]
+   (let [base-query [(q/term :username "ricardo")]
+         query      (if (empty? query-str) base-query (conj base-query (q/match :text query-str)))]
+     (-> (esd/search conn index-name "memory"
+                     :query (q/bool {:must query})
+                     :sort {:date "desc"}
+                     :size 25)
+         (get-in [:hits :hits])
+         doall))))

@@ -54,7 +54,7 @@
 
             :clean-targets ^{:protect false} ["resources/public/js" "target"]
 
-            :source-paths ["src/clj" "src/cljs"]
+            :source-paths ["src/clj" "src/cljs" "src/cljc"]
             :test-paths ["test/clj"]
 
             :cljsbuild
@@ -62,7 +62,7 @@
              {:app
               {:source-paths ["src/cljs"]
                :compiler
-                             {:output-dir    "resources/public/js/out"
+                             {:output-dir    "resources/public/js/"
                               :externs       ["react/externs/react.js"]
                               :optimizations :none
                               :output-to     "resources/public/js/memento.js"
@@ -91,11 +91,9 @@
                                       [org.clojure/tools.nrepl "0.2.10"]]
                        :source-paths ["env/dev/clj"]
                        :plugins      [[lein-figwheel "0.3.3"]]
-                       :cljsbuild
-                                     {:builds {:app {:source-paths ["env/dev/cljs"]}}}
+                       :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}
 
-                       :figwheel
-                                     {:http-server-root "public"
+                       :figwheel     {:http-server-root "public"
                                       :server-port      3449
                                       :css-dirs         ["resources/public/css"]
                                       :ring-handler     memento.handler/app}
@@ -106,4 +104,13 @@
                        :env          {:dev          true
                                       :cluster-name "memento"
                                       :index-name   "memento"
-                                      :host-name    "localhost"}}})
+                                      :host-name    "localhost"}}
+             :test    {:env          {:dev          true
+                                      :cluster-name "memento"
+                                      :index-name   "memento-test"
+                                      :host-name    "localhost"}
+                       :source-paths ["test/clj" "test/cljc"]
+                       :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}
+                       }
+             }
+            )
