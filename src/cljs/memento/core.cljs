@@ -60,11 +60,17 @@
     (assoc-in app-state [:note :current-note] note)))
 
 (register-handler
+  :update-query
+  (fn [app-state [_ q]]
+    (assoc-in app-state [:ui-state :current-query] q)))
+
+(register-handler
   :load-memories
   (fn [app-state _]
-    (GET "/api/memory" {:handler       #(dispatch [:load-memories-done %])
-                        :error-handler #(dispatch [:set-message (str "Error remembering. " %) "alert-danger"])
-                        })
+    (GET "/api/memory/search/" {:params        {:q (get-in app-state [:ui-state :current-query])}
+                                :handler       #(dispatch [:load-memories-done %])
+                                :error-handler #(dispatch [:set-message (str "Error remembering. " %) "alert-danger"])
+                                })
     (assoc-in app-state [:ui-state :memories] [])
     ))
 
@@ -180,25 +186,49 @@
   )
 
 
+(defn dispatch-on-enter [e d]
+  (if (= 13 (.-which e))
+    (dispatch d))
+  )
 
 (defn memory-list []
-  (let [memories (subscribe [:ui-state :memories])]
+  (let [query    (subscribe [:ui-state :current-query])
+        memories (subscribe [:ui-state :memories])]
     (fn []
-      (if (empty? @memories)
-        [panel "Loading..." "Please wait while your memories are being loaded" "panel-info"]
-        [panel "Memories"
-         [:span
-          (for [memory @memories]
-            ^{:key (:_id memory)}
-            [:blockquote
-             [:p (get-in memory [:_source :text])]
-             [:small (get-in memory [:_source :date])]
-             ]
-            )
+      [:span
+       [:div {:class "form-horizontal"}
+        [:div {:class "form-group"}
+         [:label {:for "input-search" :class "col-lg-2 control-label"} "Search:"]
+         [:div {:class "col-lg-8"}
+          [:input {:type         "text"
+                   :class        "form-control"
+                   :id           "input-search"
+                   :value        @query
+                   :on-change    #(dispatch-sync [:update-query (-> % .-target .-value)])
+                   :on-key-press #(dispatch-on-enter % [:load-memories])}]
           ]
-         "panel-primary"
+         [:div {:class "col-lg-1"}
+          [:button {:type "submit" :class "btn btn-primary" :on-click #(dispatch [:load-memories])} "Search"]
+          ]
          ]
-        ))
+        ]
+       (if (empty? @memories)
+         [panel "Loading..." "Please wait while your memories are being loaded" "panel-info"]
+         [panel "Memories"
+          [:span
+           (for [memory @memories]
+             ^{:key (:_id memory)}
+             [:blockquote
+              [:p (get-in memory [:_source :text])]
+              [:small (get-in memory [:_source :date])]
+              ]
+             )
+           ]
+          "panel-primary"
+          ]
+         )
+       ]
+      )
     ))
 
 
@@ -211,6 +241,12 @@
     )
   )
 
+(defn header []
+  (let [state (subscribe [:ui-state :section])]
+    [:h1 {:id "forms"} (condp = @state
+                         :write "Make a new memory"
+                         :remember "Remember")]
+    ))
 
 
 
@@ -237,6 +273,7 @@
   (reagent/render-component [navbar] (.getElementById js/document "navbar"))
   (reagent/render-component [content-section] (.getElementById js/document "content-section"))
   (reagent/render-component [alert] (.getElementById js/document "alert"))
+  (reagent/render-component [header] (.getElementById js/document "header"))
   )
 
 (defn init! []
