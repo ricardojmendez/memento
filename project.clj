@@ -54,10 +54,13 @@
 
             :clean-targets ^{:protect false} ["resources/public/js" "target"]
 
+            :source-paths ["src/clj" "src/cljs"]
+            :test-paths ["test/clj"]
+
             :cljsbuild
             {:builds
              {:app
-              {:source-paths ["src-cljs"]
+              {:source-paths ["src/cljs"]
                :compiler
                              {:output-dir    "resources/public/js/out"
                               :externs       ["react/externs/react.js"]
