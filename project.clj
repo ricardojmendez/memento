@@ -55,7 +55,7 @@
             :clean-targets ^{:protect false} ["resources/public/js" "target"]
 
             :source-paths ["src/clj" "src/cljs" "src/cljc"]
-            :test-paths ["test/clj"]
+            :test-paths ["test/clj" "test/cljc"]
 
             :cljsbuild
             {:builds

@@ -1,5 +1,6 @@
 (ns memento.test.db
-  (:require [clojure.test :refer :all]
+  (:require [clojure.string :refer [split-lines]]
+            [clojure.test :refer :all]
             [memento.db :as db]
             [numergent.utils :as u]))
 
@@ -7,6 +8,11 @@
 (def default-test-user "ricardo")
 
 (def conn (db/get-connection))
+
+
+(def test-base-path (-> "." java.io.File. .getCanonicalPath))
+(def test-file-path (str "file://" test-base-path "/test/files/"))
+
 
 
 (defn extract-text
@@ -79,5 +85,37 @@
                 (re-seq #"second" m)))
         )
       ))
+  )
+
+(deftest test-query-sort-order
+  (db/initialize-index! conn)
+  (let [memories (-> (slurp (str test-file-path "quotes.txt")) (split-lines))
+        _        (doseq [m memories] (db/save-memory! conn {:text m}))
+        _        (db/flush-index! conn)
+        ]
+    (is memories)
+    (testing "Querying without a parameter returns them in inverse date order"
+      (let [result (db/query-memories conn)
+            dates  (map #(get-in % [:_source :date]) result)
+            ]
+        (is (= 22 (count result)))
+        (is (= dates (reverse (sort dates))))
+        ))
+    (testing "Querying with a parameter returns them in descending score order"
+      (let [result (db/query-memories conn "memory")
+            scores  (map :_score result)
+            ]
+        (is (= 3 (count result)))
+        (is (= scores (reverse (sort scores))))
+        ))
+    (testing "Querying with multiple parameters returns them in descending score order"
+      (let [result (db/query-memories conn "money humor")
+            scores  (map :_score result)
+            ]
+        (is (= 5 (count result)))
+        (is (= scores (reverse (sort scores))))
+        ))
+
+    )
 
   )

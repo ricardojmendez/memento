@@ -48,10 +48,11 @@
    (query-memories conn nil))
   ([conn query-str]
    (let [base-query [(q/term :username "ricardo")]
-         query      (if (empty? query-str) base-query (conj base-query (q/match :text query-str)))]
+         query      (if (empty? query-str) base-query (conj base-query (q/match :text query-str)))
+         sort-order (if (empty? query-str) {:date "desc"} "_score")]
      (-> (esd/search conn index-name "memory"
                      :query (q/bool {:must query})
-                     :sort {:date "desc"}
+                     :sort sort-order
                      :size 25)
          (get-in [:hits :hits])
          doall))))
