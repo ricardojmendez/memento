@@ -97,13 +97,12 @@
 </div>
 
 
-{% if dev %}
 {% script "/assets/jquery-1.10.2.min.js" %}
+{% if dev %}
 {% script "/js/goog/base.js" %}
 {% script "/js/memento.js" %}
 <script type="text/javascript">goog.require("memento.app");</script>
 {% else %}
-<script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
 {% script "/js/memento.js" %}
 {% endif %}
 <script src="/assets/bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
