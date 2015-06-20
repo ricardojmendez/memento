@@ -36,10 +36,17 @@
     (flush-index! conn)
     ))
 
+(defn- spit-memory [item]
+  (spit "memento.out" item :append true)
+  (spit "memento.out" "\n" :append true))
+
 (defn save-memory!
   "Trivial save. For now everything will go to one user."
   [conn memory]
-  (esd/create conn index-name "memory" (merge {:date (now) :username "ricardo"} memory)))
+  (let [item (merge {:date (now) :username "ricardo"} memory)]
+    (spit-memory item)
+    (esd/create conn index-name "memory" item))
+  )
 
 
 (defn query-memories
