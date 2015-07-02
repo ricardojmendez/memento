@@ -8,7 +8,47 @@ You will need [Leiningen][1] 2.0 or above installed.
 
 [1]: https://github.com/technomancy/leiningen
 
-You will also need a Elastic Search instance running locally on the standard ports, with a cluster called *memento*.
+You'll need also need a PostgreSQL 9.4.4 database running. The default configuration assumes it's on localhost.
+
+
+## Installation
+
+### Creating the test and dev databases
+
+First, connect to PostgreSQL:
+
+```shell
+psql -d postgres
+```
+
+Once there, first create the user and then the two databases we'll use:
+
+```sql
+CREATE USER memento WITH PASSWORD 'testdb';
+CREATE DATABASE memento_dev WITH OWNER memento;
+CREATE DATABASE memento_test WITH OWNER memento;
+```
+
+Yes, it's a horribly weak password - we'll use it only for testing and development.  The project configuration does not (and should not) embed the live password.
+
+We then create the extensions for UUID (still within psql):
+
+```sql
+\c memento_dev
+CREATE EXTENSION "uuid-ossp";
+\c memento_test
+CREATE EXTENSION "uuid-ossp";
+```
+
+While we could create the extensions on a migration, that would require the memento user to be a superuser. Let's not go that far.
+
+Then run the migrations on both dev and test with:
+
+```shell
+lein run migrate
+lein with-profile test run migrate
+```
+
 
 ## Running
 

@@ -1,13 +1,15 @@
 (ns memento.core
-  (:require [memento.handler :refer [app init destroy]]
-            [ring.adapter.jetty :refer [run-jetty]]
+  (:require [ring.adapter.jetty :refer [run-jetty]]
             [ring.middleware.reload :as reload]
-            [environ.core :refer [env]])
+            [taoensso.timbre :as timbre]
+            [environ.core :refer [env]]
+            [memento.handler :refer [app init destroy]]
+            [memento.db.migrations :as migrations])
   (:gen-class))
 
 (defonce server (atom nil))
 
-(defn parse-port [port]
+(defn parse-port [[port]]
   (Integer/parseInt (or port (env :port) "3000")))
 
 (defn start-server [port]
@@ -15,7 +17,7 @@
   (reset! server
           (run-jetty
             (if (env :dev) (reload/wrap-reload #'app) app)
-            {:port port
+            {:port  port
              :join? false})))
 
 (defn stop-server []
@@ -24,7 +26,13 @@
     (.stop @server)
     (reset! server nil)))
 
-(defn -main [& [port]]
-  (let [port (parse-port port)]
+(defn start-app [args]
+  (let [port (parse-port args)]
     (.addShutdownHook (Runtime/getRuntime) (Thread. stop-server))
+    (timbre/info "server is starting on port " port)
     (start-server port)))
+
+(defn -main [& args]
+  (cond
+    (some #{"migrate" "rollback"} args) (migrations/migrate args)
+    :else (start-app args)))

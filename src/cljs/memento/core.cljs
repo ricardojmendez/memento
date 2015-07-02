@@ -92,7 +92,7 @@
   :save-note
   (fn [app-state _]
     (let [note (get-in app-state [:note :current-note])]
-      (POST "/api/memory" {:params        {:text note}
+      (POST "/api/memory" {:params        {:thought note}
                            :handler       #(dispatch [:save-note-success note])
                            :error-handler #(dispatch [:save-note-error (str "Error saving note: " %)])}))
     app-state
@@ -227,11 +227,10 @@
            (if (empty? @memories)
              [:p "Nothing."]
              (for [memory @memories]
-               ^{:key (:_id memory)}
+               ^{:key (:id memory)}
                [:blockquote
-                [:p (get-in memory [:_source :text])]
-                [:small (get-in memory [:_source :date])]
-                ]
+                [:p (:thought memory)]
+                [:small (:created memory)]]
                ))
            ]
           "panel-primary"

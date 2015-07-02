@@ -1,0 +1,1 @@
+DROP TABLE thought_lexemes;

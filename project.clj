@@ -2,11 +2,13 @@
             :description "Memento mori"
             :url "http://numergent.com"
 
-            :dependencies [[org.clojure/clojure "1.7.0-RC1"]
+            :dependencies [[org.clojure/clojure "1.7.0"]
                            [selmer "0.8.2"]
                            [com.taoensso/timbre "3.4.0"]
                            [com.taoensso/tower "3.0.2"]
-                           [markdown-clj "0.9.66"]
+                           [markdown-clj "0.9.67"]
+                           [migratus "0.8.1"]
+                           [yesql "0.5.0-rc3"]
                            [environ "1.0.0"]
                            [compojure "1.3.4"]
                            [ring/ring-defaults "0.1.5"]
@@ -19,16 +21,17 @@
                            [ring-server "0.4.0"]
                            [org.clojure/clojurescript "0.0-3308" :scope "provided"]
                            [org.clojure/tools.reader "0.9.2"]
+                           [org.clojure/java.jdbc "0.3.7"]
+                           [org.postgresql/postgresql "9.4-1201-jdbc41"]
                            [reagent "0.5.0"]
                            [cljsjs/react "0.13.3-0"]
                            [reagent-forms "0.5.1"]
-                           [reagent-utils "0.1.4"]
+                           [reagent-utils "0.1.5"]
                            [org.clojure/core.async "0.1.346.0-17112a-alpha"]
-                           [cljs-ajax "0.3.12"]
+                           [cljs-ajax "0.3.13"]
                            [re-frame "0.4.1"]
                            [liberator "0.13"]
                            [io.clojure/liberator-transit "0.3.0"]
-                           [clojurewerkz/elastisch "2.1.0"]
                            ]
 
             :min-lein-version "2.0.0"
@@ -43,7 +46,8 @@
             :plugins [[lein-ring "0.9.1"]
                       [lein-environ "1.0.0"]
                       [lein-ancient "0.6.5"]
-                      [lein-cljsbuild "1.0.6"]]
+                      [lein-cljsbuild "1.0.6"]
+                      [migratus-lein "0.1.3"]]
 
 
 
@@ -51,6 +55,10 @@
                    :init         memento.handler/init
                    :destroy      memento.handler/destroy
                    :uberwar-name "memento.war"}
+
+            :migratus {:store         :database
+                       :migration-dir "migrations"
+                       }
 
             :clean-targets ^{:protect false} ["resources/public/js" "target"]
 
@@ -87,10 +95,10 @@
              :dev     {:dependencies [[ring-mock "0.1.5"]
                                       [ring/ring-devel "1.3.2"]
                                       [pjstadig/humane-test-output "0.7.0"]
-                                      [lein-figwheel "0.3.3"]
+                                      [lein-figwheel "0.3.5"]
                                       [org.clojure/tools.nrepl "0.2.10"]]
                        :source-paths ["env/dev/clj"]
-                       :plugins      [[lein-figwheel "0.3.3"]]
+                       :plugins      [[lein-figwheel "0.3.5"]]
                        :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}
 
                        :figwheel     {:http-server-root "public"
@@ -102,13 +110,11 @@
                        :injections   [(require 'pjstadig.humane-test-output)
                                       (pjstadig.humane-test-output/activate!)]
                        :env          {:dev          true
-                                      :cluster-name "memento"
-                                      :index-name   "memento"
-                                      :host-name    "localhost"}}
+                                      :database-url "jdbc:postgresql://localhost/memento_dev?user=memento&password=testdb"
+                                      }}
              :test    {:env          {:dev          true
-                                      :cluster-name "memento"
-                                      :index-name   "memento-test"
-                                      :host-name    "localhost"}
+                                      :database-url "jdbc:postgresql://localhost/memento_test?user=memento&password=testdb"
+                                      }
                        :source-paths ["test/clj" "test/cljc"]
                        :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}
                        }
