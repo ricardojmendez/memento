@@ -4,6 +4,7 @@
             [yesql.core :refer [defqueries]]
             [memento.db.core :as db]
             [memento.db.memory :as memory]
+            [memento.test.db.core :as tdb]
             [numergent.utils :as u]))
 
 
@@ -11,13 +12,9 @@
 ;;;; Definitions
 ;;;;
 
-
-(def default-test-user "ricardo")
-
 (def test-base-path (-> "." java.io.File. .getCanonicalPath))
 (def test-file-path (str "file://" test-base-path "/test/files/"))
 
-(defqueries "sql/test-queries.sql" {:connection db/db-spec})
 
 ;;;;
 ;;;; Helper functions
@@ -35,14 +32,14 @@
 
 
 (deftest test-save-memory
-  (clear-thoughts!)
+  (tdb/init-placeholder-data!)
   (let [result (memory/save-memory! {:thought "Just wondering"})]
     ;; We return only the number of records updated
     (is (= result 1))))
 
 
 (deftest test-query-memories
-  (clear-thoughts!)
+  (tdb/init-placeholder-data!)
   (testing "Querying an empty database returns no values"
     (is (empty? (memory/query-memories))))
   (testing "Query previous value"
@@ -52,7 +49,7 @@
       (is (= 1 (count thoughts)))
       (is (:id thought))
       (is (:created thought))
-      (is (= default-test-user (:username thought)))
+      (is (= tdb/default-test-user (:username thought)))
       (is (= "Just wondering" (:thought thought)))
       ))
   (testing "Test what happens after adding a few memories"
@@ -98,7 +95,7 @@
 
 
 (deftest test-query-sort-order
-  (clear-thoughts!)
+  (tdb/init-placeholder-data!)
   (let [memories (-> (slurp (str test-file-path "quotes.txt")) (split-lines))
         _        (doseq [m memories] (memory/save-memory! {:thought m}))
         ]
