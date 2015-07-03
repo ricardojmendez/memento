@@ -4,7 +4,7 @@
 
             :dependencies [[org.clojure/clojure "1.7.0"]
                            [selmer "0.8.2"]
-                           [com.taoensso/timbre "3.4.0"]
+                           [com.taoensso/timbre "4.0.2"]
                            [com.taoensso/tower "3.0.2"]
                            [markdown-clj "0.9.67"]
                            [migratus "0.8.2"]

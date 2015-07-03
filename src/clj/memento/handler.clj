@@ -1,12 +1,12 @@
 (ns memento.handler
   (:require [compojure.core :refer [defroutes routes wrap-routes]]
-            [memento.routes.home :refer [home-routes]]
             [memento.middleware :as middleware]
-            [memento.session :as session]
             [memento.routes.api :refer [api-routes]]
+            [memento.routes.home :refer [home-routes]]
+            [memento.session :as session]
             [compojure.route :as route]
             [taoensso.timbre :as timbre]
-            [taoensso.timbre.appenders.rotor :as rotor]
+            [taoensso.timbre.appenders.3rd-party.rotor :as rotor]
             [selmer.parser :as parser]
             [environ.core :refer [env]]
             [clojure.tools.nrepl.server :as nrepl]))
@@ -37,24 +37,22 @@
    an app server such as Tomcat
    put any initialization code here"
   []
-  (timbre/set-config!
-    [:appenders :rotor]
-    {:min-level             :info
-     :enabled?              true
-     :async?                false ; should be always false for rotor
-     :max-message-per-msecs nil
-     :fn                    rotor/appender-fn})
 
-  (timbre/set-config!
-    [:shared-appender-config :rotor]
-    {:path "memento.log" :max-size (* 512 1024) :backlog 10})
+  (timbre/merge-config!
+    {:level     (if (env :dev) :trace :info)
+     :appenders {:rotor (rotor/rotor-appender
+                          {:path "memento.log"
+                           :max-size (* 512 1024)
+                           :backlog 10})}})
 
   (if (env :dev) (parser/cache-off!))
   (start-nrepl)
   ;;start the expired session cleanup job
   (session/start-cleanup-job!)
-  (timbre/info "\n-=[ memento started successfully"
-               (when (env :dev) "using the development profile") "]=-"))
+  (timbre/info (str
+                 "\n-=[memento started successfully"
+                 (when (env :dev) "using the development profile")
+                 "]=-")))
 
 (defn destroy
   "destroy will be called when your application
@@ -67,6 +65,6 @@
 (def app
   (-> (routes
         api-routes
-        (wrap-routes home-routes middleware/wrap-csrf)
-        base-routes)
+        (wrap-routes #'home-routes middleware/wrap-csrf)
+        #'base-routes)
       middleware/wrap-base))
