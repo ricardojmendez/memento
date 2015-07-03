@@ -7,7 +7,7 @@
                            [com.taoensso/timbre "3.4.0"]
                            [com.taoensso/tower "3.0.2"]
                            [markdown-clj "0.9.67"]
-                           [migratus "0.8.1"]
+                           [migratus "0.8.2"]
                            [yesql "0.5.0-rc3"]
                            [environ "1.0.0"]
                            [compojure "1.3.4"]
@@ -32,6 +32,8 @@
                            [re-frame "0.4.1"]
                            [liberator "0.13"]
                            [io.clojure/liberator-transit "0.3.0"]
+                           [buddy/buddy-auth "0.6.0" :exclusions [com.fasterxml.jackson.core/jackson-core]]
+                           [buddy/buddy-hashers "0.6.0"]
                            ]
 
             :min-lein-version "2.0.0"
@@ -95,10 +97,14 @@
              :dev     {:dependencies [[ring-mock "0.1.5"]
                                       [ring/ring-devel "1.3.2"]
                                       [pjstadig/humane-test-output "0.7.0"]
-                                      [lein-figwheel "0.3.5"]
+                                      [lein-figwheel "0.3.5" :exclusions [org.clojure/clojure
+                                                                          org.clojure/tools.reader
+                                                                          org.codehaus.plexus/plexus-utils]]
                                       [org.clojure/tools.nrepl "0.2.10"]]
                        :source-paths ["env/dev/clj"]
-                       :plugins      [[lein-figwheel "0.3.5"]]
+                       :plugins      [[lein-figwheel "0.3.5" :exclusions [org.clojure/clojure
+                                                                          org.clojure/tools.reader
+                                                                          org.codehaus.plexus/plexus-utils]]]
                        :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}
 
                        :figwheel     {:http-server-root "public"
