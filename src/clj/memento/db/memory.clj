@@ -31,7 +31,7 @@
    (let [params {:limit 25
                  :offset 0
                  :username "ricardo"}]
-     (if (nil? query-str)
+     (if (empty? query-str)
        (db/get-thoughts params)
        (db/search-thoughts (assoc params :query (clojure.string/replace query-str " " "|"))))
      )))

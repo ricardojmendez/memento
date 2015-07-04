@@ -22,7 +22,7 @@
                           (memory/query-memories))
              ; TODO: Reject empty POSTs. We'll do that once we are also validating it's a registered user.
              :post! (fn [ctx]
-                      (let [reader (transit/reader (get-in ctx [:request :body]) :json)
+                      (let [reader  (transit/reader (get-in ctx [:request :body]) :json)
                             content (transit/read reader)]
                         (when (not-empty content)
                           {:save-result (memory/save-memory! content)})))

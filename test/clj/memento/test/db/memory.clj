@@ -26,6 +26,13 @@
   (map :thought coll))
 
 
+(defn import-placeholder-memories!
+  "Imports a series of placehoder memories from a file of quotes"
+  []
+  (let [memories (-> (slurp (str test-file-path "quotes.txt")) (split-lines))]
+    (doseq [m memories] (memory/save-memory! {:thought m}))))
+
+
 ;;;;
 ;;;; Tests
 ;;;;
@@ -96,27 +103,24 @@
 
 (deftest test-query-sort-order
   (tdb/init-placeholder-data!)
-  (let [memories (-> (slurp (str test-file-path "quotes.txt")) (split-lines))
-        _        (doseq [m memories] (memory/save-memory! {:thought m}))
-        ]
-    (is memories)
-    (testing "Querying without a parameter returns them in inverse date order"
-      (let [result (memory/query-memories)
-            dates  (map :created result)
-            ]
-        (is (= 22 (count result)))
-        (is (= dates (reverse (sort dates))))))
-    (testing "Querying with a parameter returns them in descending score order"
-      (let [result (memory/query-memories "memory")
-            scores  (map :rank result)
-            ]
-        (is (= 3 (count result)))
-        (is (= scores (reverse (sort scores))))
-        ))
-    (testing "Querying with multiple parameters returns them in descending score order"
-      (let [result (memory/query-memories "money humor")
-            scores  (map :rank result)
-            ]
-        (is (= 5 (count result)))
-        (is (= scores (reverse (sort scores))))
-        ))))
+  (import-placeholder-memories!)
+  (testing "Querying without a parameter returns them in inverse date order"
+    (let [result (memory/query-memories)
+          dates  (map :created result)
+          ]
+      (is (= 22 (count result)))
+      (is (= dates (reverse (sort dates))))))
+  (testing "Querying with a parameter returns them in descending score order"
+    (let [result (memory/query-memories "memory")
+          scores (map :rank result)
+          ]
+      (is (= 3 (count result)))
+      (is (= scores (reverse (sort scores))))
+      ))
+  (testing "Querying with multiple parameters returns them in descending score order"
+    (let [result (memory/query-memories "money humor")
+          scores (map :rank result)
+          ]
+      (is (= 5 (count result)))
+      (is (= scores (reverse (sort scores))))
+      )))
