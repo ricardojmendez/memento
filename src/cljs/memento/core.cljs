@@ -34,10 +34,35 @@
 (register-handler
   :initialize
   (fn [app-state _]
+    (dispatch [:login-request "ricardo" "supersecret"])
     (merge app-state {:ui-state {:is-busy?      false
                                  :section       :write
                                  :current-query ""
-                                 :is-searching? false}})))
+                                 :is-searching? false}
+                      :token    nil})))
+
+(register-handler
+  :login-request
+  (fn [app-state [_ user pwd]]
+    (POST "/api/auth/login" {:params        {:username user :password pwd}
+                             :handler       #(dispatch [:login-success (:token %)])
+                             :error-handler #(dispatch [:login-error (str "Login error: " %)])})
+    app-state
+    ))
+
+(register-handler
+  :login-success
+  (fn [app-state [_ token]]
+    (assoc app-state :token token)))
+
+(register-handler
+  :login-error
+  (fn [app-state [_ result]]
+    (.log js/console result)
+    (dissoc app-state :token)
+    ))
+
+
 
 (register-handler
   :set-ui-section
@@ -71,6 +96,7 @@
   :load-memories
   (fn [app-state _]
     (GET "/api/memory/search" {:params        {:q (get-in app-state [:ui-state :current-query])}
+                               :headers       {:authorization (str "Token " (:token app-state))}
                                :handler       #(dispatch [:load-memories-done %])
                                :error-handler #(dispatch [:set-message (str "Error remembering. " %) "alert-danger"])
                                })
@@ -87,12 +113,12 @@
         (assoc-in [:ui-state :is-searching?] false))
     ))
 
-
 (register-handler
   :save-note
   (fn [app-state _]
     (let [note (get-in app-state [:note :current-note])]
       (POST "/api/memory" {:params        {:thought note}
+                           :headers       {:authorization (str "Token " (:token app-state))}
                            :handler       #(dispatch [:save-note-success note])
                            :error-handler #(dispatch [:save-note-error (str "Error saving note: " %)])}))
     app-state
