@@ -5,6 +5,23 @@
             [buddy.hashers :as hashers]))
 
 
+;;;;
+;;;; Helper functions
+;;;;
+
+(def ph-username "mocky")
+(def ph-password "supersecret")
+
+
+
+(defn init-placeholder-data!
+  "Wipes the database and inserts a test user. We don't care about adding
+  a hashed password since it's there only for foreign key purposes."
+  []
+  (tdb/wipe-database!)
+  (user/create-user! ph-username ph-password))
+
+
 (deftest test-create-user
   (tdb/wipe-database!)
   (testing "We can create a new user successfully"

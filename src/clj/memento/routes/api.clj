@@ -1,10 +1,11 @@
 (ns memento.routes.api
-  (:require [liberator.core
-             :refer [defresource resource request-method-in]]
-            [clojure.string :refer [lower-case]]
-            [compojure.core :refer [defroutes GET ANY]]
-            [io.clojure.liberator-transit]
+  (:require [buddy.auth :refer [authenticated? throw-unauthorized]]
+            [buddy.auth.backends.token :refer [token-backend]]
+            [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
             [cognitect.transit :as transit]
+            [compojure.core :refer [defroutes GET ANY]]
+            [liberator.core :refer [defresource resource request-method-in]]
+            [io.clojure.liberator-transit]
             [memento.auth :as auth]
             [memento.db.memory :as memory]
             ))
@@ -13,7 +14,7 @@
 (defn read-content
   "Receives a request context and returns its contents"
   [ctx]
-  (let [reader  (transit/reader (get-in ctx [:request :body]) :json)]
+  (let [reader (transit/reader (get-in ctx [:request :body]) :json)]
     (transit/read reader)))
 
 
@@ -27,13 +28,16 @@
 
 (defresource memory
              :allowed-methods [:post :get]
-             :handle-ok (fn [_]
-                          (memory/format-created (memory/query-memories)))
+             :authorized? (fn [ctx]
+                            (some? (get-in ctx [:request :identity])))
+             :handle-ok (fn [ctx]
+                          (memory/format-created (memory/query-memories (get-in ctx [:request :identity]))))
              ; TODO: Reject empty POSTs. We'll do that once we are also validating it's a registered user.
              :post! (fn [ctx]
-                      (let [content (read-content ctx)]
+                      (let [content  (read-content ctx)
+                            username (get-in ctx [:request :identity])]
                         (when (not-empty content)
-                          {:save-result (memory/save-memory! content)})))
+                          {:save-result (memory/save-memory! (assoc content :username username))})))
              :handle-created (fn [ctx]
                                {:count (:save-result ctx)})
              :available-media-types ["application/transit+json"
@@ -43,8 +47,12 @@
 
 (defresource memory-search
              :allowed-methods [:get]
-             :handle-ok (fn [{{query :query-params} :request}]
-                          (memory/format-created (memory/query-memories (query "q"))))
+             :authorized? (fn [ctx]
+                            (some? (get-in ctx [:request :identity])))
+             :handle-ok (fn [{request :request}]
+                          (let [query    (:query-params request)
+                                username (:identity request)]
+                            (memory/format-created (memory/query-memories username (query "q")))))
 
              :available-media-types ["application/transit+json"
                                      "application/transit+msgpack"

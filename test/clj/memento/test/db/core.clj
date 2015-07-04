@@ -10,22 +10,7 @@
 ;;;;
 
 
-(def default-test-user "ricardo")
-
 (defqueries "sql/test-queries.sql" {:connection db/db-spec})
-
-
-;;;;
-;;;; Helper functions
-;;;;
-
-
-(defn init-placeholder-data!
-  "Wipes the database and inserts a test user. We don't care about adding
-  a hashed password since it's there only for foreign key purposes."
-  []
-  (wipe-database!)
-  (db/create-user! {:username default-test-user :password "gibberish"}))
 
 
 ;;;;
