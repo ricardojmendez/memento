@@ -27,7 +27,7 @@
                         (when (not-empty content)
                           {:save-result (memory/save-memory! content)})))
              :handle-created (fn [ctx]
-                               {:id (get-in ctx [:save-result :id])})
+                               {:count (:save-result ctx)})
              :available-media-types ["application/transit+json"
                                      "application/transit+msgpack"
                                      "application/json"])
