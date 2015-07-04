@@ -275,8 +275,6 @@
 
 ;; -------------------------
 ;; Initialize app
-(defn fetch-docs! []
-  (GET "/docs" {:handler #(session/put! :docs %)}))
 
 (defn mount-components []
   (reagent/render-component [navbar] (.getElementById js/document "navbar"))
@@ -287,7 +285,6 @@
 
 (defn init! []
   (dispatch-sync [:initialize])
-  (fetch-docs!)
   (hook-browser-navigation!)
   (mount-components))
 
