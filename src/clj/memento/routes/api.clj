@@ -19,7 +19,7 @@
 (defresource memory
              :allowed-methods [:post :get]
              :handle-ok (fn [_]
-                          (memory/query-memories))
+                          (memory/format-created (memory/query-memories)))
              ; TODO: Reject empty POSTs. We'll do that once we are also validating it's a registered user.
              :post! (fn [ctx]
                       (let [reader  (transit/reader (get-in ctx [:request :body]) :json)
@@ -46,4 +46,4 @@
 (defroutes api-routes
            (ANY "/api/echo/:val" [val] echo)
            (ANY "/api/memory" request memory)
-           (ANY "/api/memory/search/" request memory-search))
+           (ANY "/api/memory/search" request memory-search))

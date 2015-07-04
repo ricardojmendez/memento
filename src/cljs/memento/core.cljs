@@ -70,10 +70,10 @@
 (register-handler
   :load-memories
   (fn [app-state _]
-    (GET "/api/memory/search/" {:params        {:q (get-in app-state [:ui-state :current-query])}
-                                :handler       #(dispatch [:load-memories-done %])
-                                :error-handler #(dispatch [:set-message (str "Error remembering. " %) "alert-danger"])
-                                })
+    (GET "/api/memory/search" {:params        {:q (get-in app-state [:ui-state :current-query])}
+                               :handler       #(dispatch [:load-memories-done %])
+                               :error-handler #(dispatch [:set-message (str "Error remembering. " %) "alert-danger"])
+                               })
     (-> app-state
         (assoc-in [:ui-state :memories] [])
         (assoc-in [:ui-state :is-searching?] true))
