@@ -1,10 +1,11 @@
 (ns memento.test.routes.api
   (:require [clojure.test :refer :all]
             [cognitect.transit :as transit]
-            [ring.mock.request :refer [request header]]
+            [ring.mock.request :refer [request header body]]
             [memento.handler :refer [app]]
             [memento.test.db.core :as tdb]
-            [memento.test.db.memory :as tdm]))
+            [memento.test.db.memory :as tdm])
+  (:import java.io.ByteArrayOutputStream))
 
 
 ;;;;
@@ -12,10 +13,30 @@
 ;;;;
 
 (defn transit->clj
+  "Receives a byte array expected to contain transit+json, and coverts it
+  to a clojure data structure"
   [arr]
-  (let [in     arr
-        reader (transit/reader in :json)]
-    (transit/read reader)))
+  (try
+    (let [reader (transit/reader arr :json)]
+      (transit/read reader))
+    (catch Exception _ nil)))
+
+(defn clj->transit
+  [data]
+  (let [out    (ByteArrayOutputStream. 4096)
+        writer (transit/writer out :json)]
+    (transit/write writer data)
+    (.toString out)))
+
+(defn get-request
+  "Executes a GET request with an optional set of parameters. Returns
+  a vector with the response and the translated body"
+  ([url]
+   (get-request url nil))
+  ([url params]
+   (let [response (app (-> (request :get url params)
+                           (header "Accept" "application/transit+json")))]
+     [response (transit->clj (:body response))])))
 
 ;;;;
 ;;;; Tests
@@ -26,13 +47,11 @@
   (tdb/init-placeholder-data!)
   (tdm/import-placeholder-memories!)
   (testing "Search request should not include a trailing slash"
-    (let [response (app (request :get "/api/memory/search/?q="))]
+    (let [[response _] (get-request "/api/memory/search/?q=")]
       (is response)
       (is (= 404 (:status response)))))
   (testing "GETting just 'memory' returns all thoughts"
-    (let [response (app (-> (request :get "/api/memory")
-                            (header "Accept" "application/transit+json")))
-          clj-data (transit->clj (:body response))]
+    (let [[response clj-data] (get-request "/api/memory" nil)]
       (is response)
       (is (= 200 (:status response)))
       (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
@@ -42,9 +61,7 @@
         (is (= String (type (:created e)))))
       ))
   (testing "Searching without a query returns all elements"
-    (let [response (app (-> (request :get "/api/memory/search")
-                            (header "Accept" "application/transit+json")))
-          clj-data (transit->clj (:body response))]
+    (let [[response clj-data] (get-request "/api/memory/search")]
       (is response)
       (is (= 200 (:status response)))
       (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
@@ -54,9 +71,7 @@
         (is (= String (type (:created e)))))
       ))
   (testing "Searching with a query filters the items"
-    (let [response (app (-> (request :get "/api/memory/search?q=always")
-                            (header "Accept" "application/transit+json")))
-          clj-data (transit->clj (:body response))]
+    (let [[response clj-data] (get-request "/api/memory/search?q=always")]
       (is response)
       (is (= 200 (:status response)))
       (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
@@ -66,9 +81,7 @@
         (is (re-seq #"always" (:thought e))))))
   (testing "Passing multiple values uses them as OR"
     ;; The following could also have been passed as "?q=always+money"
-    (let [response (app (-> (request :get "/api/memory/search" {:q "always money"})
-                            (header "Accept" "application/transit+json")))
-          clj-data (transit->clj (:body response))]
+    (let [[response clj-data] (get-request "/api/memory/search" {:q "always money"})]
       (is response)
       (is (= 200 (:status response)))
       (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
