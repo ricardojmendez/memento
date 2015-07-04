@@ -3,6 +3,7 @@
             [cognitect.transit :as transit]
             [ring.mock.request :refer [request header body]]
             [memento.handler :refer [app]]
+            [memento.db.user :as user]
             [memento.test.db.core :as tdb]
             [memento.test.db.memory :as tdm])
   (:import java.io.ByteArrayOutputStream))
@@ -49,10 +50,33 @@
         data     (transit->clj (:body response))]
     [response data]))
 
+
 ;;;;
 ;;;; Tests
 ;;;;
 
+
+;;;
+;;; Authentication
+;;;
+
+(deftest test-login
+  (tdb/wipe-database!)
+  (user/create-user! "user1" "password1")
+  (testing "We get a login token when authenticating with a valid username/password"
+    (let [[response data] (post-request "/api/auth/login" {:username "user1" :password "password1"})]
+      (is (= 201 (:status response)))
+      (is (map? data))
+      (is (:token data))))
+  (testing "We get a 401 when authenticating with an invalid username/password"
+    (let [[response data] (post-request "/api/auth/login" {:username "user2" :password "password1"})]
+      (is (= 401 (:status response)))
+      (is (nil? data)))))
+
+
+;;;
+;;; Memory search and creation
+;;;
 
 (deftest test-search-memory
   (tdb/init-placeholder-data!)
@@ -122,4 +146,5 @@
       (is (= "Just a new idea" (:thought item)))
       (is (:created item))
       (is (:id item)))))
+
 
