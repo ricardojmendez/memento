@@ -94,6 +94,47 @@
       (is (nil? data)))))
 
 
+(deftest test-signup
+  (tdb/wipe-database!)
+  (let [username "newuser"
+        password "password"]
+    (testing "Attempting to log in with the credentials initially results on a 401"
+      (let [[response data] (post-request "/api/auth/login" {:username username :password password} nil)]
+        (is (= 401 (:status response)))
+        (is (nil? data))))
+    (testing "We get a login token when signing up with a valid username/password"
+      (let [[response data] (post-request "/api/auth/signup" {:username username :password password} nil)]
+        (is (= 201 (:status response)))
+        (is (map? data))
+        (is (:token data))))
+    (testing "Attempting to log in with the credentials after creating it results on a token"
+      (let [[response data] (post-request "/api/auth/login" {:username username :password password} nil)]
+        (is (= 201 (:status response)))
+        (is (:token data))))
+    (testing "Attempting to sign up with the same username/password results on an error"
+      (let [[response data] (post-request "/api/auth/signup" {:username username :password password} nil)]
+        (is (= 409 (:status response)))
+        (is (nil? data))))
+    (testing "Attempting to sign up with the same username results on an error"
+      (let [[response data] (post-request "/api/auth/signup" {:username username :password "password2"} nil)]
+        (is (= 409 (:status response)))
+        (is (nil? data))))
+    (testing "Attempting to sign up with empty username fails"
+      (let [[response data] (post-request "/api/auth/signup" {:username "" :password password} nil)]
+        (is (= 409 (:status response)))
+        (is (nil? data))))
+    (testing "Attempting to sign up with empty password fails"
+      (let [[response data] (post-request "/api/auth/signup" {:username username :password ""} nil)]
+        (is (= 409 (:status response)))
+        (is (nil? data))))
+    (testing "We get a login token when signing up with a new username/password"
+      (let [[response data] (post-request "/api/auth/signup" {:username "u1" :password "p1"} nil)]
+        (is (= 201 (:status response)))
+        (is (map? data))
+        (is (:token data))))
+    ))
+
+
 ;;;
 ;;; Memory search and creation
 ;;;
