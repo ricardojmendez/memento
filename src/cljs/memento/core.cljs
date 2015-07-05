@@ -190,7 +190,7 @@
          [:a {:class "navbar-brand"} "Memento"]]
         [:div {:class "collapse navbar-collapse" :id "navbar-items"}
          [:ul {:class "nav navbar-nav"}
-          (if (nil? token)
+          (if (nil? @token)
             [:ul {:class "nav navbar-nav"}
              [navbar-item "Login" :login]]
             [:ul {:class "nav navbar-nav"}
@@ -327,7 +327,11 @@
 
 
 (defn content-section []
-  (let [current (subscribe [:ui-state :section])]
+  (let [current (subscribe [:ui-state :section])
+        token   (subscribe [:credentials :token])]
+    (if (and (nil? @token)
+             (not= :login @current))
+      (dispatch [:set-ui-section :login]))
     (condp = @current
       :login [login-form]
       :write [write-section]
@@ -341,8 +345,7 @@
         header (condp = @state
                  :write "Make a new memory"
                  :remember "Remember"
-                 ""
-                 )]
+                 "")]
     (if (not-empty header)
       [:h1 {:id "forms"} header])
     ))
@@ -370,8 +373,7 @@
   (reagent/render-component [navbar] (.getElementById js/document "navbar"))
   (reagent/render-component [content-section] (.getElementById js/document "content-section"))
   (reagent/render-component [alert] (.getElementById js/document "alert"))
-  (reagent/render-component [header] (.getElementById js/document "header"))
-  )
+  (reagent/render-component [header] (.getElementById js/document "header")))
 
 (defn init! []
   (dispatch-sync [:initialize])
