@@ -26,7 +26,6 @@
 
 
 
-
 ;------------------------------
 ; Handlers
 ;------------------------------
@@ -48,11 +47,19 @@
                                  :is-searching? false}})))
 
 (register-handler
-  :login-request
-  (fn [app-state [_]]
-    (POST "/api/auth/login" {:params        (:credentials app-state)
-                             :handler       #(dispatch [:login-success (:token %)])
-                             :error-handler #(dispatch [:login-error %])})
+  :auth-request
+  (fn [app-state [_ signup?]]
+    (let [url       (if signup? "signup" "login")
+          ;; Should probalby centralize password validation, so we can use the same function
+          ;; both here and when the UI is being updated
+          is-valid? (or (not signup?)
+                        (= (get-in app-state [:credentials :password])
+                           (get-in app-state [:credentials :password2])))]
+      (if is-valid?
+        (POST (str "/api/auth/" url) {:params        (:credentials app-state)
+                                      :handler       #(dispatch [:login-success (:token %)])
+                                      :error-handler #(dispatch [:login-error %])}))
+      )
     app-state
     ))
 
@@ -62,21 +69,22 @@
     (-> app-state
         (assoc-in [:credentials :token] token)
         (assoc-in [:ui-state :section] :write)
-        (assoc-in [:credentials :password] nil))))
+        (assoc-in [:credentials :password] nil)
+        (assoc-in [:credentials :password2] nil))))
 
 (register-handler
   :login-error
   (fn [app-state [_ result]]
-    (.log js/console result)
-    (let [is-unauth (= 401 (:status result))
+    (.log js/console (str result))
+    (let [status    (:status result)
+          is-unauth (or (= 401 status) (= 409 status))
           message   (if is-unauth "Invalid username/password" (:status-text result))
           msg-type  (if is-unauth "alert-danger" "alert-warning")]
       (-> app-state
           (assoc-in [:credentials :message] {:text message :type msg-type})
           (assoc-in [:credentials :token] nil)
-          (assoc-in [:credentials :password] nil))
-      )
-
+          (assoc-in [:credentials :password] nil)
+          (assoc-in [:credentials :password2] nil)))
     ))
 
 
@@ -192,7 +200,8 @@
          [:ul {:class "nav navbar-nav"}
           (if (nil? @token)
             [:ul {:class "nav navbar-nav"}
-             [navbar-item "Login" :login]]
+             [navbar-item "Login" :login]
+             [navbar-item "Sign up" :signup]]
             [:ul {:class "nav navbar-nav"}
              [navbar-item "Write" :write]
              [navbar-item "Remember" :remember]])
@@ -267,10 +276,8 @@
                    :on-change    #(dispatch-sync [:update-query (-> % .-target .-value)])
                    :on-key-press #(dispatch-on-press-enter % [:load-memories])}]]
          [:div {:class "col-lg-1"}
-          [:button {:type "submit" :class "btn btn-primary" :on-click #(dispatch [:load-memories])} "Search"]
-          ]
-         ]
-        ]
+          [:button {:type "submit" :class "btn btn-primary" :on-click #(dispatch [:load-memories])} "Search"]]
+         ]]
        (if @busy?
          [panel "Loading..." "Please wait while your memories are being loaded" "panel-info"]
          [panel "Memories"
@@ -290,9 +297,16 @@
       )))
 
 (defn login-form []
-  (let [username (subscribe [:credentials :username])
-        password (subscribe [:credentials :password])
-        message  (subscribe [:credentials :message])]
+  (let [username  (subscribe [:credentials :username])
+        password  (subscribe [:credentials :password])
+        confirm   (subscribe [:credentials :password2])
+        message   (subscribe [:credentials :message])
+        section   (subscribe [:ui-state :section])
+        signup?   (reaction (= :signup @section))
+        u-class   (reaction (if (and @signup? (empty? @username)) " has-error"))
+        pw-class  (reaction (if (and @signup? (> 5 (count @password))) " has-error"))
+        pw2-class (reaction (if (not= @password @confirm) " has-error"))
+        ]
     (fn []
       [:div {:class "modal"}
        [:div {:class "modal-dialog"}
@@ -303,39 +317,54 @@
           (if @message
             [:div {:class (str "col-lg-12 alert " (:type @message))}
              [:p (:text @message)]])
-          [:label {:for "inputLogin" :class "col-lg-2 control-label"} "Username"]
-          [:div {:class "col-lg-10"}
-           [:input {:type         "text"
-                    :class        "formControl col-lg-6"
-                    :id           "inputLogin"
-                    :placeholder  "user name"
-                    :on-change    #(dispatch-sync [:update-credentials :username (-> % .-target .-value)])
-                    :on-key-press #(dispatch-on-press-enter % [:login-request])
-                    :value        @username}]]
-          [:label {:for "inputPassword" :class "col-lg-2 control-label"} "Password"]
-          [:div {:class "col-lg-10"}
-           [:input {:type         "password"
-                    :class        "formControl col-lg-6"
-                    :id           "inputPassword"
-                    :on-change    #(dispatch-sync [:update-credentials :password (-> % .-target .-value)])
-                    :on-key-press #(dispatch-on-press-enter % [:login-request])
-                    :value        @password}]]]
+          [:div {:class (str "form-group" @u-class)}
+           [:label {:for "inputLogin" :class "col-lg-2 control-label"} "Username"]
+           [:div {:class "col-lg-10"}
+            [:input {:type         "text"
+                     :class        "formControl col-lg-6"
+                     :id           "inputLogin"
+                     :placeholder  "user name"
+                     :on-change    #(dispatch-sync [:update-credentials :username (-> % .-target .-value)])
+                     :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
+                     :value        @username}]]]
+          [:div {:class (str "form-group" @pw-class)}
+           [:label {:for "inputPassword" :class "col-lg-2 control-label"} "Password"]
+           [:div {:class "col-lg-10"}
+            [:input {:type         "password"
+                     :class        "formControl col-lg-6"
+                     :id           "inputPassword"
+                     :on-change    #(dispatch-sync [:update-credentials :password (-> % .-target .-value)])
+                     :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
+                     :value        @password}]]]
+          (if @signup?
+            [:div {:class (str "form-group" @pw2-class)}
+             [:label {:for "inputPassword2" :class "col-lg-2 control-label"} "Confirm:"]
+             [:div {:class "col-lg-10"}
+              [:input {:type         "password"
+                       :class        "formControl col-lg-6"
+                       :id           "inputPassword2"
+                       :on-change    #(dispatch-sync [:update-credentials :password2 (-> % .-target .-value)])
+                       :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
+                       :value        @confirm}]]])
+
+          ]
          [:div {:class "modal-footer"}
-          [:button {:type "button" :class "btn btn-primary" :on-click #(dispatch [:login-request])} "Submit"]]
+          [:button {:type "button" :class "btn btn-primary" :on-click #(dispatch [:auth-request @signup?])} "Submit"]]
          ]]]
       )))
 
 
 (defn content-section []
-  (let [current (subscribe [:ui-state :section])
+  (let [section (subscribe [:ui-state :section])
         token   (subscribe [:credentials :token])]
     (if (and (nil? @token)
-             (not= :login @current))
+             (not= :login @section)
+             (not= :signup @section))
       (dispatch [:set-ui-section :login]))
-    (condp = @current
-      :login [login-form]
+    (condp = @section
       :write [write-section]
       :remember [memory-list]
+      [login-form]
       )
     )
   )
