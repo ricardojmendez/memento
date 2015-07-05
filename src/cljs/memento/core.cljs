@@ -31,6 +31,14 @@
 ; Handlers
 ;------------------------------
 
+(defn remove-token-on-unauth
+  "Receives an application state and an authorization result. If the status is 401, then it
+  removes the token from the applicaton state."
+  [app-state result]
+  (if (= 401 (:status result))
+    (assoc-in app-state [:credentials :token] nil)
+    app-state))
+
 (register-handler
   :initialize
   (fn [app-state _]
@@ -133,7 +141,7 @@
       (POST "/api/memory" {:params        {:thought note}
                            :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                            :handler       #(dispatch [:save-note-success note])
-                           :error-handler #(dispatch [:save-note-error (str "Error saving note: " %)])}))
+                           :error-handler #(dispatch [:save-note-error %])}))
     app-state
     ))
 
@@ -148,10 +156,11 @@
 
 (register-handler
   :save-note-error
-  (fn [app-state [_ msg]]
-    (dispatch [:set-message (str "Error saving note: " msg) "alert-danger"])
-    (assoc-in app-state [:ui-state :is-busy?] false)
-    ))
+  (fn [app-state [_ result]]
+    (dispatch [:set-message (str "Error saving note: " result) "alert-danger"])
+    (-> app-state
+        (assoc-in [:ui-state :is-busy?] false)
+        (remove-token-on-unauth result))))
 
 
 ;------------------------------
