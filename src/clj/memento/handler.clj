@@ -1,15 +1,18 @@
 (ns memento.handler
-  (:require [compojure.core :refer [defroutes routes wrap-routes]]
+  (:require [buddy.auth.backends.token :refer [token-backend]]
+            [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
+            [clojure.tools.nrepl.server :as nrepl]
+            [compojure.core :refer [defroutes routes wrap-routes]]
+            [compojure.route :as route]
+            [environ.core :refer [env]]
+            [memento.auth :as auth]
             [memento.middleware :as middleware]
             [memento.routes.api :refer [api-routes]]
             [memento.routes.home :refer [home-routes]]
             [memento.session :as session]
-            [compojure.route :as route]
-            [taoensso.timbre :as timbre]
-            [taoensso.timbre.appenders.3rd-party.rotor :as rotor]
             [selmer.parser :as parser]
-            [environ.core :refer [env]]
-            [clojure.tools.nrepl.server :as nrepl]))
+            [taoensso.timbre :as timbre]
+            [taoensso.timbre.appenders.3rd-party.rotor :as rotor]))
 
 (defonce nrepl-server (atom nil))
 
@@ -41,9 +44,9 @@
   (timbre/merge-config!
     {:level     (if (env :dev) :trace :info)
      :appenders {:rotor (rotor/rotor-appender
-                          {:path "memento.log"
+                          {:path     "memento.log"
                            :max-size (* 512 1024)
-                           :backlog 10})}})
+                           :backlog  10})}})
 
   (if (env :dev) (parser/cache-off!))
   (start-nrepl)
@@ -62,9 +65,24 @@
   (stop-nrepl)
   (timbre/info "shutdown complete!"))
 
+
+(defn auth-token-decode
+  [_ token]
+  (when-let [result (auth/decode-token token)]
+    (:username result)))
+
+;; Create an instance of auth backend.
+
+(def auth-backend
+  (token-backend {:authfn auth-token-decode}))
+
+
 (def app
   (-> (routes
         api-routes
         (wrap-routes #'home-routes middleware/wrap-csrf)
-        #'base-routes)
-      middleware/wrap-base))
+        base-routes)
+      (wrap-authentication auth-backend)
+      (wrap-authorization auth-backend)
+      middleware/wrap-base
+      ))

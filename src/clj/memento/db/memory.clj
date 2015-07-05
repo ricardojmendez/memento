@@ -19,19 +19,19 @@
 (defn save-memory!
   "Trivial save. For now everything will go to one user."
   [memory]
-  (let [item (merge {:created (now) :username "ricardo"} memory)]
+  (let [item (merge {:created (now)} memory)]
     (spit-memory! item)
     (db/create-thought! item)))
 
 (defn query-memories
   "Trivial query - return everything from one user"
-  ([]
-   (query-memories nil))
-  ([^String query-str]
+  ([username]
+   (query-memories username nil))
+  ([^String username ^String query-str]
    (let [params {:limit 25
                  :offset 0
-                 :username "ricardo"}]
-     (if (nil? query-str)
+                 :username username}]
+     (if (empty? query-str)
        (db/get-thoughts params)
        (db/search-thoughts (assoc params :query (clojure.string/replace query-str " " "|"))))
      )))

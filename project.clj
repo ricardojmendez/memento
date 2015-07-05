@@ -5,7 +5,7 @@
             :dependencies [[org.clojure/clojure "1.7.0"]
                            [selmer "0.8.2"]
                            [com.taoensso/timbre "4.0.2"]
-                           [com.taoensso/tower "3.0.2"]
+                           [com.taoensso/tower "3.1.0-beta3"]
                            [markdown-clj "0.9.67"]
                            [migratus "0.8.2"]
                            [yesql "0.5.0-rc3"]
@@ -34,6 +34,7 @@
                            [io.clojure/liberator-transit "0.3.0"]
                            [buddy/buddy-auth "0.6.0" :exclusions [com.fasterxml.jackson.core/jackson-core]]
                            [buddy/buddy-hashers "0.6.0"]
+                           [buddy/buddy-sign "0.6.0"]
                            ]
 
             :min-lein-version "2.0.0"
@@ -107,6 +108,7 @@
                                                                           org.codehaus.plexus/plexus-utils]]]
                        :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}
 
+
                        :figwheel     {:http-server-root "public"
                                       :server-port      3449
                                       :css-dirs         ["resources/public/css"]
@@ -117,9 +119,15 @@
                                       (pjstadig.humane-test-output/activate!)]
                        :env          {:dev          true
                                       :database-url "jdbc:postgresql://localhost/memento_dev?user=memento&password=testdb"
+                                      :auth-conf    {:passphrase "testpassword"
+                                                     :pubkey     "keys/dev_auth_pubkey.pem"
+                                                     :privkey    "keys/dev_auth_privkey.pem"}
                                       }}
              :test    {:env          {:dev          true
                                       :database-url "jdbc:postgresql://localhost/memento_test?user=memento&password=testdb"
+                                      :auth-conf    {:passphrase "testpassword"
+                                                     :pubkey     "keys/dev_auth_pubkey.pem"
+                                                     :privkey    "keys/dev_auth_privkey.pem"}
                                       }
                        :source-paths ["test/clj" "test/cljc"]
                        :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}

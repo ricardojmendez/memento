@@ -2,7 +2,6 @@
   (:require [ajax.core :refer [GET POST PUT]]
             [reagent.core :as reagent :refer [atom]]
             [reagent-forms.core :refer [bind-fields]]
-            [reagent.session :as session]
             [re-frame.core :refer [dispatch register-sub register-handler subscribe dispatch-sync]]
             [goog.events :as events]
             [goog.history.EventType :as EventType]
@@ -23,7 +22,7 @@
 
 (register-sub :note general-query)
 (register-sub :ui-state general-query)
-
+(register-sub :credentials general-query)
 
 
 
@@ -31,13 +30,68 @@
 ; Handlers
 ;------------------------------
 
+(defn remove-token-on-unauth
+  "Receives an application state and an authorization result. If the status is 401, then it
+  removes the token from the applicaton state."
+  [app-state result]
+  (if (= 401 (:status result))
+    (assoc-in app-state [:credentials :token] nil)
+    app-state))
+
 (register-handler
   :initialize
   (fn [app-state _]
     (merge app-state {:ui-state {:is-busy?      false
-                                 :section       :write
+                                 :section       :login
                                  :current-query ""
                                  :is-searching? false}})))
+
+(register-handler
+  :auth-request
+  (fn [app-state [_ signup?]]
+    (let [url       (if signup? "signup" "login")
+          ;; Should probalby centralize password validation, so we can use the same function
+          ;; both here and when the UI is being updated
+          is-valid? (or (not signup?)
+                        (= (get-in app-state [:credentials :password])
+                           (get-in app-state [:credentials :password2])))]
+      (if is-valid?
+        (POST (str "/api/auth/" url) {:params        (:credentials app-state)
+                                      :handler       #(dispatch [:login-success (:token %)])
+                                      :error-handler #(dispatch [:login-error %])}))
+      )
+    app-state
+    ))
+
+(register-handler
+  :login-success
+  (fn [app-state [_ token]]
+    (-> app-state
+        (assoc-in [:credentials :token] token)
+        (assoc-in [:ui-state :section] :write)
+        (assoc-in [:credentials :password] nil)
+        (assoc-in [:credentials :password2] nil))))
+
+(register-handler
+  :login-error
+  (fn [app-state [_ result]]
+    (.log js/console (str result))
+    (let [status    (:status result)
+          is-unauth (or (= 401 status) (= 409 status))
+          message   (if is-unauth "Invalid username/password" (:status-text result))
+          msg-type  (if is-unauth "alert-danger" "alert-warning")]
+      (-> app-state
+          (assoc-in [:credentials :message] {:text message :type msg-type})
+          (assoc-in [:credentials :token] nil)
+          (assoc-in [:credentials :password] nil)
+          (assoc-in [:credentials :password2] nil)))
+    ))
+
+
+(register-handler
+  :update-credentials
+  (fn [app-state [_ k v]]
+    (assoc-in app-state [:credentials k] v)))
 
 (register-handler
   :set-ui-section
@@ -70,10 +124,11 @@
 (register-handler
   :load-memories
   (fn [app-state _]
-    (GET "/api/memory/search/" {:params        {:q (get-in app-state [:ui-state :current-query])}
-                                :handler       #(dispatch [:load-memories-done %])
-                                :error-handler #(dispatch [:set-message (str "Error remembering. " %) "alert-danger"])
-                                })
+    (GET "/api/memory/search" {:params        {:q (get-in app-state [:ui-state :current-query])}
+                               :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                               :handler       #(dispatch [:load-memories-done %])
+                               :error-handler #(dispatch [:set-message (str "Error remembering. " %) "alert-danger"])
+                               })
     (-> app-state
         (assoc-in [:ui-state :memories] [])
         (assoc-in [:ui-state :is-searching?] true))
@@ -87,14 +142,14 @@
         (assoc-in [:ui-state :is-searching?] false))
     ))
 
-
 (register-handler
   :save-note
   (fn [app-state _]
     (let [note (get-in app-state [:note :current-note])]
       (POST "/api/memory" {:params        {:thought note}
+                           :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                            :handler       #(dispatch [:save-note-success note])
-                           :error-handler #(dispatch [:save-note-error (str "Error saving note: " %)])}))
+                           :error-handler #(dispatch [:save-note-error %])}))
     app-state
     ))
 
@@ -109,10 +164,11 @@
 
 (register-handler
   :save-note-error
-  (fn [app-state [_ msg]]
-    (dispatch [:set-message (str "Error saving note: " msg) "alert-danger"])
-    (assoc-in app-state [:ui-state :is-busy?] false)
-    ))
+  (fn [app-state [_ result]]
+    (dispatch [:set-message (str "Error saving note: " result) "alert-danger"])
+    (-> app-state
+        (assoc-in [:ui-state :is-busy?] false)
+        (remove-token-on-unauth result))))
 
 
 ;------------------------------
@@ -134,18 +190,24 @@
 
 
 (defn navbar []
-  [:nav {:class "navbar navbar-default navbar-fixed-top"}
-   [:div {:class "container-fluid"}
-    [:div {:class "navbar-header"}
-     [:a {:class "navbar-brand"} "Memento"]
-     ]
-    [:div {:class "collapse navbar-collapse" :id "navbar-items"}
-     [:ul {:class "nav navbar-nav"}
-      [navbar-item "Write" :write]
-      [navbar-item "Remember" :remember]
-      ]]
-    ]
-   ])
+  (let [token (subscribe [:credentials :token])]
+    (fn []
+      [:nav {:class "navbar navbar-default navbar-fixed-top"}
+       [:div {:class "container-fluid"}
+        [:div {:class "navbar-header"}
+         [:a {:class "navbar-brand"} "Memento"]]
+        [:div {:class "collapse navbar-collapse" :id "navbar-items"}
+         [:ul {:class "nav navbar-nav"}
+          (if (nil? @token)
+            [:ul {:class "nav navbar-nav"}
+             [navbar-item "Login" :login]
+             [navbar-item "Sign up" :signup]]
+            [:ul {:class "nav navbar-nav"}
+             [navbar-item "Write" :write]
+             [navbar-item "Remember" :remember]])
+          ]]
+        ]]
+      )))
 
 
 (defn alert []
@@ -189,11 +251,10 @@
     [:h3 {:class "panel-title"} title]
     ]
    [:div {:class "panel-body"} msg]
-   ]
-  )
+   ])
 
 
-(defn dispatch-on-enter [e d]
+(defn dispatch-on-press-enter [e d]
   (if (= 13 (.-which e))
     (dispatch d))
   )
@@ -213,13 +274,10 @@
                    :id           "input-search"
                    :value        @query
                    :on-change    #(dispatch-sync [:update-query (-> % .-target .-value)])
-                   :on-key-press #(dispatch-on-enter % [:load-memories])}]
-          ]
+                   :on-key-press #(dispatch-on-press-enter % [:load-memories])}]]
          [:div {:class "col-lg-1"}
-          [:button {:type "submit" :class "btn btn-primary" :on-click #(dispatch [:load-memories])} "Search"]
-          ]
-         ]
-        ]
+          [:button {:type "submit" :class "btn btn-primary" :on-click #(dispatch [:load-memories])} "Search"]]
+         ]]
        (if @busy?
          [panel "Loading..." "Please wait while your memories are being loaded" "panel-info"]
          [panel "Memories"
@@ -234,27 +292,91 @@
                ))
            ]
           "panel-primary"
-          ]
-         )
+          ])
        ]
-      )
-    ))
+      )))
+
+(defn login-form []
+  (let [username  (subscribe [:credentials :username])
+        password  (subscribe [:credentials :password])
+        confirm   (subscribe [:credentials :password2])
+        message   (subscribe [:credentials :message])
+        section   (subscribe [:ui-state :section])
+        signup?   (reaction (= :signup @section))
+        u-class   (reaction (if (and @signup? (empty? @username)) " has-error"))
+        pw-class  (reaction (if (and @signup? (> 5 (count @password))) " has-error"))
+        pw2-class (reaction (if (not= @password @confirm) " has-error"))
+        ]
+    (fn []
+      [:div {:class "modal"}
+       [:div {:class "modal-dialog"}
+        [:div {:class "modal-content"}
+         [:div {:class "modal-header"}
+          [:h4 {:clss "modal-title"} "Login"]]
+         [:div {:class "modal-body"}
+          (if @message
+            [:div {:class (str "col-lg-12 alert " (:type @message))}
+             [:p (:text @message)]])
+          [:div {:class (str "form-group" @u-class)}
+           [:label {:for "inputLogin" :class "col-lg-2 control-label"} "Username"]
+           [:div {:class "col-lg-10"}
+            [:input {:type         "text"
+                     :class        "formControl col-lg-6"
+                     :id           "inputLogin"
+                     :placeholder  "user name"
+                     :on-change    #(dispatch-sync [:update-credentials :username (-> % .-target .-value)])
+                     :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
+                     :value        @username}]]]
+          [:div {:class (str "form-group" @pw-class)}
+           [:label {:for "inputPassword" :class "col-lg-2 control-label"} "Password"]
+           [:div {:class "col-lg-10"}
+            [:input {:type         "password"
+                     :class        "formControl col-lg-6"
+                     :id           "inputPassword"
+                     :on-change    #(dispatch-sync [:update-credentials :password (-> % .-target .-value)])
+                     :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
+                     :value        @password}]]]
+          (if @signup?
+            [:div {:class (str "form-group" @pw2-class)}
+             [:label {:for "inputPassword2" :class "col-lg-2 control-label"} "Confirm:"]
+             [:div {:class "col-lg-10"}
+              [:input {:type         "password"
+                       :class        "formControl col-lg-6"
+                       :id           "inputPassword2"
+                       :on-change    #(dispatch-sync [:update-credentials :password2 (-> % .-target .-value)])
+                       :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
+                       :value        @confirm}]]])
+
+          ]
+         [:div {:class "modal-footer"}
+          [:button {:type "button" :class "btn btn-primary" :on-click #(dispatch [:auth-request @signup?])} "Submit"]]
+         ]]]
+      )))
 
 
 (defn content-section []
-  (let [current (subscribe [:ui-state :section])]
-    (condp = @current
+  (let [section (subscribe [:ui-state :section])
+        token   (subscribe [:credentials :token])]
+    (if (and (nil? @token)
+             (not= :login @section)
+             (not= :signup @section))
+      (dispatch [:set-ui-section :login]))
+    (condp = @section
       :write [write-section]
       :remember [memory-list]
+      [login-form]
       )
     )
   )
 
 (defn header []
-  (let [state (subscribe [:ui-state :section])]
-    [:h1 {:id "forms"} (condp = @state
-                         :write "Make a new memory"
-                         :remember "Remember")]
+  (let [state  (subscribe [:ui-state :section])
+        header (condp = @state
+                 :write "Make a new memory"
+                 :remember "Remember"
+                 "")]
+    (if (not-empty header)
+      [:h1 {:id "forms"} header])
     ))
 
 
@@ -275,19 +397,15 @@
 
 ;; -------------------------
 ;; Initialize app
-(defn fetch-docs! []
-  (GET "/docs" {:handler #(session/put! :docs %)}))
 
 (defn mount-components []
   (reagent/render-component [navbar] (.getElementById js/document "navbar"))
   (reagent/render-component [content-section] (.getElementById js/document "content-section"))
   (reagent/render-component [alert] (.getElementById js/document "alert"))
-  (reagent/render-component [header] (.getElementById js/document "header"))
-  )
+  (reagent/render-component [header] (.getElementById js/document "header")))
 
 (defn init! []
   (dispatch-sync [:initialize])
-  (fetch-docs!)
   (hook-browser-navigation!)
   (mount-components))
 
