@@ -86,7 +86,10 @@
                        :env         {:production   true
                                      :cluster-name "memento"
                                      :index-name   "memento"
-                                     :host-name    "localhost"}
+                                     :host-name    "localhost"
+                                     :auth-conf    {:passphrase "testpassword"
+                                                    :pubkey     "keys/dev_auth_pubkey.pem"
+                                                    :privkey    "keys/dev_auth_privkey.pem"}}
                        :hooks       [leiningen.cljsbuild]
                        :cljsbuild
                                     {:jar true
@@ -118,13 +121,13 @@
                        :injections   [(require 'pjstadig.humane-test-output)
                                       (pjstadig.humane-test-output/activate!)]
                        :env          {:dev          true
-                                      :database-url "jdbc:postgresql://localhost/memento_dev?user=memento&password=testdb"
+                                      :database-url "postgresql://memento:testdb@localhost/memento_dev"
                                       :auth-conf    {:passphrase "testpassword"
                                                      :pubkey     "keys/dev_auth_pubkey.pem"
                                                      :privkey    "keys/dev_auth_privkey.pem"}
                                       }}
              :test    {:env          {:dev          true
-                                      :database-url "jdbc:postgresql://localhost/memento_test?user=memento&password=testdb"
+                                      :database-url "postgresql://memento:testdb@localhost/memento_test"
                                       :auth-conf    {:passphrase "testpassword"
                                                      :pubkey     "keys/dev_auth_pubkey.pem"
                                                      :privkey    "keys/dev_auth_privkey.pem"}
@@ -132,5 +135,4 @@
                        :source-paths ["test/clj" "test/cljc"]
                        :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}
                        }
-             }
-            )
+             })

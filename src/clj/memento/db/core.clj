@@ -10,8 +10,7 @@
            clojure.lang.IPersistentVector
            [java.sql Date Timestamp PreparedStatement]))
 
-(def db-spec
-  {:connection-uri (env :database-url)})
+(def db-spec (env :database-url))
 
 (defqueries "sql/queries.sql" {:connection db-spec})
 
