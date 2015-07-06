@@ -1,6 +1,6 @@
-(defproject memento "0.1.0-SNAPSHOT"
+(defproject memento "0.1.1-SNAPSHOT"
             :description "Memento mori"
-            :url "http://numergent.com"
+            :url "https://mementoapp.herokuapp.com/"
 
             :dependencies [[org.clojure/clojure "1.7.0"]
                            [selmer "0.8.2"]
