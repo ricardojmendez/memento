@@ -86,7 +86,10 @@
                        :env         {:production   true
                                      :cluster-name "memento"
                                      :index-name   "memento"
-                                     :host-name    "localhost"}
+                                     :host-name    "localhost"
+                                     :auth-conf    {:passphrase "testpassword"
+                                                    :pubkey     "keys/dev_auth_pubkey.pem"
+                                                    :privkey    "keys/dev_auth_privkey.pem"}}
                        :hooks       [leiningen.cljsbuild]
                        :cljsbuild
                                     {:jar true
