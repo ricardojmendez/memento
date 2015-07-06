@@ -114,19 +114,19 @@
     (testing "Attempting to sign up with the same username/password results on an error"
       (let [[response data] (post-request "/api/auth/signup" {:username username :password password} nil)]
         (is (= 409 (:status response)))
-        (is (nil? data))))
+        (is (:error data))))
     (testing "Attempting to sign up with the same username results on an error"
       (let [[response data] (post-request "/api/auth/signup" {:username username :password "password2"} nil)]
         (is (= 409 (:status response)))
-        (is (nil? data))))
+        (is (:error data))))
     (testing "Attempting to sign up with empty username fails"
       (let [[response data] (post-request "/api/auth/signup" {:username "" :password password} nil)]
         (is (= 409 (:status response)))
-        (is (nil? data))))
+        (is (:error data))))
     (testing "Attempting to sign up with empty password fails"
       (let [[response data] (post-request "/api/auth/signup" {:username username :password ""} nil)]
         (is (= 409 (:status response)))
-        (is (nil? data))))
+        (is (:error data))))
     (testing "We get a login token when signing up with a new username/password"
       (let [[response data] (post-request "/api/auth/signup" {:username "u1" :password "p1"} nil)]
         (is (= 201 (:status response)))
