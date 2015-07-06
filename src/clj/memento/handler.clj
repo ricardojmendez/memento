@@ -54,7 +54,7 @@
   (session/start-cleanup-job!)
   (timbre/info (str
                  "\n-=[memento started successfully"
-                 (when (env :dev) "using the development profile")
+                 (when (env :dev) " using the development profile")
                  "]=-")))
 
 (defn destroy
