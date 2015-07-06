@@ -1,6 +1,6 @@
-(defproject memento "0.1.0-SNAPSHOT"
+(defproject memento "0.1.1-SNAPSHOT"
             :description "Memento mori"
-            :url "http://numergent.com"
+            :url "https://mementoapp.herokuapp.com/"
 
             :dependencies [[org.clojure/clojure "1.7.0"]
                            [selmer "0.8.2"]
@@ -101,7 +101,7 @@
              :dev     {:dependencies [[ring-mock "0.1.5"]
                                       [ring/ring-devel "1.3.2"]
                                       [pjstadig/humane-test-output "0.7.0"]
-                                      [lein-figwheel "0.3.5" :exclusions [org.clojure/clojure
+                                      [lein-figwheel "0.3.7" :exclusions [org.clojure/clojure
                                                                           org.clojure/tools.reader
                                                                           org.codehaus.plexus/plexus-utils]]
                                       [org.clojure/tools.nrepl "0.2.10"]]

@@ -1,5 +1,6 @@
 (ns memento.core
   (:require [ajax.core :refer [GET POST PUT]]
+            [clojure.string :refer [trim split]]
             [reagent.core :as reagent :refer [atom]]
             [reagent-forms.core :refer [bind-fields]]
             [re-frame.core :refer [dispatch register-sub register-handler subscribe dispatch-sync]]
@@ -12,9 +13,29 @@
 
 
 
-;------------------------------
-; Queries
-;------------------------------
+;;;;
+;;;; Helpers
+;;;;
+
+(defn set-cookie [k v]
+  (aset js/document "cookie" (str (name k) "=" v)))
+
+(defn get-cookie [k]
+  (let [cookie (aget js/document "cookie")
+        as-map (->> (split cookie #";")
+                    (map trim)
+                    (map #(split % #"="))
+                    (map #(if (= 1 (count %))
+                           [(first %) nil]
+                           %))
+                    (into {})
+                    (clojure.walk/keywordize-keys))]
+    (k as-map)))
+
+
+;;;;------------------------------
+;;;; Queries
+;;;;------------------------------
 
 (defn general-query
   [db [sid element-id]]
@@ -26,21 +47,22 @@
 
 
 
-;------------------------------
-; Handlers
-;------------------------------
+;;;;------------------------------
+;;;; Handlers
+;;;;------------------------------
 
-(defn remove-token-on-unauth
+(defn clear-token-on-unauth
   "Receives an application state and an authorization result. If the status is 401, then it
-  removes the token from the applicaton state."
-  [app-state result]
+  dispatches a message to clear the authorization token."
+  [result]
   (if (= 401 (:status result))
-    (assoc-in app-state [:credentials :token] nil)
-    app-state))
+    (dispatch [:set-token nil])))
+
 
 (register-handler
   :initialize
   (fn [app-state _]
+    (dispatch [:set-token (get-cookie :token)])
     (merge app-state {:ui-state {:is-busy?      false
                                  :section       :login
                                  :current-query ""
@@ -57,18 +79,21 @@
                            (get-in app-state [:credentials :password2])))]
       (if is-valid?
         (POST (str "/api/auth/" url) {:params        (:credentials app-state)
-                                      :handler       #(dispatch [:login-success (:token %)])
+                                      :handler       #(dispatch [:set-token (:token %)])
                                       :error-handler #(dispatch [:login-error %])}))
       )
     app-state
     ))
 
 (register-handler
-  :login-success
+  :set-token
   (fn [app-state [_ token]]
+    (if (not-empty token)
+      (dispatch [:set-message ""]))
+    (set-cookie :token token)
     (-> app-state
         (assoc-in [:credentials :token] token)
-        (assoc-in [:ui-state :section] :write)
+        (assoc-in [:ui-state :section] (if (empty? token) :login :write))
         (assoc-in [:credentials :password] nil)
         (assoc-in [:credentials :password2] nil))))
 
@@ -126,8 +151,8 @@
   (fn [app-state _]
     (GET "/api/memory/search" {:params        {:q (get-in app-state [:ui-state :current-query])}
                                :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                               :handler       #(dispatch [:load-memories-done %])
-                               :error-handler #(dispatch [:set-message (str "Error remembering. " %) "alert-danger"])
+                               :handler       #(dispatch [:load-memories-success %])
+                               :error-handler #(dispatch [:load-memories-error %])
                                })
     (-> app-state
         (assoc-in [:ui-state :memories] [])
@@ -135,12 +160,22 @@
     ))
 
 (register-handler
-  :load-memories-done
+  :load-memories-success
   (fn [app-state [_ memories]]
     (-> app-state
         (assoc-in [:ui-state :memories] memories)
         (assoc-in [:ui-state :is-searching?] false))
     ))
+
+
+(register-handler
+  :load-memories-error
+  (fn [app-state [_ result]]
+    (dispatch [:set-message (str "Error remembering: " result) "alert-danger"])
+    (clear-token-on-unauth result)
+    (assoc-in app-state [:ui-state :is-busy?] false)
+    ))
+
 
 (register-handler
   :save-note
@@ -166,14 +201,14 @@
   :save-note-error
   (fn [app-state [_ result]]
     (dispatch [:set-message (str "Error saving note: " result) "alert-danger"])
-    (-> app-state
-        (assoc-in [:ui-state :is-busy?] false)
-        (remove-token-on-unauth result))))
+    (clear-token-on-unauth result)
+    (assoc-in app-state [:ui-state :is-busy?] false)
+    ))
 
 
-;------------------------------
-; Components
-;------------------------------
+;;;;------------------------------
+;;;; Components
+;;;;------------------------------
 
 
 (defn navbar-item
