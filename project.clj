@@ -101,7 +101,7 @@
              :dev     {:dependencies [[ring-mock "0.1.5"]
                                       [ring/ring-devel "1.3.2"]
                                       [pjstadig/humane-test-output "0.7.0"]
-                                      [lein-figwheel "0.3.5" :exclusions [org.clojure/clojure
+                                      [lein-figwheel "0.3.7" :exclusions [org.clojure/clojure
                                                                           org.clojure/tools.reader
                                                                           org.codehaus.plexus/plexus-utils]]
                                       [org.clojure/tools.nrepl "0.2.10"]]
