@@ -297,7 +297,8 @@
 (defn memory-list []
   (let [query    (subscribe [:ui-state :current-query])
         busy?    (subscribe [:ui-state :is-searching?])
-        memories (subscribe [:ui-state :memories])]
+        memories (subscribe [:ui-state :memories])
+        results  (reaction (:results @memories))]
     (fn []
       [:span
        [:div {:class "form-horizontal"}
@@ -317,9 +318,9 @@
          [panel "Loading..." "Please wait while your memories are being loaded" "panel-info"]
          [panel "Memories"
           [:span
-           (if (empty? @memories)
+           (if (empty? @results)
              [:p "Nothing."]
-             (for [memory @memories]
+             (for [memory @results]
                ^{:key (:id memory)}
                [:blockquote
                 [:p (:thought memory)]

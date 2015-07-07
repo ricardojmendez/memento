@@ -11,6 +11,11 @@ ORDER BY created DESC
 LIMIT :limit
 OFFSET :offset;
 
+-- name: get-thought-count
+-- Returns count of all thoughts for a username
+SELECT COUNT(*) FROM thoughts
+WHERE username = :username;
+
 
 -- name: search-thoughts
 -- Returns all thoughts for a username which match a search string
@@ -20,9 +25,19 @@ INNER JOIN thoughts t
   ON t.id = tl.id
 WHERE t.username = :username
   AND tl.lexemes @@ query
-ORDER BY rank DESC
+ORDER BY rank, created DESC
 LIMIT :limit
 OFFSET :offset;
+
+-- name: search-thought-count
+-- Returns the count of thoughts for a username which match a search string
+-- Notice we don't care about rank or ordering.
+SELECT COUNT(t.*)
+FROM to_tsquery(:query) AS query, thought_lexemes tl
+  INNER JOIN thoughts t
+    ON t.id = tl.id
+WHERE t.username = :username
+      AND tl.lexemes @@ query;
 
 
 -- name: create-user!
