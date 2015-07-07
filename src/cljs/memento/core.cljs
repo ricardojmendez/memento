@@ -291,46 +291,54 @@
 
 (defn dispatch-on-press-enter [e d]
   (if (= 13 (.-which e))
-    (dispatch d))
-  )
+    (dispatch d)))
 
-(defn memory-list []
-  (let [query    (subscribe [:ui-state :current-query])
-        busy?    (subscribe [:ui-state :is-searching?])
+
+(defn memory-query []
+  (let [query (subscribe [:ui-state :current-query])]
+    (fn []
+      [:div {:class "form-horizontal"}
+       [:div {:class "form-group"}
+        [:label {:for "input-search" :class "col-lg-2 control-label"} "Search:"]
+        [:div {:class "col-lg-8"}
+         [:input {:type         "text"
+                  :class        "form-control"
+                  :id           "input-search"
+                  :value        @query
+                  :on-change    #(dispatch-sync [:update-query (-> % .-target .-value)])
+                  :on-key-press #(dispatch-on-press-enter % [:load-memories])}]]
+        [:div {:class "col-lg-1"}
+         [:button {:type "submit" :class "btn btn-primary" :on-click #(dispatch [:load-memories])} "Search"]]
+        ]])))
+
+(defn memory-results []
+  (let [busy?    (subscribe [:ui-state :is-searching?])
         memories (subscribe [:ui-state :memories])
         results  (reaction (:results @memories))]
     (fn []
-      [:span
-       [:div {:class "form-horizontal"}
-        [:div {:class "form-group"}
-         [:label {:for "input-search" :class "col-lg-2 control-label"} "Search:"]
-         [:div {:class "col-lg-8"}
-          [:input {:type         "text"
-                   :class        "form-control"
-                   :id           "input-search"
-                   :value        @query
-                   :on-change    #(dispatch-sync [:update-query (-> % .-target .-value)])
-                   :on-key-press #(dispatch-on-press-enter % [:load-memories])}]]
-         [:div {:class "col-lg-1"}
-          [:button {:type "submit" :class "btn btn-primary" :on-click #(dispatch [:load-memories])} "Search"]]
-         ]]
-       (if @busy?
-         [panel "Loading..." "Please wait while your memories are being loaded" "panel-info"]
-         [panel "Memories"
-          [:span
-           (if (empty? @results)
-             [:p "Nothing."]
-             (for [memory @results]
-               ^{:key (:id memory)}
-               [:blockquote
-                [:p (:thought memory)]
-                [:small (:created memory)]]
-               ))
-           ]
-          "panel-primary"
-          ])
-       ]
+      (if @busy?
+        [panel "Loading..." "Please wait while your memories are being loaded" "panel-info"]
+        [panel "Memories"
+         [:span
+          (if (empty? @results)
+            [:p "Nothing."]
+            (for [memory @results]
+              ^{:key (:id memory)}
+              [:blockquote
+               [:p (:thought memory)]
+               [:small (:created memory)]]
+              ))
+          ]
+         "panel-primary"
+         ])
       )))
+
+(defn memory-list []
+  (fn []
+    [:span
+     [memory-query]
+     [memory-results]]))
+
 
 (defn login-form []
   (let [username  (subscribe [:credentials :username])
