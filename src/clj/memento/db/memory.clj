@@ -32,20 +32,21 @@
   ([username]
    (query-memories username ""))
   ([^String username ^String query-str]
-    (query-memories username query-str 0)
+   (query-memories username query-str 0)
     )
   ([^String username ^String query-str ^Integer offset]
-   (let [params {:limit    result-limit
-                 :offset   offset
-                 :username username
-                 ;; Query won't be used in the case of get-thoughts, but bind it on let
-                 ;; since we'll need it twice on search.
-                 :query    (clojure.string/replace (or query-str "") " " "|")}
-         result  (if (empty? query-str)
-                   {:total   (-> (db/get-thought-count params) first :count)
-                    :results (db/get-thoughts params)}
-                   {:total   (-> (db/search-thought-count params) first :count)
-                    :results (db/search-thoughts params)})
+   (let [query-str (clojure.string/trim (or query-str ""))
+         params    {:limit    result-limit
+                    :offset   offset
+                    :username username
+                    ;; Query won't be used in the case of get-thoughts, but bind it on let
+                    ;; since we'll need it twice on search.
+                    :query    (clojure.string/replace (or query-str "") " " "|")}
+         result    (if (empty? query-str)
+                     {:total   (-> (db/get-thought-count params) first :count)
+                      :results (db/get-thoughts params)}
+                     {:total   (-> (db/search-thought-count params) first :count)
+                      :results (db/search-thoughts params)})
          ]
      (assoc result :pages (int (Math/ceil (/ (:total result) result-limit))))
      )))

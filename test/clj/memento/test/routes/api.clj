@@ -182,6 +182,24 @@
         (doseq [e results]
           (is (= tdu/ph-username (:username e)))
           (is (re-seq #"always" (:thought e))))))
+    (testing "We can send trailing spaces and the query is trimmed"
+      (let [[response clj-data] (get-request "/api/memory/search" {:q "always "} token)
+            {:keys [total results]} clj-data]
+        (is response)
+        (is (= 200 (:status response)))
+        (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
+        (is (= 2 (count results)))
+        (is (= 2 total))
+        (doseq [e results]
+          (is (= tdu/ph-username (:username e)))
+          (is (re-seq #"always" (:thought e))))
+        ))
+    (testing "Sending a blank query is treated the same as no query"
+      (let [[r1 d1] (get-request "/api/memory/search" nil token)
+            [r2 d2] (get-request "/api/memory/search" {:q " "} token)]
+        (is (= 200 (:status r1) (:status r2)))
+        (is (= d1 d2))
+        ))
     (testing "Passing multiple values uses them as OR"
       ;; The following could also have been passed as "?q=always+money"
       (let [[response clj-data] (get-request "/api/memory/search" {:q "always money"} token)
@@ -289,7 +307,6 @@
         (is (= 14 (:total clj-data)))
         (is (= 0 (count indices)))
         ))
-
 
     )
   )

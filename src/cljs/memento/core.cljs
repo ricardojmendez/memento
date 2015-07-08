@@ -147,6 +147,7 @@
 (register-handler
   :update-query
   (fn [app-state [_ q]]
+    (dispatch [:load-memories 0])
     (assoc-in app-state [:ui-state :current-query] q)))
 
 (register-handler
@@ -158,9 +159,7 @@
                                :handler       #(dispatch [:load-memories-success %])
                                :error-handler #(dispatch [:load-memories-error %])
                                })
-    (-> app-state
-        (assoc-in [:ui-state :memories] [])
-        (assoc-in [:ui-state :is-searching?] true))
+    (assoc-in app-state [:ui-state :is-searching?] true)
     ))
 
 (register-handler
@@ -317,16 +316,13 @@
       [:div {:class "form-horizontal"}
        [:div {:class "form-group"}
         [:label {:for "input-search" :class "col-lg-2 control-label"} "Search:"]
-        [:div {:class "col-lg-8"}
-         [:input {:type         "text"
-                  :class        "form-control"
-                  :id           "input-search"
-                  :value        @query
-                  :on-change    #(dispatch-sync [:update-query (-> % .-target .-value)])
-                  :on-key-press #(dispatch-on-press-enter % [:load-memories 0])}]]
-        [:div {:class "col-lg-1"}
-         [:button {:type "submit" :class "btn btn-primary" :on-click #(dispatch [:load-memories 0])} "Search"]]
-        ]])))
+        [:div {:class "col-lg-9"}
+         [:input {:type      "text"
+                  :class     "form-control"
+                  :id        "input-search"
+                  :value     @query
+                  :on-change #(dispatch-sync [:update-query (-> % .-target .-value)])}]
+         ]]])))
 
 (defn memory-pager []
   (let [memories (subscribe [:ui-state :memories])
@@ -356,22 +352,20 @@
         memories (subscribe [:ui-state :memories])
         results  (reaction (:results @memories))]
     (fn []
-      (if @busy?
-        [panel "Loading..." "Please wait while your memories are being loaded" "panel-info"]
-        [panel "Memories"
-         [:span
-          (if (empty? @results)
-            [:p "Nothing."]
-            (for [memory @results]
-              ^{:key (:id memory)}
-              [:blockquote
-               [:p (:thought memory)]
-               [:small (:created memory)]]
-              ))
-          [memory-pager]
-          ]
-         "panel-primary"
-         ])
+      [panel (if @busy? "Loading..." "Memories")
+       [:span
+        (if (empty? @results)
+          [:p "Nothing."]
+          (for [memory @results]
+            ^{:key (:id memory)}
+            [:blockquote
+             [:p (:thought memory)]
+             [:small (:created memory)]]
+            ))
+        [memory-pager]
+        ]
+       "panel-primary"
+       ]
       )))
 
 (defn memory-list []
