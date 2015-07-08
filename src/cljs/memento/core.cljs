@@ -66,7 +66,10 @@
     (merge app-state {:ui-state {:is-busy?      false
                                  :section       :login
                                  :current-query ""
-                                 :is-searching? false}})))
+                                 :results-page  0
+                                 :memories      {:pages 0}
+                                 :is-searching? false}
+                      })))
 
 (register-handler
   :auth-request
@@ -144,25 +147,26 @@
 (register-handler
   :update-query
   (fn [app-state [_ q]]
+    (dispatch [:load-memories 0])
     (assoc-in app-state [:ui-state :current-query] q)))
 
 (register-handler
   :load-memories
-  (fn [app-state _]
-    (GET "/api/memory/search" {:params        {:q (get-in app-state [:ui-state :current-query])}
+  (fn [app-state [_ page-index]]
+    (GET "/api/memory/search" {:params        {:q    (get-in app-state [:ui-state :current-query])
+                                               :page (or page-index (get-in app-state [:ui-state :results-page]))}
                                :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                                :handler       #(dispatch [:load-memories-success %])
                                :error-handler #(dispatch [:load-memories-error %])
                                })
-    (-> app-state
-        (assoc-in [:ui-state :memories] [])
-        (assoc-in [:ui-state :is-searching?] true))
+    (assoc-in app-state [:ui-state :is-searching?] true)
     ))
 
 (register-handler
   :load-memories-success
   (fn [app-state [_ memories]]
     (-> app-state
+        (assoc-in [:ui-state :results-page] (:current-page memories))
         (assoc-in [:ui-state :memories] memories)
         (assoc-in [:ui-state :is-searching?] false))
     ))
@@ -174,6 +178,18 @@
     (dispatch [:set-message (str "Error remembering: " result) "alert-danger"])
     (clear-token-on-unauth result)
     (assoc-in app-state [:ui-state :is-busy?] false)
+    ))
+
+
+(register-handler
+  :page-memories
+  (fn [app-state [_ i]]
+    (let [max          (dec (get-in app-state [:ui-state :memories :pages]))
+          idx          (Math/max 0 (Math/min max i))
+          current-page (get-in app-state [:ui-state :memories :current-page])]
+      (if (not= current-page idx)
+        (dispatch [:load-memories idx]))
+      (assoc-in app-state [:ui-state :results-page] idx))
     ))
 
 
@@ -291,45 +307,73 @@
 
 (defn dispatch-on-press-enter [e d]
   (if (= 13 (.-which e))
-    (dispatch d))
+    (dispatch d)))
+
+
+(defn memory-query []
+  (let [query (subscribe [:ui-state :current-query])]
+    (fn []
+      [:div {:class "form-horizontal"}
+       [:div {:class "form-group"}
+        [:label {:for "input-search" :class "col-lg-2 control-label"} "Search:"]
+        [:div {:class "col-lg-9"}
+         [:input {:type      "text"
+                  :class     "form-control"
+                  :id        "input-search"
+                  :value     @query
+                  :on-change #(dispatch-sync [:update-query (-> % .-target .-value)])}]
+         ]]])))
+
+(defn memory-pager []
+  (let [memories (subscribe [:ui-state :memories])
+        pages    (reaction (:pages @memories))
+        current  (subscribe [:ui-state :results-page])]
+    (fn []
+      (if (> @pages 1)
+        [:div {:style {:text-align "center"}}
+         [:ul {:class "pagination"}
+          [:li {:class (if (= 0 @current) "disabled")}
+           [:a {:on-click #(dispatch [:page-memories (dec @current)])} "«"]]
+          (doall
+            (for [i (range 0 @pages)]
+              ^{:key i}
+              [:li {:class    (if (= i @current) "active")
+                    :on-click #(dispatch [:page-memories i])}
+               [:a (str (inc i))]]
+              ))
+          [:li {:class (if (>= @current (dec @pages)) "disabled")}
+           [:a {:on-click #(dispatch [:page-memories (inc @current)])} "»"]]]]
+        ))
+    )
   )
 
-(defn memory-list []
-  (let [query    (subscribe [:ui-state :current-query])
-        busy?    (subscribe [:ui-state :is-searching?])
-        memories (subscribe [:ui-state :memories])]
+(defn memory-results []
+  (let [busy?    (subscribe [:ui-state :is-searching?])
+        memories (subscribe [:ui-state :memories])
+        results  (reaction (:results @memories))]
     (fn []
-      [:span
-       [:div {:class "form-horizontal"}
-        [:div {:class "form-group"}
-         [:label {:for "input-search" :class "col-lg-2 control-label"} "Search:"]
-         [:div {:class "col-lg-8"}
-          [:input {:type         "text"
-                   :class        "form-control"
-                   :id           "input-search"
-                   :value        @query
-                   :on-change    #(dispatch-sync [:update-query (-> % .-target .-value)])
-                   :on-key-press #(dispatch-on-press-enter % [:load-memories])}]]
-         [:div {:class "col-lg-1"}
-          [:button {:type "submit" :class "btn btn-primary" :on-click #(dispatch [:load-memories])} "Search"]]
-         ]]
-       (if @busy?
-         [panel "Loading..." "Please wait while your memories are being loaded" "panel-info"]
-         [panel "Memories"
-          [:span
-           (if (empty? @memories)
-             [:p "Nothing."]
-             (for [memory @memories]
-               ^{:key (:id memory)}
-               [:blockquote
-                [:p (:thought memory)]
-                [:small (:created memory)]]
-               ))
-           ]
-          "panel-primary"
-          ])
+      [panel (if @busy? "Loading..." "Memories")
+       [:span
+        (if (empty? @results)
+          [:p "Nothing."]
+          (for [memory @results]
+            ^{:key (:id memory)}
+            [:blockquote
+             [:p (:thought memory)]
+             [:small (:created memory)]]
+            ))
+        [memory-pager]
+        ]
+       "panel-primary"
        ]
       )))
+
+(defn memory-list []
+  (fn []
+    [:span
+     [memory-query]
+     [memory-results]]))
+
 
 (defn login-form []
   (let [username  (subscribe [:credentials :username])

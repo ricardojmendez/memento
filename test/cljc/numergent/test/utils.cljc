@@ -16,3 +16,10 @@
 
 
 
+(deftest test-parse-string
+  (are [input output] (= output (parse-string-number input))
+                      nil 0
+                      "" 0
+                      "0" 0
+                      "0.12" 0.12
+                      "1984" 1984))
