@@ -167,6 +167,7 @@
   :load-memories-success
   (fn [app-state [_ memories]]
     (-> app-state
+        (assoc-in [:ui-state :results-page] (:current-page memories))
         (assoc-in [:ui-state :memories] memories)
         (assoc-in [:ui-state :is-searching?] false))
     ))
@@ -184,8 +185,11 @@
 (register-handler
   :page-memories
   (fn [app-state [_ i]]
-    (let [max (dec (get-in app-state [:ui-state :memories :pages]))
-          idx (Math/max 0 (Math/min max i))]
+    (let [max          (dec (get-in app-state [:ui-state :memories :pages]))
+          idx          (Math/max 0 (Math/min max i))
+          current-page (get-in app-state [:ui-state :memories :current-page])]
+      (if (not= current-page idx)
+        (dispatch [:load-memories idx]))
       (assoc-in app-state [:ui-state :results-page] idx))
     ))
 
@@ -319,9 +323,9 @@
                   :id           "input-search"
                   :value        @query
                   :on-change    #(dispatch-sync [:update-query (-> % .-target .-value)])
-                  :on-key-press #(dispatch-on-press-enter % [:load-memories])}]]
+                  :on-key-press #(dispatch-on-press-enter % [:load-memories 0])}]]
         [:div {:class "col-lg-1"}
-         [:button {:type "submit" :class "btn btn-primary" :on-click #(dispatch [:load-memories])} "Search"]]
+         [:button {:type "submit" :class "btn btn-primary" :on-click #(dispatch [:load-memories 0])} "Search"]]
         ]])))
 
 (defn memory-pager []
@@ -341,7 +345,7 @@
                     :on-click #(dispatch [:page-memories i])}
                [:a (str (inc i))]]
               ))
-          [:li {:class (if (>= @current @pages) "disabled")}
+          [:li {:class (if (>= @current (dec @pages)) "disabled")}
            [:a {:on-click #(dispatch [:page-memories (inc @current)])} "»"]]]]
         ))
     )
