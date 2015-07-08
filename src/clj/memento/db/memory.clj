@@ -6,6 +6,7 @@
   (:import (java.util Date)))
 
 (defn now [] (Date.))
+(def result-limit 10)
 
 (defn- spit-memory! [item]
   (spit "memento.out" item :append true)
@@ -14,7 +15,10 @@
 (defn format-created
   "Receives a collection of memories and formats the create date to a string"
   [memories]
-  (map #(assoc % :created (tf/unparse (tf/formatters :date-hour-minute) (tc/from-date (:created %)))) memories))
+  (assoc memories :results
+                  (map #(assoc % :created (tf/unparse (tf/formatters :date-hour-minute)
+                                                      (tc/from-date (:created %))))
+                       (:results memories))))
 
 (defn save-memory!
   "Trivial save. For now everything will go to one user."
@@ -24,15 +28,25 @@
     (db/create-thought! item)))
 
 (defn query-memories
-  "Trivial query - return everything from one user"
+  "Queries for a user's memories"
   ([username]
-   (query-memories username nil))
+   (query-memories username ""))
   ([^String username ^String query-str]
-   (let [params {:limit 25
-                 :offset 0
-                 :username username}]
-     (if (empty? query-str)
-       (db/get-thoughts params)
-       (db/search-thoughts (assoc params :query (clojure.string/replace query-str " " "|"))))
+    (query-memories username query-str 0)
+    )
+  ([^String username ^String query-str ^Integer offset]
+   (let [params {:limit    result-limit
+                 :offset   offset
+                 :username username
+                 ;; Query won't be used in the case of get-thoughts, but bind it on let
+                 ;; since we'll need it twice on search.
+                 :query    (clojure.string/replace (or query-str "") " " "|")}
+         result  (if (empty? query-str)
+                   {:total   (-> (db/get-thought-count params) first :count)
+                    :results (db/get-thoughts params)}
+                   {:total   (-> (db/search-thought-count params) first :count)
+                    :results (db/search-thoughts params)})
+         ]
+     (assoc result :pages (int (Math/ceil (/ (:total result) result-limit))))
      )))
 
