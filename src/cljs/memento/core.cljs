@@ -66,7 +66,10 @@
     (merge app-state {:ui-state {:is-busy?      false
                                  :section       :login
                                  :current-query ""
-                                 :is-searching? false}})))
+                                 :results-page  0
+                                 :memories      {:pages 0}
+                                 :is-searching? false}
+                      })))
 
 (register-handler
   :auth-request
@@ -148,8 +151,9 @@
 
 (register-handler
   :load-memories
-  (fn [app-state _]
-    (GET "/api/memory/search" {:params        {:q (get-in app-state [:ui-state :current-query])}
+  (fn [app-state [_ page-index]]
+    (GET "/api/memory/search" {:params        {:q    (get-in app-state [:ui-state :current-query])
+                                               :page (or page-index (get-in app-state [:ui-state :results-page]))}
                                :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                                :handler       #(dispatch [:load-memories-success %])
                                :error-handler #(dispatch [:load-memories-error %])
@@ -174,6 +178,15 @@
     (dispatch [:set-message (str "Error remembering: " result) "alert-danger"])
     (clear-token-on-unauth result)
     (assoc-in app-state [:ui-state :is-busy?] false)
+    ))
+
+
+(register-handler
+  :page-memories
+  (fn [app-state [_ i]]
+    (let [max (dec (get-in app-state [:ui-state :memories :pages]))
+          idx (Math/max 0 (Math/min max i))]
+      (assoc-in app-state [:ui-state :results-page] idx))
     ))
 
 
@@ -311,6 +324,29 @@
          [:button {:type "submit" :class "btn btn-primary" :on-click #(dispatch [:load-memories])} "Search"]]
         ]])))
 
+(defn memory-pager []
+  (let [memories (subscribe [:ui-state :memories])
+        pages    (reaction (:pages @memories))
+        current  (subscribe [:ui-state :results-page])]
+    (fn []
+      (if (> @pages 1)
+        [:div {:style {:text-align "center"}}
+         [:ul {:class "pagination"}
+          [:li {:class (if (= 0 @current) "disabled")}
+           [:a {:on-click #(dispatch [:page-memories (dec @current)])} "«"]]
+          (doall
+            (for [i (range 0 @pages)]
+              ^{:key i}
+              [:li {:class    (if (= i @current) "active")
+                    :on-click #(dispatch [:page-memories i])}
+               [:a (str (inc i))]]
+              ))
+          [:li {:class (if (>= @current @pages) "disabled")}
+           [:a {:on-click #(dispatch [:page-memories (inc @current)])} "»"]]]]
+        ))
+    )
+  )
+
 (defn memory-results []
   (let [busy?    (subscribe [:ui-state :is-searching?])
         memories (subscribe [:ui-state :memories])
@@ -328,6 +364,7 @@
                [:p (:thought memory)]
                [:small (:created memory)]]
               ))
+          [memory-pager]
           ]
          "panel-primary"
          ])

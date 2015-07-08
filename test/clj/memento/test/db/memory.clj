@@ -39,6 +39,15 @@
      (doseq [m memories] (memory/save-memory! {:username username :thought m})))))
 
 
+(defn extract-thought-idx
+  "Receives what it expects to be a collection of thought lines, each one starting
+  with a value that can be converted to a number (likely an integer)"
+  [coll]
+  (->> coll
+       (map #(split % #" "))
+       (map first)
+       (map read-string)))
+
 ;;;;
 ;;;; Tests
 ;;;;
@@ -155,7 +164,7 @@
           ]
       (is (= 3 (count scores)))
       (is (= 1 (:pages result)))
-      (is (= scores (reverse (sort scores))))
+      (is (= (reverse (sort scores)) scores))
       ))
   (testing "Querying with multiple parameters returns them in descending score order"
     (let [result (memory/query-memories tdu/ph-username "money humor")
@@ -165,6 +174,7 @@
       (is (= 1 (:pages result)))
       (is (= scores (reverse (sort scores))))
       )))
+
 
 
 (deftest test-pagination
@@ -178,77 +188,72 @@
   ;;
   ;; This will mean we won't get consistent paging.
   (import-placeholder-memories! tdu/ph-username "numbers.txt")
-  (let [extract-idx (fn [coll]
-                      (->> coll
-                           (map #(split % #" "))
-                           (map first)
-                           (map read-string)))]
-    (testing "Querying without any pagination parameters returns the first few memories"
-      (let [result   (memory/query-memories tdu/ph-username)
-            thoughts (map :thought (:results result))
-            indices  (extract-idx thoughts)]
-        (is (= 32 (:total result)))
-        (is (= 10 (count thoughts)))
-        (is (= 4 (:pages result)))
-        ;; Thoughts come in inverse date order by default... meaning
-        ;; we'll get them in reverse number order
-        (is (= indices (reverse (range 23 33))))
-        ))
-    (testing "Querying with an offset returns the correct memories"
-      (let [result   (memory/query-memories tdu/ph-username "" 2)
-            thoughts (map :thought (:results result))
-            indices  (extract-idx thoughts)]
-        (is (= 32 (:total result)))
-        (is (= 10 (count thoughts)))
-        (is (= 4 (:pages result)))
-        ;; Thoughts come in inverse date order by default... meaning
-        ;; we'll get them in reverse number order
-        (is (= indices (reverse (range 21 31))))
-        ))
-    (testing "Querying with too far an offset returns fewer records"
-      (let [result   (memory/query-memories tdu/ph-username "" 29)
-            thoughts (map :thought (:results result))
-            indices  (extract-idx thoughts)]
-        (is (= 32 (:total result)))
-        (is (= 3 (count thoughts)))
-        (is (= 4 (:pages result)))
-        ;; Thoughts come in inverse date order by default... meaning
-        ;; we'll get them in reverse number order
-        (is (= indices (reverse (range 1 4))))
-        ))
-    (testing "Querying with a parameter returns them in descending score order"
-      (let [result   (memory/query-memories tdu/ph-username "dreaming memory money people")
-            thoughts (map :thought (:results result))
-            indices  (extract-idx thoughts)]
-        (is (= 10 (count indices)))
-        (is (= 13 (:total result)))
-        (is (= 2 (:pages result)))
-        ;; We know the top 2 ranked items for those terms are 2 & 3, but don't
-        ;; know for sure in which order we'll get them... We could compare the
-        ;; scores, but float comparison is iffy.
-        (is (= (set (take 2 indices)) #{2 3}))
-        ))
-    (testing "Querying with a parameter and an offset respects both rank and offset"
-      (let [result   (memory/query-memories tdu/ph-username "dreaming memory money people" 2)
-            thoughts (map :thought (:results result))
-            indices  (extract-idx thoughts)]
-        (is (= 10 (count indices)))
-        (is (= 13 (:total result)))
-        ;; We know the top 2 ranked items for those terms are 2 & 3, but don't
-        ;; know for sure in which order we'll get them... So we check that the
-        ;; top two items aren't in the list, given that we sent an offset of 2.
-        (is (empty? (intersection (set indices) #{2 3})))
-        ))
-    (testing "Querying with a parameter and too far an offset returns fewer records"
-      (let [result   (memory/query-memories tdu/ph-username "dreaming memory money people" 11)
-            scores (map :rank (:results result))]
-        (is (= 13 (:total result)))
-        (is (= 2 (count scores)))
-        (doseq [i scores]
-          ;; This should hold for all values being returned at that offset,
-          ;; until the Postgresql scoring algorithm changes
-          (is (>= 0.11 i)))
-        ))
-    ))
+  (testing "Querying without any pagination parameters returns the first few memories"
+    (let [result   (memory/query-memories tdu/ph-username)
+          thoughts (map :thought (:results result))
+          indices  (extract-thought-idx thoughts)]
+      (is (= 43 (:total result)))
+      (is (= 10 (count thoughts)))
+      (is (= 5 (:pages result)))
+      ;; Thoughts come in inverse date order by default... meaning
+      ;; we'll get them in reverse number order
+      (is (= indices (reverse (range 34 44))))
+      ))
+  (testing "Querying with an offset returns the correct memories"
+    (let [result   (memory/query-memories tdu/ph-username "" 2)
+          thoughts (map :thought (:results result))
+          indices  (extract-thought-idx thoughts)]
+      (is (= 43 (:total result)))
+      (is (= 10 (count thoughts)))
+      (is (= 5 (:pages result)))
+      ;; Thoughts come in inverse date order by default... meaning
+      ;; we'll get them in reverse number order
+      (is (= indices (reverse (range 32 42))))
+      ))
+  (testing "Querying with too far an offset returns fewer records"
+    (let [result   (memory/query-memories tdu/ph-username "" 39)
+          thoughts (map :thought (:results result))
+          indices  (extract-thought-idx thoughts)]
+      (is (= 43 (:total result)))
+      (is (= 4 (count thoughts)))
+      (is (= 5 (:pages result)))
+      ;; Thoughts come in inverse date order by default... meaning
+      ;; we'll get them in reverse number order
+      (is (= indices (reverse (range 1 5))))
+      ))
+  (testing "Querying with a parameter returns them in descending score order"
+    (let [result   (memory/query-memories tdu/ph-username "dreaming memory money people")
+          thoughts (map :thought (:results result))
+          indices  (extract-thought-idx thoughts)]
+      (is (= 10 (count indices)))
+      (is (= 22 (:total result)))
+      (is (= 3 (:pages result)))
+      ;; We know the top 2 ranked items for those terms are 36 & 41, but don't
+      ;; know for sure in which order we'll get them... We could compare the
+      ;; scores, but float comparison is iffy.
+      (is (= (set (take 2 indices)) #{36 41}))
+      ))
+  (testing "Querying with a parameter and an offset respects both rank and offset"
+    (let [result   (memory/query-memories tdu/ph-username "dreaming memory money people" 2)
+          thoughts (map :thought (:results result))
+          indices  (extract-thought-idx thoughts)]
+      (is (= 10 (count indices)))
+      (is (= 22 (:total result)))
+      ;; We know the top 2 ranked items for those terms are 2 & 3, but don't
+      ;; know for sure in which order we'll get them... So we check that the
+      ;; top two items aren't in the list, given that we sent an offset of 2.
+      (is (empty? (intersection (set indices) #{36 41})))
+      ))
+  (testing "Querying with a parameter and too far an offset returns fewer records"
+    (let [result (memory/query-memories tdu/ph-username "dreaming memory money people" 20)
+          scores (map :rank (:results result))]
+      (is (= 22 (:total result)))
+      (is (= 2 (count scores)))
+      (doseq [i scores]
+        ;; This should hold for all values being returned at that offset,
+        ;; until the Postgresql scoring algorithm changes
+        (is (>= 0.21 i)))
+      ))
+  )
 
 

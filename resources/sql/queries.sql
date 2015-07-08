@@ -25,7 +25,7 @@ INNER JOIN thoughts t
   ON t.id = tl.id
 WHERE t.username = :username
   AND tl.lexemes @@ query
-ORDER BY rank, created DESC
+ORDER BY rank DESC, created DESC
 LIMIT :limit
 OFFSET :offset;
 

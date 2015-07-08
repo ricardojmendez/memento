@@ -220,7 +220,7 @@
       (let [[response clj-data] (get-request "/api/memory/search" {:q "always money"} token)]
         (is response)
         (is (= 200 (:status response)))
-        (is (= {:total 0 :results '()} clj-data)))))
+        (is (= {:total 0 :results '() :current-page 0 :pages 0} clj-data)))))
   ;; Ensure our default user is also isolated from the new thoughts
   (let [token (invoke-login {:username tdu/ph-username :password tdu/ph-password})
         [_ {:keys [total results]}] (get-request "/api/memory" nil token)]
@@ -228,6 +228,72 @@
     (is (= 10 (count results)))
     (is (every? #(= tdu/ph-username (:username %)) results)))
   )
+
+
+(deftest test-search-memory-paged
+  (tdu/init-placeholder-data!)
+  (tdm/import-placeholder-memories! tdu/ph-username "numbers.txt")
+  (let [token (invoke-login {:username tdu/ph-username :password tdu/ph-password})]
+    (testing "Searching without a page starts at the first one"
+      (let [[response clj-data] (get-request "/api/memory/search" nil token)
+            indices (tdm/extract-thought-idx (map :thought (:results clj-data)))]
+        (is response)
+        (is (= 200 (:status response)))
+        (is (= 0 (:current-page clj-data)))
+        (is (= 10 (count indices)))
+        (is (= indices (reverse (range 34 44))))
+        ))
+    (testing "Searching without the third page returns the proper elements"
+      (let [[response clj-data] (get-request "/api/memory/search" {:page 2} token)
+            indices (tdm/extract-thought-idx (map :thought (:results clj-data)))]
+        (is response)
+        (is (= 200 (:status response)))
+        (is (= 10 (count indices)))
+        (is (= indices (reverse (range 14 24))))
+        ))
+    (testing "Searching without the second page by just GETting memory returns the proper elements"
+      (let [[response clj-data] (get-request "/api/memory" {:page 1} token)
+            indices (tdm/extract-thought-idx (map :thought (:results clj-data)))]
+        (is response)
+        (is (= 200 (:status response)))
+        (is (= 10 (count indices)))
+        (is (= indices (reverse (range 24 34))))
+        ))
+    (testing "We can page while searching with a query"
+      (let [[response clj-data] (get-request "/api/memory/search" {:q "memory" :page 0} token)
+            results (:results clj-data)
+            indices (tdm/extract-thought-idx (map :thought results))]
+        (is response)
+        (is (= 200 (:status response)))
+        (is (= 12 (:total clj-data)))
+        (is (= 0 (:current-page clj-data)))
+        (is (= 10 (count indices)))
+        ))
+    (testing "Query pagination works as expected"
+      (let [[response clj-data] (get-request "/api/memory/search" {:q "memory" :page 1} token)
+            results (:results clj-data)
+            indices (tdm/extract-thought-idx (map :thought results))]
+        (is response)
+        (is (= 200 (:status response)))
+        (is (= 12 (:total clj-data)))
+        (is (= 1 (:current-page clj-data)))
+        (is (= '(33 1) indices))
+        ))
+
+    (testing "Sending too far a page returns empty results"
+      (let [[response clj-data] (get-request "/api/memory/search" {:q "memory remember" :page 2} token)
+            results (:results clj-data)
+            indices (tdm/extract-thought-idx (map :thought results))]
+        (is response)
+        (is (= 200 (:status response)))
+        (is (= 14 (:total clj-data)))
+        (is (= 0 (count indices)))
+        ))
+
+
+    )
+  )
+
 
 
 (deftest test-add-memory

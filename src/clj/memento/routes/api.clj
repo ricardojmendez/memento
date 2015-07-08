@@ -9,7 +9,8 @@
             [io.clojure.liberator-transit]
             [memento.auth :as auth]
             [memento.db.memory :as memory]
-            [memento.db.user :as user]))
+            [memento.db.user :as user]
+            [numergent.utils :as utils]))
 
 
 (defn read-content
@@ -31,8 +32,15 @@
              :allowed-methods [:post :get]
              :authorized? (fn [ctx]
                             (some? (get-in ctx [:request :identity])))
-             :handle-ok (fn [ctx]
-                          (memory/format-created (memory/query-memories (get-in ctx [:request :identity]))))
+             :handle-ok (fn [{request :request}]
+                          (let [query    (:query-params request)
+                                username (:identity request)
+                                page     (utils/parse-string-number (query "page"))
+                                offset   (* page memory/result-limit)]
+                            (-> (memory/query-memories username nil offset)
+                                (assoc :current-page page)
+                                memory/format-created)
+                            ))
              ; TODO: Reject empty POSTs. We'll do that once we are also validating it's a registered user.
              :post! (fn [ctx]
                       (let [content  (read-content ctx)
@@ -52,9 +60,13 @@
                             (some? (get-in ctx [:request :identity])))
              :handle-ok (fn [{request :request}]
                           (let [query    (:query-params request)
-                                username (:identity request)]
-                            (memory/format-created (memory/query-memories username (query "q")))))
-
+                                username (:identity request)
+                                page     (utils/parse-string-number (query "page"))
+                                offset   (* page memory/result-limit)]
+                            (-> (memory/query-memories username (query "q") offset)
+                                (assoc :current-page page)
+                                memory/format-created)
+                            ))
              :available-media-types ["application/transit+json"
                                      "application/transit+msgpack"
                                      "application/json"])
