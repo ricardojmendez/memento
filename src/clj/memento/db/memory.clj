@@ -2,6 +2,7 @@
   (:require [environ.core :refer [env]]
             [clj-time.format :as tf]
             [clj-time.coerce :as tc]
+            [clojure.string :as s]
             [memento.db.core :as db])
   (:import (java.util Date)))
 
@@ -35,13 +36,18 @@
    (query-memories username query-str 0)
     )
   ([^String username ^String query-str ^Integer offset]
-   (let [query-str (clojure.string/trim (or query-str ""))
+   (let [query-str (-> (or query-str "")
+                       (s/replace #"[,.;:]" " ")                      ; Consider commas whitespace
+                       (s/replace #"[$!&=\-\*|%&^]" "")               ; Remove characters which could cause it to barf
+                       s/trim
+                       (s/replace #"\s+" "|")                         ; Replace white space sequences with a single or operator
+                       )
          params    {:limit    result-limit
                     :offset   offset
                     :username username
                     ;; Query won't be used in the case of get-thoughts, but bind it on let
                     ;; since we'll need it twice on search.
-                    :query    (clojure.string/replace (or query-str "") " " "|")}
+                    :query    query-str}
          result    (if (empty? query-str)
                      {:total   (-> (db/get-thought-count params) first :count)
                       :results (db/get-thoughts params)}

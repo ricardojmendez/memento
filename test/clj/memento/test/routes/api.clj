@@ -182,8 +182,20 @@
         (doseq [e results]
           (is (= tdu/ph-username (:username e)))
           (is (re-seq #"always" (:thought e))))))
-    (testing "We can send trailing spaces and the query is trimmed"
-      (let [[response clj-data] (get-request "/api/memory/search" {:q "always "} token)
+    (testing "We can send trailing or leading spaces and the query is trimmed"
+      (let [[response clj-data] (get-request "/api/memory/search" {:q " always  "} token)
+            {:keys [total results]} clj-data]
+        (is response)
+        (is (= 200 (:status response)))
+        (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
+        (is (= 2 (count results)))
+        (is (= 2 total))
+        (doseq [e results]
+          (is (= tdu/ph-username (:username e)))
+          (is (re-seq #"always" (:thought e))))
+        ))
+    (testing "Invalid symbols are trimmed"
+      (let [[response clj-data] (get-request "/api/memory/search" {:q ";always&+-|!!!$."} token)
             {:keys [total results]} clj-data]
         (is response)
         (is (= 200 (:status response)))
@@ -211,6 +223,16 @@
         (is (= 5 total))
         (doseq [e results]
           (is (= tdu/ph-username (:username e)))
+          (is (or (re-seq #"always" (:thought e))
+                  (re-seq #"money" (:thought e))
+                  )))))
+    (testing "Multiple spaces are consolidated"
+      (let [[response clj-data] (get-request "/api/memory/search" {:q "always   money "} token)
+            {:keys [_ results]} clj-data]
+        (is response)
+        (is (= 200 (:status response)))
+        (is (= 5 (count results)))
+        (doseq [e results]
           (is (or (re-seq #"always" (:thought e))
                   (re-seq #"money" (:thought e))
                   )))))
