@@ -1,6 +1,7 @@
 (ns memento.core
   (:require [ajax.core :refer [GET POST PUT]]
             [clojure.string :refer [trim split]]
+            [reagent.cookies :as cookies]
             [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [dispatch register-sub register-handler subscribe dispatch-sync]]
             [goog.events :as events]
@@ -10,26 +11,6 @@
   (:require-macros [reagent.ratom :refer [reaction]])
   (:import goog.History))
 
-
-
-;;;;
-;;;; Helpers
-;;;;
-
-(defn set-cookie [k v]
-  (aset js/document "cookie" (str (name k) "=" v)))
-
-(defn get-cookie [k]
-  (let [cookie (aget js/document "cookie")
-        as-map (->> (split cookie #";")
-                    (map trim)
-                    (map #(split % #"="))
-                    (map #(if (= 1 (count %))
-                           [(first %) nil]
-                           %))
-                    (into {})
-                    (clojure.walk/keywordize-keys))]
-    (k as-map)))
 
 
 ;;;;------------------------------
@@ -61,7 +42,7 @@
 (register-handler
   :initialize
   (fn [app-state _]
-    (dispatch [:set-token (get-cookie :token)])
+    (dispatch [:set-token (cookies/get :token nil)])
     (merge app-state {:ui-state {:is-busy?      false
                                  :section       :login
                                  :current-query ""
@@ -92,7 +73,7 @@
   (fn [app-state [_ token]]
     (if (not-empty token)
       (dispatch [:set-message ""]))
-    (set-cookie :token token)
+    (cookies/set! :token token)
     (-> app-state
         (assoc-in [:credentials :token] token)
         (assoc-in [:ui-state :section] (if (empty? token) :login :write))
