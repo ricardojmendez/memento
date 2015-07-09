@@ -2,7 +2,6 @@
   (:require [ajax.core :refer [GET POST PUT]]
             [clojure.string :refer [trim split]]
             [reagent.core :as reagent :refer [atom]]
-            [reagent-forms.core :refer [bind-fields]]
             [re-frame.core :refer [dispatch register-sub register-handler subscribe dispatch-sync]]
             [goog.events :as events]
             [goog.history.EventType :as EventType]
