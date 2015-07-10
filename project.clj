@@ -25,7 +25,6 @@
                            [org.postgresql/postgresql "9.4-1201-jdbc41"]
                            [reagent "0.5.0"]
                            [cljsjs/react "0.13.3-0"]
-                           [reagent-forms "0.5.1"]
                            [reagent-utils "0.1.5"]
                            [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                            [cljs-ajax "0.3.13"]

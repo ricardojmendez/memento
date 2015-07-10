@@ -1,8 +1,8 @@
 (ns memento.core
   (:require [ajax.core :refer [GET POST PUT]]
             [clojure.string :refer [trim split]]
+            [reagent.cookies :as cookies]
             [reagent.core :as reagent :refer [atom]]
-            [reagent-forms.core :refer [bind-fields]]
             [re-frame.core :refer [dispatch register-sub register-handler subscribe dispatch-sync]]
             [goog.events :as events]
             [goog.history.EventType :as EventType]
@@ -11,26 +11,6 @@
   (:require-macros [reagent.ratom :refer [reaction]])
   (:import goog.History))
 
-
-
-;;;;
-;;;; Helpers
-;;;;
-
-(defn set-cookie [k v]
-  (aset js/document "cookie" (str (name k) "=" v)))
-
-(defn get-cookie [k]
-  (let [cookie (aget js/document "cookie")
-        as-map (->> (split cookie #";")
-                    (map trim)
-                    (map #(split % #"="))
-                    (map #(if (= 1 (count %))
-                           [(first %) nil]
-                           %))
-                    (into {})
-                    (clojure.walk/keywordize-keys))]
-    (k as-map)))
 
 
 ;;;;------------------------------
@@ -62,8 +42,9 @@
 (register-handler
   :initialize
   (fn [app-state _]
-    (dispatch [:set-token (get-cookie :token)])
+    (dispatch [:set-token (cookies/get :token nil)])
     (merge app-state {:ui-state {:is-busy?      false
+                                 :wip-login?    false
                                  :section       :login
                                  :current-query ""
                                  :results-page  0
@@ -85,7 +66,7 @@
                                       :handler       #(dispatch [:set-token (:token %)])
                                       :error-handler #(dispatch [:login-error %])}))
       )
-    app-state
+    (assoc-in app-state [:ui-state :wip-login?] true)
     ))
 
 (register-handler
@@ -93,10 +74,11 @@
   (fn [app-state [_ token]]
     (if (not-empty token)
       (dispatch [:set-message ""]))
-    (set-cookie :token token)
+    (cookies/set! :token token)
     (-> app-state
         (assoc-in [:credentials :token] token)
         (assoc-in [:ui-state :section] (if (empty? token) :login :write))
+        (assoc-in [:ui-state :wip-login?] false)
         (assoc-in [:credentials :password] nil)
         (assoc-in [:credentials :password2] nil))))
 
@@ -109,6 +91,7 @@
           message   (if is-unauth "Invalid username/password" (:status-text result))
           msg-type  (if is-unauth "alert-danger" "alert-warning")]
       (-> app-state
+          (assoc-in [:ui-state :wip-login?] false)
           (assoc-in [:credentials :message] {:text message :type msg-type})
           (assoc-in [:credentials :token] nil)
           (assoc-in [:credentials :password] nil)
@@ -364,8 +347,7 @@
             ))
         [memory-pager]
         ]
-       "panel-primary"
-       ]
+       "panel-primary"]
       )))
 
 (defn memory-list []
@@ -381,6 +363,7 @@
         confirm   (subscribe [:credentials :password2])
         message   (subscribe [:credentials :message])
         section   (subscribe [:ui-state :section])
+        wip?      (subscribe [:ui-state :wip-login?])
         signup?   (reaction (= :signup @section))
         u-class   (reaction (if (and @signup? (empty? @username)) " has-error"))
         pw-class  (reaction (if (and @signup? (> 5 (count @password))) " has-error"))
@@ -428,7 +411,7 @@
 
           ]
          [:div {:class "modal-footer"}
-          [:button {:type "button" :class "btn btn-primary" :on-click #(dispatch [:auth-request @signup?])} "Submit"]]
+          [:button {:type "button" :class "btn btn-primary" :disabled @wip? :on-click #(dispatch [:auth-request @signup?])} "Submit"]]
          ]]]
       )))
 
