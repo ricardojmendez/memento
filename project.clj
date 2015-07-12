@@ -1,4 +1,4 @@
-(defproject memento "0.1.1-SNAPSHOT"
+(defproject memento "0.2-SNAPSHOT"
             :description "Memento mori"
             :url "https://mementoapp.herokuapp.com/"
 
@@ -14,7 +14,7 @@
                            [ring/ring-defaults "0.1.5"]
                            [ring/ring-session-timeout "0.1.0"]
                            [metosin/ring-middleware-format "0.6.0"]
-                           [metosin/ring-http-response "0.6.2"]
+                           [metosin/ring-http-response "0.6.3"]
                            [bouncer "0.3.3"]
                            [prone "0.8.2"]
                            [org.clojure/tools.nrepl "0.2.10"]
@@ -98,7 +98,7 @@
                                             :compiler     {:optimizations :advanced :pretty-print false}}}}
                        :aot         :all}
              :dev     {:dependencies [[ring-mock "0.1.5"]
-                                      [ring/ring-devel "1.3.2"]
+                                      [ring/ring-devel "1.4.0"]
                                       [pjstadig/humane-test-output "0.7.0"]
                                       [lein-figwheel "0.3.7" :exclusions [org.clojure/clojure
                                                                           org.clojure/tools.reader
