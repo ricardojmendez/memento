@@ -24,6 +24,7 @@
                  [metosin/ring-middleware-format "0.6.0"]
                  [metosin/ring-http-response "0.6.3"]
                  [migratus "0.8.2"]
+                 [org.jsoup/jsoup "1.8.2"]
                  [org.postgresql/postgresql "9.4-1201-jdbc41"]
                  [prone "0.8.2"]
                  [reagent "0.5.0"]
