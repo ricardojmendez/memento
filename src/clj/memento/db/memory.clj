@@ -9,9 +9,6 @@
 (defn now [] (Date.))
 (def result-limit 10)
 
-(defn- spit-memory! [item]
-  (spit "memento.out" item :append true)
-  (spit "memento.out" "\n" :append true))
 
 (defn format-created
   "Receives a collection of memories and formats the create date to a string"
@@ -25,7 +22,6 @@
   "Trivial save. For now everything will go to one user."
   [memory]
   (let [item (merge {:created (now)} memory)]
-    (spit-memory! item)
     (db/create-thought! item)))
 
 (defn query-memories
