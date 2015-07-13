@@ -160,7 +160,7 @@
   (fn [app-state [_ result]]
     (dispatch [:set-message (str "Error remembering: " result) "alert-danger"])
     (clear-token-on-unauth result)
-    (assoc-in app-state [:ui-state :is-busy?] false)
+    app-state
     ))
 
 
@@ -184,7 +184,7 @@
                            :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                            :handler       #(dispatch [:save-note-success note])
                            :error-handler #(dispatch [:save-note-error %])}))
-    app-state
+    (assoc-in app-state [:ui-state :is-busy?] true)
     ))
 
 (register-handler
