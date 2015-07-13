@@ -1,5 +1,6 @@
 (ns memento.test.db.user
   (:require [clojure.test :refer :all]
+            [memento.db.core :as db]
             [memento.db.user :as user]
             [memento.test.db.core :as tdb]
             [buddy.hashers :as hashers]))
@@ -36,6 +37,12 @@
       (is (nil? (:username result)))
       (is (nil? (:password result)))
       (is (.contains (:message result) "duplicate key"))))
+  (testing "Attempting to create a user twice returns an error even with different case"
+    (let [result (user/create-user! "USER1" "sameuser")]
+      (is (false? (:success? result)))
+      (is (nil? (:username result)))
+      (is (nil? (:password result)))
+      (is (.contains (:message result) "duplicate key"))))
   (testing "Sending an empty password returns an error"
     (let [result (user/create-user! "user1" nil)]
       (is (false? (:success? result)))
@@ -53,7 +60,15 @@
       (is (.contains (:message result) "username is required")))
     (let [result (user/create-user! "" "password1")]
       (is (false? (:success? result)))
-      (is (.contains (:message result) "username is required")))))
+      (is (.contains (:message result) "username is required"))))
+  (testing "User login is converted to lowercase before creation"
+    (let [result  (user/create-user! "USER2" "password1")
+          get-res (first (db/get-user {:username "user2"}))]
+      (is (:success? result))
+      (is (= "user2" (:username result)))
+      (is (= "user2" (:username get-res)))
+      (is (hashers/check "password1" (:password result)))
+      )))
 
 
 (deftest test-validate-user
@@ -62,6 +77,8 @@
   (user/create-user! "user2" "password2")
   (is (user/validate-user "user1" "password1"))
   (is (user/validate-user "user2" "password2"))
+  ;; Validation is not case sensitive
+  (is (user/validate-user "User1" "password1"))
   (is (not (user/validate-user "user1" "password2")))
   (is (not (user/validate-user "user1" "")))
   (is (not (user/validate-user "user1" nil)))

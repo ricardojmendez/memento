@@ -88,10 +88,20 @@
       (is (= 201 (:status response)))
       (is (map? data))
       (is (:token data))))
+  (testing "Auth is not case-sensitive on the username"
+    (let [[response data] (post-request "/api/auth/login" {:username "User1" :password "password1"} nil)]
+      (is (= 201 (:status response)))
+      (is (map? data))
+      (is (:token data))))
   (testing "We get a 401 when authenticating with an invalid username/password"
     (let [[response data] (post-request "/api/auth/login" {:username "user2" :password "password1"} nil)]
       (is (= 401 (:status response)))
-      (is (nil? data)))))
+      (is (nil? data))))
+  (testing "Auth is case-sensitive on the password"
+    (let [[response data] (post-request "/api/auth/login" {:username "user1" :password "Password1"} nil)]
+      (is (= 401 (:status response)))
+      (is (nil? data))))
+  )
 
 
 (deftest test-signup
