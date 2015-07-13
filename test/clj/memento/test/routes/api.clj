@@ -373,3 +373,30 @@
     ))
 
 
+(deftest test-add-memory-clean-up
+  (tdu/init-placeholder-data!)
+  (user/create-user! "user1" "password1")
+  (let [token (invoke-login {:username "user1" :password "password1"})]
+    (testing "HTML is cleaned up from the saved string"
+      (let [[response clj-data] (post-request "/api/memory"
+                                              {:thought "Just a <b>brilliant!</b> new <i>idea</i><script>and some scripting!</script>\n
+
+                                              **BRILLIANT!**"}
+                                              token)]
+        (is (= 201 (:status response)))
+        (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
+        (is (= {:count 1} clj-data))
+        ))
+    (testing "After adding a memoy, we can query for it"
+      (let [[_ {:keys [total results]}] (get-request "/api/memory" nil token)
+            item (first results)]
+        (is (seq? results))
+        (is (= 1 (count results)))
+        (is (= 1 total))
+        (is (= "user1" (:username item)))
+        (is (= "Just a brilliant! new idea \n\n\n **BRILLIANT!**" (:thought item)))
+        (is (:created item))
+        (is (:id item))))
+    ))
+
+

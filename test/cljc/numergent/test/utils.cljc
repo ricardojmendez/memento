@@ -23,3 +23,17 @@
                       "0" 0
                       "0.12" 0.12
                       "1984" 1984))
+
+(deftest test-remove-html
+  (is (= "Hello world" (remove-html "<h1>Hello world")))
+  (is (= "Hello world" (remove-html "<h1>Hello world</h1>")))
+  (is (= "Hello world" (remove-html "Hello <h1>world</h1>")))
+  (is (= "Hello\n\nworld" (remove-html "Hello\n\nworld")))
+  (is (= "Hello\n world" (remove-html "Hello
+  <h1>world</h1>")))
+  (is (= "Hello\n world\n\n**some bold**" (remove-html "Hello\n<h1>world</h1>\n\n**some bold**")))
+  (is (= "Hello\n world\n**some bold**" (remove-html "Hello\n<h1>world</h1>\\n**some bold**")))
+  (is (= "a < b" (remove-html "a < b")))
+  (is (= "a < b or else" (remove-html "a < b<script>injected!</script> or else")))
+  (is (= "a < b nice try" (remove-html "a < b <a onclick='alert()'>nice try</a>")))
+  )

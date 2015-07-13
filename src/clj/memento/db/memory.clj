@@ -3,7 +3,8 @@
             [clj-time.format :as tf]
             [clj-time.coerce :as tc]
             [clojure.string :as s]
-            [memento.db.core :as db])
+            [memento.db.core :as db]
+            [numergent.utils :refer [remove-html]])
   (:import (java.util Date)))
 
 (defn now [] (Date.))
@@ -19,9 +20,10 @@
                        (:results memories))))
 
 (defn save-memory!
-  "Trivial save. For now everything will go to one user."
+  "Saves a new memory, after removing HTML tags from the thought."
   [memory]
-  (let [item (merge {:created (now)} memory)]
+  (let [item (assoc memory :created (now)
+                           :thought (remove-html (:thought memory)))]
     (db/create-thought! item)))
 
 (defn query-memories

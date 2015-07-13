@@ -7,10 +7,38 @@
             [goog.events :as events]
             [goog.history.EventType :as EventType]
             [markdown.core :refer [md->html]]
+            [markdown.transformers :as transformers]
             [ajax.core :refer [GET POST]])
   (:require-macros [reagent.ratom :refer [reaction]])
   (:import goog.History))
 
+
+;;;;------------------------------
+;;;; Data and helpers
+;;;;------------------------------
+
+;; Transformer vector. We are excluding headings, since we use the hash as tags.
+(def md-transformers
+  [transformers/empty-line
+   transformers/codeblock
+   transformers/code
+   transformers/escaped-chars
+   transformers/inline-code
+   transformers/autoemail-transformer
+   transformers/autourl-transformer
+   transformers/link
+   transformers/reference-link
+   transformers/hr
+   transformers/li
+   transformers/italics
+   transformers/em
+   transformers/strong
+   transformers/bold
+   transformers/strikethrough
+   transformers/superscript
+   transformers/blockquote
+   transformers/paragraph
+   transformers/br])
 
 
 ;;;;------------------------------
@@ -342,7 +370,7 @@
           (for [memory @results]
             ^{:key (:id memory)}
             [:blockquote
-             [:p (:thought memory)]
+             [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought memory) :replacement-transformers md-transformers)}}]
              [:small (:created memory)]]
             ))
         [memory-pager]
