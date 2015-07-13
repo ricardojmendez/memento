@@ -380,30 +380,30 @@
             [:div {:class (str "col-lg-12 alert " (:type @message))}
              [:p (:text @message)]])
           [:div {:class (str "form-group" @u-class)}
-           [:label {:for "inputLogin" :class "col-lg-2 control-label"} "Username"]
-           [:div {:class "col-lg-10"}
+           [:label {:for "inputLogin" :class "col-lg-2 col-sm-2 control-label"} "Username"]
+           [:div {:class "col-sm-10 col-lg-10"}
             [:input {:type         "text"
-                     :class        "formControl col-lg-6"
+                     :class        "formControl col-sm-8 col-lg-8"
                      :id           "inputLogin"
                      :placeholder  "user name"
                      :on-change    #(dispatch-sync [:update-credentials :username (-> % .-target .-value)])
                      :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
                      :value        @username}]]]
           [:div {:class (str "form-group" @pw-class)}
-           [:label {:for "inputPassword" :class "col-lg-2 control-label"} "Password"]
-           [:div {:class "col-lg-10"}
+           [:label {:for "inputPassword" :class "col-sm-2 col-lg-2 control-label"} "Password"]
+           [:div {:class "col-sm-10 col-lg-10"}
             [:input {:type         "password"
-                     :class        "formControl col-lg-6"
+                     :class        "formControl col-sm-8 col-lg-8"
                      :id           "inputPassword"
                      :on-change    #(dispatch-sync [:update-credentials :password (-> % .-target .-value)])
                      :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
                      :value        @password}]]]
           (if @signup?
             [:div {:class (str "form-group" @pw2-class)}
-             [:label {:for "inputPassword2" :class "col-lg-2 control-label"} "Confirm:"]
-             [:div {:class "col-lg-10"}
+             [:label {:for "inputPassword2" :class "col-sm-2 col-lg-2 control-label"} "Confirm:"]
+             [:div {:class "col-sm-10 col-lg-10"}
               [:input {:type         "password"
-                       :class        "formControl col-lg-6"
+                       :class        "formControl col-sm-8 col-lg-8"
                        :id           "inputPassword2"
                        :on-change    #(dispatch-sync [:update-credentials :password2 (-> % .-target .-value)])
                        :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
