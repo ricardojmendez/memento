@@ -1,5 +1,6 @@
 (ns memento.db.user
-  (:require [environ.core :refer [env]]
+  (:require [clojure.string :refer [lower-case]]
+            [environ.core :refer [env]]
             [buddy.hashers :as hashers]
             [memento.db.core :as db])
   (:import java.sql.BatchUpdateException))
@@ -16,7 +17,7 @@
     (empty? username) {:success? false :message "A non-empty username is required"}
     :else (try
             (let [encrypted (hashers/encrypt password)
-                  record    {:username username :password encrypted}]
+                  record    {:username (lower-case username) :password encrypted}]
               (db/create-user! record)
               (assoc record :success? true))
             (catch BatchUpdateException e
@@ -29,5 +30,5 @@
   (if (or (empty? username)
           (empty? password))
     false
-    (let [record (first (db/get-user {:username username}))]
+    (let [record (first (db/get-user {:username (lower-case username)}))]
       (hashers/check password (:password record)))))

@@ -6,6 +6,7 @@
             [compojure.route :as route]
             [environ.core :refer [env]]
             [memento.auth :as auth]
+            [memento.db.migrations :as migrations]
             [memento.middleware :as middleware]
             [memento.routes.api :refer [api-routes]]
             [memento.routes.home :refer [home-routes]]
@@ -47,6 +48,10 @@
                           {:path     "memento.log"
                            :max-size (* 512 1024)
                            :backlog  10})}})
+
+  (timbre/info "-=[ Applying migrations ]=-")
+  (migrations/migrate ["migrate"])
+  (timbre/info "...migrations done")
 
   (if (env :dev) (parser/cache-off!))
   (start-nrepl)

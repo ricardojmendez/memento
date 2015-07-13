@@ -7,10 +7,38 @@
             [goog.events :as events]
             [goog.history.EventType :as EventType]
             [markdown.core :refer [md->html]]
+            [markdown.transformers :as transformers]
             [ajax.core :refer [GET POST]])
   (:require-macros [reagent.ratom :refer [reaction]])
   (:import goog.History))
 
+
+;;;;------------------------------
+;;;; Data and helpers
+;;;;------------------------------
+
+;; Transformer vector. We are excluding headings, since we use the hash as tags.
+(def md-transformers
+  [transformers/empty-line
+   transformers/codeblock
+   transformers/code
+   transformers/escaped-chars
+   transformers/inline-code
+   transformers/autoemail-transformer
+   transformers/autourl-transformer
+   transformers/link
+   transformers/reference-link
+   transformers/hr
+   transformers/li
+   transformers/italics
+   transformers/em
+   transformers/strong
+   transformers/bold
+   transformers/strikethrough
+   transformers/superscript
+   transformers/blockquote
+   transformers/paragraph
+   transformers/br])
 
 
 ;;;;------------------------------
@@ -160,7 +188,7 @@
   (fn [app-state [_ result]]
     (dispatch [:set-message (str "Error remembering: " result) "alert-danger"])
     (clear-token-on-unauth result)
-    (assoc-in app-state [:ui-state :is-busy?] false)
+    app-state
     ))
 
 
@@ -184,7 +212,7 @@
                            :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                            :handler       #(dispatch [:save-note-success note])
                            :error-handler #(dispatch [:save-note-error %])}))
-    app-state
+    (assoc-in app-state [:ui-state :is-busy?] true)
     ))
 
 (register-handler
@@ -342,7 +370,7 @@
           (for [memory @results]
             ^{:key (:id memory)}
             [:blockquote
-             [:p (:thought memory)]
+             [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought memory) :replacement-transformers md-transformers)}}]
              [:small (:created memory)]]
             ))
         [memory-pager]
@@ -380,30 +408,30 @@
             [:div {:class (str "col-lg-12 alert " (:type @message))}
              [:p (:text @message)]])
           [:div {:class (str "form-group" @u-class)}
-           [:label {:for "inputLogin" :class "col-lg-2 control-label"} "Username"]
-           [:div {:class "col-lg-10"}
+           [:label {:for "inputLogin" :class "col-lg-2 col-sm-2 control-label"} "Username"]
+           [:div {:class "col-sm-10 col-lg-10"}
             [:input {:type         "text"
-                     :class        "formControl col-lg-6"
+                     :class        "formControl col-sm-8 col-lg-8"
                      :id           "inputLogin"
                      :placeholder  "user name"
                      :on-change    #(dispatch-sync [:update-credentials :username (-> % .-target .-value)])
                      :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
                      :value        @username}]]]
           [:div {:class (str "form-group" @pw-class)}
-           [:label {:for "inputPassword" :class "col-lg-2 control-label"} "Password"]
-           [:div {:class "col-lg-10"}
+           [:label {:for "inputPassword" :class "col-sm-2 col-lg-2 control-label"} "Password"]
+           [:div {:class "col-sm-10 col-lg-10"}
             [:input {:type         "password"
-                     :class        "formControl col-lg-6"
+                     :class        "formControl col-sm-8 col-lg-8"
                      :id           "inputPassword"
                      :on-change    #(dispatch-sync [:update-credentials :password (-> % .-target .-value)])
                      :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
                      :value        @password}]]]
           (if @signup?
             [:div {:class (str "form-group" @pw2-class)}
-             [:label {:for "inputPassword2" :class "col-lg-2 control-label"} "Confirm:"]
-             [:div {:class "col-lg-10"}
+             [:label {:for "inputPassword2" :class "col-sm-2 col-lg-2 control-label"} "Confirm:"]
+             [:div {:class "col-sm-10 col-lg-10"}
               [:input {:type         "password"
-                       :class        "formControl col-lg-6"
+                       :class        "formControl col-sm-8 col-lg-8"
                        :id           "inputPassword2"
                        :on-change    #(dispatch-sync [:update-credentials :password2 (-> % .-target .-value)])
                        :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
