@@ -22,8 +22,9 @@
 (defn save-memory!
   "Saves a new memory, after removing HTML tags from the thought."
   [memory]
-  (let [item (assoc memory :created (now)
-                           :thought (remove-html (:thought memory)))]
+  (let [item (assoc memory :created  (now)
+                           :username (s/lower-case (:username memory))
+                           :thought  (remove-html (:thought memory)))]
     (db/create-thought! item)))
 
 (defn query-memories
