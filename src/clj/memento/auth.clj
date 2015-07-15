@@ -3,6 +3,7 @@
             [buddy.core.keys :as ks]
             [clj-time.core :as t]
             [clojure.java.io :as io]
+            [clojure.string :as string]
             [environ.core :refer [env]]
             [memento.db.user :as user]))
 
@@ -22,7 +23,7 @@
         valid?    (user/validate-user username password)
         exp       (t/plus (t/now) (t/days 1))]
     (if valid?
-      (jws/sign {:username   username}
+      (jws/sign {:username (string/lower-case username)}
                 (pkey auth-conf)
                 {:alg :rs256 :exp exp}))))
 

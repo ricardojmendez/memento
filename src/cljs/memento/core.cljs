@@ -1,6 +1,7 @@
 (ns memento.core
   (:require [ajax.core :refer [GET POST PUT]]
             [clojure.string :refer [trim split]]
+            [cljsjs.react-bootstrap]
             [reagent.cookies :as cookies]
             [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [dispatch register-sub register-handler subscribe dispatch-sync]]
@@ -39,6 +40,9 @@
    transformers/blockquote
    transformers/paragraph
    transformers/br])
+
+
+(def Pagination (reagent/adapt-react-class js/ReactBootstrap.Pagination))
 
 
 ;;;;------------------------------
@@ -338,9 +342,25 @@
 (defn memory-pager []
   (let [memories (subscribe [:ui-state :memories])
         pages    (reaction (:pages @memories))
-        current  (subscribe [:ui-state :results-page])]
+        current  (subscribe [:ui-state :results-page])
+        max-btn  (reaction (Math/min @pages 8))]
     (fn []
       (if (> @pages 1)
+        [:div {:style {:text-align "center"}}
+         [Pagination {:items      @pages
+                      :maxButtons @max-btn
+                      :prev       true
+                      :next       true
+                      :first      (>= @current @max-btn)
+                      :last       (< @current (- @pages @max-btn))
+                      :activePage (inc @current)
+                      :onSelect   #(dispatch [:page-memories (dec (aget %2 "eventKey"))])
+
+                      }]]
+        )
+
+
+      #_ (if (> @pages 1)
         [:div {:style {:text-align "center"}}
          [:ul {:class "pagination"}
           [:li {:class (if (= 0 @current) "disabled")}

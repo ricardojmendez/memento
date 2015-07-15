@@ -370,6 +370,14 @@
         (is (= "Just a new idea" (:thought item)))
         (is (:created item))
         (is (:id item))))
+    )
+  (let [token (invoke-login {:username "User1" :password "password1"})]
+    (testing "Username on memory addition is not case sensitive"
+      (let [[response clj-data] (post-request "/api/memory" {:thought "Just a new idea"} token)]
+        (is (= 201 (:status response)))
+        (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
+        (is (= {:count 1} clj-data))
+        ))
     ))
 
 
