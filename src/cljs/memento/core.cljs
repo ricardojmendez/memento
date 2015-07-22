@@ -269,7 +269,7 @@
              [navbar-item "Login" :login]
              [navbar-item "Sign up" :signup]]
             [:ul {:class "nav navbar-nav"}
-             [navbar-item "Write" :write]
+             [navbar-item "Record" :write]
              [navbar-item "Remember" :remember]])
           ]]
         ]]
