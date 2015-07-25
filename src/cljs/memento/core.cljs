@@ -29,7 +29,6 @@
    transformers/autourl-transformer
    transformers/link
    transformers/reference-link
-   transformers/hr
    transformers/li
    transformers/italics
    transformers/em
