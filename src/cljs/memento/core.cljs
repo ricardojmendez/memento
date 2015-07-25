@@ -388,9 +388,12 @@
           [:p "Nothing."]
           (for [memory @results]
             ^{:key (:id memory)}
-            [:blockquote
-             [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought memory) :replacement-transformers md-transformers)}}]
-             [:small (:created memory)]]
+            [:div
+             [:blockquote
+              [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought memory) :replacement-transformers md-transformers)}}]
+              [:small (:created memory)]]
+             [:i {:class "fa fa-reply"}]
+             ]
             ))
         [memory-pager]
         ]
