@@ -293,7 +293,7 @@
       [:fielset
        [:div {:class "form-horizontal"}
         [:div {:class "form-group"}
-         [:div {:class "col-lg-12"}
+         [:div {:class "col-sm-12"}
           [:textarea {:class       "form-control"
                       :placeholder "I was thinking..."
                       :rows        12
@@ -303,9 +303,9 @@
                       }]
           ]]
         [:div {:class "form-group"}
-         [:div {:class "col-lg-12"}
           [:button {:type "reset" :class "btn btn-default" :on-click #(dispatch [:update-note ""])} "Clear"]
           [:button {:type "submit" :disabled (or @is-busy? (empty? @note)) :class "btn btn-primary" :on-click #(dispatch [:save-note])} "Submit"]
+         [:div {:class "col-sm-12"}
           ]]
         ]]
       )))
@@ -329,8 +329,8 @@
     (fn []
       [:div {:class "form-horizontal"}
        [:div {:class "form-group"}
-        [:label {:for "input-search" :class "col-lg-2 control-label"} "Search:"]
-        [:div {:class "col-lg-9"}
+        [:label {:for "input-search" :class "col-md-1 control-label"} "Search:"]
+        [:div {:class "col-md-10"}
          [:input {:type      "text"
                   :class     "form-control"
                   :id        "input-search"
