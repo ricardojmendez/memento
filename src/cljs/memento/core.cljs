@@ -7,6 +7,7 @@
             [re-frame.core :refer [dispatch register-sub register-handler subscribe dispatch-sync]]
             [goog.events :as events]
             [goog.history.EventType :as EventType]
+            [jayq.core :refer [$]]
             [markdown.core :refer [md->html]]
             [markdown.transformers :as transformers]
             [ajax.core :refer [GET POST]])
@@ -29,7 +30,6 @@
    transformers/autourl-transformer
    transformers/link
    transformers/reference-link
-   transformers/hr
    transformers/li
    transformers/italics
    transformers/em
@@ -44,6 +44,12 @@
 
 (def Pagination (reagent/adapt-react-class js/ReactBootstrap.Pagination))
 
+(defn find-dom-elem
+  "Find a dom element by its id. Expects a keyword."
+  [id]
+  (first ($ id)))
+
+(def top-div-target (find-dom-elem :#header))
 
 ;;;;------------------------------
 ;;;; Queries
@@ -207,12 +213,20 @@
       (assoc-in app-state [:ui-state :results-page] idx))
     ))
 
+(register-handler
+  :refine
+  (fn [app-state [_ thought]]
+    (-> app-state
+        (assoc-in [:note :focus] thought)
+        (assoc-in [:ui-state :section] :write))
+    ))
+
 
 (register-handler
   :save-note
   (fn [app-state _]
     (let [note (get-in app-state [:note :current-note])]
-      (POST "/api/memory" {:params        {:thought note}
+      (POST "/api/memory" {:params        {:thought note :refine_id (get-in app-state [:note :focus :id]) }
                            :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                            :handler       #(dispatch [:save-note-success note])
                            :error-handler #(dispatch [:save-note-error %])}))
@@ -226,6 +240,7 @@
     (-> app-state
         (assoc-in [:ui-state :is-busy?] false)
         (assoc-in [:note :current-note] "")
+        (assoc-in [:note :focus] nil)
         )))
 
 (register-handler
@@ -241,6 +256,10 @@
 ;;;; Components
 ;;;;------------------------------
 
+
+(def initial-focus-wrapper
+  (with-meta identity
+             {:component-did-mount #(.focus (reagent/dom-node %))}))
 
 (defn navbar-item
   "Renders a navbar item. Having each navbar item have its own subscription will probably
@@ -287,6 +306,20 @@
       )))
 
 
+(defn focused-thought []
+  (let [focus (subscribe [:note :focus])]
+
+    (if @focus
+      [:div {:class "col-sm-10 col-sm-offset-1"}
+       [:div {:class "panel panel-default"}
+        [:div {:class "panel-heading"} "Refining..."
+         [:button {:type "button" :class "close" :aria-hidden "true" :on-click #(dispatch [:refine nil])} "×"]]
+        [:div {:class "panel-body"}
+         [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought @focus) :replacement-transformers md-transformers)}}]
+         ]]])
+
+    ))
+
 (defn write-section []
   (let [note     (subscribe [:note :current-note])
         is-busy? (subscribe [:ui-state :is-busy?])]
@@ -294,19 +327,28 @@
       [:fielset
        [:div {:class "form-horizontal"}
         [:div {:class "form-group"}
-         [:div {:class "col-lg-12"}
-          [:textarea {:class       "form-control"
-                      :placeholder "I was thinking..."
-                      :rows        12
-                      :style       {:font-size "18px"}
-                      :on-change   #(dispatch-sync [:update-note (-> % .-target .-value)])
-                      :value       @note
-                      }]
+         [focused-thought]
+
+         [:div {:class "col-sm-12"}
+          [initial-focus-wrapper
+           [:textarea {:class       "form-control"
+                       :id          "thought-area"
+                       :placeholder "I was thinking..."
+                       :rows        12
+                       :style       {:font-size "18px"}
+                       :on-change   #(dispatch-sync [:update-note (-> % .-target .-value)])
+                       :value       @note
+                       }]]
           ]]
         [:div {:class "form-group"}
-         [:div {:class "col-lg-12"}
-          [:button {:type "reset" :class "btn btn-default" :on-click #(dispatch [:update-note ""])} "Clear"]
-          [:button {:type "submit" :disabled (or @is-busy? (empty? @note)) :class "btn btn-primary" :on-click #(dispatch [:save-note])} "Submit"]
+         [:div {:class "col-sm-12"}
+          [:button {:type     "reset"
+                    :class    "btn btn-default"
+                    :on-click #(dispatch [:update-note ""])} "Clear"]
+          [:button {:type     "submit"
+                    :disabled (or @is-busy? (empty? @note))
+                    :class    "btn btn-primary"
+                    :on-click #(dispatch [:save-note])} "Submit"]
           ]]
         ]]
       )))
@@ -330,13 +372,14 @@
     (fn []
       [:div {:class "form-horizontal"}
        [:div {:class "form-group"}
-        [:label {:for "input-search" :class "col-lg-2 control-label"} "Search:"]
-        [:div {:class "col-lg-9"}
-         [:input {:type      "text"
-                  :class     "form-control"
-                  :id        "input-search"
-                  :value     @query
-                  :on-change #(dispatch-sync [:update-query (-> % .-target .-value)])}]
+        [:label {:for "input-search" :class "col-md-1 control-label"} "Search:"]
+        [:div {:class "col-md-10"}
+         [initial-focus-wrapper
+          [:input {:type      "text"
+                   :class     "form-control"
+                   :id        "input-search"
+                   :value     @query
+                   :on-change #(dispatch-sync [:update-query (-> % .-target .-value)])}]]
          ]]])))
 
 (defn memory-pager []
@@ -354,45 +397,40 @@
                       :first      (>= @current @max-btn)
                       :last       (< @current (- @pages @max-btn))
                       :activePage (inc @current)
-                      :onSelect   #(dispatch [:page-memories (dec (aget %2 "eventKey"))])
+                      :onSelect   #(do
+                                    (.scrollIntoView top-div-target)
+                                    (dispatch [:page-memories (dec (aget %2 "eventKey"))]))
 
-                      }]]
-        )
-
-
-      #_ (if (> @pages 1)
-        [:div {:style {:text-align "center"}}
-         [:ul {:class "pagination"}
-          [:li {:class (if (= 0 @current) "disabled")}
-           [:a {:on-click #(dispatch [:page-memories (dec @current)])} "«"]]
-          (doall
-            (for [i (range 0 @pages)]
-              ^{:key i}
-              [:li {:class    (if (= i @current) "active")
-                    :on-click #(dispatch [:page-memories i])}
-               [:a (str (inc i))]]
-              ))
-          [:li {:class (if (>= @current (dec @pages)) "disabled")}
-           [:a {:on-click #(dispatch [:page-memories (inc @current)])} "»"]]]]
-        ))
-    )
-  )
+                      }]]))))
 
 (defn memory-results []
   (let [busy?    (subscribe [:ui-state :is-searching?])
         memories (subscribe [:ui-state :memories])
         results  (reaction (:results @memories))]
     (fn []
-      [panel (if @busy? "Loading..." "Memories")
+      [panel (if @busy?
+               [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]]
+               "Memories")
        [:span
         (if (empty? @results)
           [:p "Nothing."]
           (for [memory @results]
             ^{:key (:id memory)}
-            [:blockquote
-             [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought memory) :replacement-transformers md-transformers)}}]
-             [:small (:created memory)]]
-            ))
+            [:div {:class "col-sm-12 thought"}
+             [:div {:class "memory col-sm-12"}
+              [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought memory) :replacement-transformers md-transformers)}}]
+              ]
+             [:div
+              [:div {:class "col-sm-4"}
+               [:a {:class    "btn btn-primary btn-xs"
+                    :on-click #(do
+                                (.scrollIntoView top-div-target)
+                                (dispatch [:refine memory]))}
+                "Refine" [:i {:class "fa fa-comment fa-space"}]]
+               ]
+              [:div {:class "col-sm-4 col-sm-offset-4" :style {:text-align "right"}}
+               [:i [:small (:created memory)]]
+               ]]]))
         [memory-pager]
         ]
        "panel-primary"]
@@ -428,20 +466,20 @@
             [:div {:class (str "col-lg-12 alert " (:type @message))}
              [:p (:text @message)]])
           [:div {:class (str "form-group" @u-class)}
-           [:label {:for "inputLogin" :class "col-lg-2 col-sm-2 control-label"} "Username"]
-           [:div {:class "col-sm-10 col-lg-10"}
+           [:label {:for "inputLogin" :class "col-sm-2 control-label"} "Username"]
+           [:div {:class "col-sm-10"}
             [:input {:type         "text"
-                     :class        "formControl col-sm-8 col-lg-8"
+                     :class        "formControl col-sm-8"
                      :id           "inputLogin"
                      :placeholder  "user name"
                      :on-change    #(dispatch-sync [:update-credentials :username (-> % .-target .-value)])
                      :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
                      :value        @username}]]]
           [:div {:class (str "form-group" @pw-class)}
-           [:label {:for "inputPassword" :class "col-sm-2 col-lg-2 control-label"} "Password"]
-           [:div {:class "col-sm-10 col-lg-10"}
+           [:label {:for "inputPassword" :class "col-sm-2 control-label"} "Password"]
+           [:div {:class "col-sm-10"}
             [:input {:type         "password"
-                     :class        "formControl col-sm-8 col-lg-8"
+                     :class        "formControl col-sm-8"
                      :id           "inputPassword"
                      :on-change    #(dispatch-sync [:update-credentials :password (-> % .-target .-value)])
                      :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
@@ -498,12 +536,12 @@
 ;; must be called after routes have been defined
 ;; TODO: Figure out how to do that with re-frame
 (defn hook-browser-navigation! []
-  #_ (doto (History.)
-    (events/listen
-      EventType/NAVIGATE
-      (fn [event]
-        (secretary/dispatch! (.-token event))))
-    (.setEnabled true)))
+  #_(doto (History.)
+      (events/listen
+        EventType/NAVIGATE
+        (fn [event]
+          (secretary/dispatch! (.-token event))))
+      (.setEnabled true)))
 
 ;; -------------------------
 ;; Initialize app

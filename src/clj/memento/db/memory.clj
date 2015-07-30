@@ -22,9 +22,14 @@
 (defn save-memory!
   "Saves a new memory, after removing HTML tags from the thought."
   [memory]
-  (let [item (assoc memory :created  (now)
-                           :username (s/lower-case (:username memory))
-                           :thought  (remove-html (:thought memory)))]
+  (let [refine-id (or (:refine_id memory) nil)
+        refined   (if refine-id (first (db/get-thought-by-id {:id refine-id})))
+        root-id   (or (:root_id refined) refine-id)
+        item      (assoc memory :created (now)
+                                :username (s/lower-case (:username memory))
+                                :thought (remove-html (:thought memory))
+                                :refine_id refine-id
+                                :root_id root-id)]
     (db/create-thought! item)))
 
 (defn query-memories
@@ -32,14 +37,13 @@
   ([username]
    (query-memories username ""))
   ([^String username ^String query-str]
-   (query-memories username query-str 0)
-    )
+   (query-memories username query-str 0))
   ([^String username ^String query-str ^Integer offset]
    (let [query-str (-> (or query-str "")
-                       (s/replace #"[,.;:]" " ")                      ; Consider commas whitespace
-                       (s/replace #"[$!&=\-\*|%&^]" "")               ; Remove characters which could cause it to barf
+                       (s/replace #"[,.;:]" " ")            ; Consider commas whitespace
+                       (s/replace #"[$!&=\-\*|%&^]" "")     ; Remove characters which could cause it to barf
                        s/trim
-                       (s/replace #"\s+" "|")                         ; Replace white space sequences with a single or operator
+                       (s/replace #"\s+" "|")               ; Replace white space sequences with a single or operator
                        )
          params    {:limit    result-limit
                     :offset   offset

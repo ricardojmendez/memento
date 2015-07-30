@@ -52,12 +52,44 @@
 ;;;; Tests
 ;;;;
 
+;;;
+;;; Saving
+;;;
+
 
 (deftest test-save-memory
   (tdu/init-placeholder-data!)
   (let [result (memory/save-memory! {:username tdu/ph-username :thought "Just wondering"})]
     ;; We return only the number of records updated
     (is (= result 1))))
+
+
+(deftest test-save-memory-refine
+  (tdu/init-placeholder-data!)
+  (let [_  (memory/save-memory! {:username tdu/ph-username :thought "Just wondering"})
+        m1 (first (:results (memory/query-memories tdu/ph-username)))
+        _  (memory/save-memory! {:username tdu/ph-username :thought "Second memory" :refine_id (:id m1)})
+        m2 (first (:results (memory/query-memories tdu/ph-username)))
+        _  (memory/save-memory! {:username tdu/ph-username :thought "Third memory" :refine_id (:id m2)})
+        m3 (first (:results (memory/query-memories tdu/ph-username)))]
+    ;; First memory has on refine_id nor root_id
+    (is m1)
+    (is (nil? (:root_id m1)))
+    (is (nil? (:refine_id m1)))
+    ;; First time we refine a memory, both refine_id and root_id point to the same
+    (is m2)
+    (is (= (:id m1) (:root_id m2)))
+    (is (= (:id m1) (:refine_id m2)))
+    ;; If we refine an already-refined memory, the root points to the initial item
+    (is m2)
+    (is (= (:id m1) (:root_id m3)))
+    (is (= (:id m2) (:refine_id m3))))
+  )
+
+
+;;;
+;;; Querying
+;;;
 
 
 ;; Strictly speaking, the following belongs in the tests for db.core, but
@@ -253,7 +285,6 @@
         ;; This should hold for all values being returned at that offset,
         ;; until the Postgresql scoring algorithm changes
         (is (>= 0.21 i)))
-      ))
-  )
+      )))
 
 
