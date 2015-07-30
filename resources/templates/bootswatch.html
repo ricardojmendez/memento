@@ -54,17 +54,18 @@
     -->
 </div>
 <div class="container">
-    <div class="bs-docs-section">
+    <div>
         <div class="row">
-            <div class="col-lg-6 col-lg-offset-3">
+            <div class="col-md-10 col-md-offset-1 col-lg-8 col-lg-offset-2">
                 <div class="page-header" id="header">
                     <h1 id="forms">Memento</h1>
                 </div>
             </div>
         </div>
         <div class="row">
-            <div class="col-lg-8 col-lg-offset-2">
+            <div class="col-md-10 col-md-offset-1 col-lg-8 col-lg-offset-2">
                 <div class="bs-component">
+                    <a id="content"></a>
                     <div id="content-section">
                         Loading...
                     </div>
@@ -72,7 +73,7 @@
             </div>
         </div>
 
-        <div id="alert" class="col-lg-6 col-lg-offset-3">
+        <div id="alert" class="col-sm-6 col-sm-offset-3">
             <!-- alerts will go here
             <div class="alert alert-dismissible alert-info">
                 <button type="button" class="close" data-dismiss="alert">×</button>
@@ -86,10 +87,8 @@
 
     <footer>
         <div class="row">
-            <div class="col-md-6 col-md-offset-4">
-                <p>&copy <a href="http://numergent.com" target="_new">Numergent Limited</a>.
-                    Original template by <a href="https://bootswatch.com/" target="_new">Thomas Park</a>.
-                </p>
+            <div class="col-sm-6 col-sm-offset-3" style="text-align: center">
+                <p>&copy <a href="http://numergent.com" target="_new">Numergent Limited</a></p>
             </div>
         </div>
     </footer>
@@ -97,6 +96,9 @@
 </div>
 
 
+<link rel="stylesheet" href="/assets/font-awesome/css/font-awesome.css">
+
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 {% if dev %}
 {% script "/js/goog/base.js" %}
 {% script "/js/memento.js" %}

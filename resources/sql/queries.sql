@@ -1,6 +1,13 @@
 -- name: create-thought!
 -- Creates a new thought record
-INSERT INTO thoughts (created, username, thought) VALUES (:created, :username, :thought);
+INSERT INTO thoughts (created, username, thought, root_id, refine_id)
+VALUES (:created, :username, :thought, :root_id, :refine_id);
+
+
+-- name: get-thought-by-id
+-- Returns the thoughts matching an id (which should be only one)
+SELECT * FROM thoughts
+WHERE id = :id;
 
 
 -- name: get-thoughts
@@ -20,7 +27,7 @@ WHERE username = :username;
 -- name: search-thoughts
 -- Returns all thoughts for a username which match a search string
 SELECT t.*, ts_rank_cd(tl.lexemes, query) AS rank
-FROM to_tsquery(:query) AS query, thought_lexemes tl
+FROM to_tsquery('english', :query) AS query, thought_lexemes tl
 INNER JOIN thoughts t
   ON t.id = tl.id
 WHERE t.username = :username
@@ -33,7 +40,7 @@ OFFSET :offset;
 -- Returns the count of thoughts for a username which match a search string
 -- Notice we don't care about rank or ordering.
 SELECT COUNT(t.*)
-FROM to_tsquery(:query) AS query, thought_lexemes tl
+FROM to_tsquery('english', :query) AS query, thought_lexemes tl
   INNER JOIN thoughts t
     ON t.id = tl.id
 WHERE t.username = :username

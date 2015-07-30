@@ -1,4 +1,4 @@
-(defproject memento "0.2-SNAPSHOT"
+(defproject memento "0.2"
   :description "Memento mori"
   :url "https://mementoapp.herokuapp.com/"
 
@@ -19,6 +19,7 @@
                  [com.taoensso/tower "3.1.0-beta3"]
                  [environ "1.0.0"]
                  [io.clojure/liberator-transit "0.3.0"]
+                 [jayq "2.5.4"]
                  [liberator "0.13"]
                  [markdown-clj "0.9.67"]
                  [metosin/ring-middleware-format "0.6.0"]
@@ -74,7 +75,7 @@
     {:source-paths ["src/cljs"]
      :compiler
                    {:output-dir    "resources/public/js/"
-                    :externs       ["react/externs/react.js"]
+                    :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]
                     :optimizations :none
                     :output-to     "resources/public/js/memento.js"
                     :source-map    "resources/public/js/memento.js.map"
@@ -106,7 +107,7 @@
                                                                 org.codehaus.plexus/plexus-utils]]
                             [org.clojure/tools.nrepl "0.2.10"]]
              :source-paths ["env/dev/clj"]
-             :plugins      [[lein-figwheel "0.3.5" :exclusions [org.clojure/clojure
+             :plugins      [[lein-figwheel "0.3.7" :exclusions [org.clojure/clojure
                                                                 org.clojure/tools.reader
                                                                 org.codehaus.plexus/plexus-utils]]]
              :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}
