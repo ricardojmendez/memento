@@ -370,6 +370,19 @@
         (is (= "Just a new idea" (:thought item)))
         (is (:created item))
         (is (:id item))))
+    (testing "We can refine a memory through the API"
+      (let [[_ {:keys [results]}] (get-request "/api/memory" nil token)
+            m1 (first results)
+            _  (post-request "/api/memory" {:thought "Refining an idea" :refine_id (:id m1)} token)
+            [_ {:keys [results]}] (get-request "/api/memory" nil token)
+            m2 (first results)
+            ]
+        (is m1)
+        (is (nil? (:refine_id m1)))
+        (is (nil? (:root_id m1)))
+        (is (= (:id m1) (:refine_id m2)))
+        (is (= (:id m1) (:root_id m2)))
+        ))
     )
   (let [token (invoke-login {:username "User1" :password "password1"})]
     (testing "Username on memory addition is not case sensitive"
@@ -377,8 +390,8 @@
         (is (= 201 (:status response)))
         (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
         (is (= {:count 1} clj-data))
-        ))
-    ))
+        )))
+  )
 
 
 (deftest test-add-memory-clean-up

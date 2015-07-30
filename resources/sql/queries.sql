@@ -1,6 +1,13 @@
 -- name: create-thought!
 -- Creates a new thought record
-INSERT INTO thoughts (created, username, thought) VALUES (:created, :username, :thought);
+INSERT INTO thoughts (created, username, thought, root_id, refine_id)
+VALUES (:created, :username, :thought, :root_id, :refine_id);
+
+
+-- name: get-thought-by-id
+-- Returns the thoughts matching an id (which should be only one)
+SELECT * FROM thoughts
+WHERE id = :id;
 
 
 -- name: get-thoughts
