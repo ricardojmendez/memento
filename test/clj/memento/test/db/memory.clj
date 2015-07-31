@@ -56,22 +56,25 @@
 ;;; Saving
 ;;;
 
-
 (deftest test-save-memory
   (tdu/init-placeholder-data!)
   (let [result (memory/save-memory! {:username tdu/ph-username :thought "Just wondering"})]
     ;; We return only the number of records updated
-    (is (= result 1))))
+    (is (= 1 result))))
 
 
 (deftest test-save-memory-refine
   (tdu/init-placeholder-data!)
-  (let [_  (memory/save-memory! {:username tdu/ph-username :thought "Just wondering"})
-        m1 (first (:results (memory/query-memories tdu/ph-username)))
-        _  (memory/save-memory! {:username tdu/ph-username :thought "Second memory" :refine_id (:id m1)})
-        m2 (first (:results (memory/query-memories tdu/ph-username)))
-        _  (memory/save-memory! {:username tdu/ph-username :thought "Third memory" :refine_id (:id m2)})
-        m3 (first (:results (memory/query-memories tdu/ph-username)))]
+  (let [_      (memory/save-memory! {:username tdu/ph-username :thought "Just wondering"})
+        m1     (first (:results (memory/query-memories tdu/ph-username)))
+        _      (memory/save-memory! {:username tdu/ph-username :thought "Second memory" :refine_id (:id m1)})
+        m2     (first (:results (memory/query-memories tdu/ph-username)))
+        _      (memory/save-memory! {:username tdu/ph-username :thought "Third memory" :refine_id (:id m2)})
+        m3     (first (:results (memory/query-memories tdu/ph-username)))
+        m1r    (last (:results (memory/query-memories tdu/ph-username))) ; Memories are returned in reverse date order on the default query
+        _      (memory/save-memory! {:username tdu/ph-username :thought "Unrelated memory, not for thread"})
+        all    (memory/query-memories tdu/ph-username)
+        thread (memory/query-memory-thread (:root_id m3))]
     ;; First memory has on refine_id nor root_id
     (is m1)
     (is (nil? (:root_id m1)))
@@ -83,8 +86,19 @@
     ;; If we refine an already-refined memory, the root points to the initial item
     (is m2)
     (is (= (:id m1) (:root_id m3)))
-    (is (= (:id m2) (:refine_id m3))))
-  )
+    (is (= (:id m2) (:refine_id m3)))
+    ;; After refining, m1 has the root_id assigned to itself
+    (is (= (:id m1r) (:root_id m1r)))
+    (is (= (:id m1r) (:id m1)))
+    ;; Check the thread
+    (is thread)
+    ; We have four memories for the user
+    (is (= 4 (count (:results all))))
+    ; Thread only includes three
+    (is (= 3 (count thread)))
+    ; Thread includes the updated record for the first memory
+    (is (= [m1r m2 m3] thread))
+    ))
 
 
 ;;;
