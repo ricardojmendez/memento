@@ -171,7 +171,19 @@
 (register-handler
   :set-message
   (fn [app-state [_ msg class]]
-    (assoc-in app-state [:ui-state :last-message] {:text msg :class class})))
+    (let [message {:text msg :class class}]
+      ; TODO: Consider changing this for a keyword
+      (if (= class "alert-success")
+        (js/setTimeout #(dispatch [:set-message-if-same message nil]) 3000))
+      (assoc-in app-state [:ui-state :last-message] message))))
+
+(register-handler
+  :set-message-if-same
+  (fn [app-state [_ msg new-msg]]
+    (if (= msg (get-in app-state [:ui-state :last-message]))
+      (assoc-in app-state [:ui-state :last-message] new-msg)
+      app-state
+      )))
 
 (register-handler
   :update-note
