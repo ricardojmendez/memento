@@ -376,12 +376,21 @@
             _  (post-request "/api/memory" {:thought "Refining an idea" :refine_id (:id m1)} token)
             [_ {:keys [results]}] (get-request "/api/memory" nil token)
             m2 (first results)
+            [_ data] (get-request (str "/api/memory/thread/" (:id m1)) nil token)
+            ; m1 became a root after m2 was created, so we will expect it to have a root_id when returned
+            m1r (assoc m1 :root_id (:id m1))
             ]
         (is m1)
         (is (nil? (:refine_id m1)))
         (is (nil? (:root_id m1)))
         (is (= (:id m1) (:refine_id m2)))
         (is (= (:id m1) (:root_id m2)))
+        (is (= data {:results [m1r m2]}))
+        ;; Test that we get an empty list if querying for a thread that does not belong to the user
+        (let [new-token (invoke-login {:username tdu/ph-username :password tdu/ph-password})
+              [_ data] (get-request (str "/api/memory/thread/" (:id m1)) nil new-token)]
+          (is new-token)
+          (is (= {:results []} data)))
         ))
     )
   (let [token (invoke-login {:username "User1" :password "password1"})]

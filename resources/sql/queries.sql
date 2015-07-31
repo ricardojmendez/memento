@@ -9,6 +9,12 @@ VALUES (:created, :username, :thought, :root_id, :refine_id);
 SELECT * FROM thoughts
 WHERE id = :id;
 
+-- name: get-thread-by-root-id
+-- Returns all thoughts matching a root id
+SELECT * FROM thoughts
+WHERE root_id = :id
+ORDER BY created ASC;
+
 
 -- name: get-thoughts
 -- Returns all thoughts for a username
@@ -23,6 +29,14 @@ OFFSET :offset;
 SELECT COUNT(*) FROM thoughts
 WHERE username = :username;
 
+
+-- name: make-root!
+-- Marks a thought as a root by setting its root_id to itself.
+-- Ensures that the thought isn't refining any other thought before
+-- doing so.
+UPDATE thoughts
+SET root_id = id
+WHERE id = :id AND root_id IS NULL;
 
 -- name: search-thoughts
 -- Returns all thoughts for a username which match a search string

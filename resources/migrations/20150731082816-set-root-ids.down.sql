@@ -1,0 +1,1 @@
+UPDATE thoughts SET root_id = NULL WHERE root_id = id;
