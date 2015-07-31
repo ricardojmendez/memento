@@ -22,7 +22,7 @@
 (defn save-memory!
   "Saves a new memory, after removing HTML tags from the thought."
   [memory]
-  (let [refine-id (or (:refine_id memory) nil)
+  (let [refine-id (:refine_id memory)
         refined   (if refine-id (first (db/get-thought-by-id {:id refine-id})))
         root-id   (or (:root_id refined) refine-id)
         item      (assoc memory :created (now)
@@ -30,7 +30,11 @@
                                 :thought (remove-html (:thought memory))
                                 :refine_id refine-id
                                 :root_id root-id)]
-    (db/create-thought! item)))
+    ;; TODO: Transaction handling
+    (if refined
+      (db/make-root! {:id root-id}))
+    (db/create-thought! item)
+    ))
 
 (defn query-memories
   "Queries for a user's memories"
