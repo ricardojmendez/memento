@@ -10,7 +10,8 @@
             [memento.auth :as auth]
             [memento.db.memory :as memory]
             [memento.db.user :as user]
-            [numergent.utils :as utils]))
+            [numergent.utils :as utils])
+  (:import (java.util UUID)))
 
 
 (defn read-content
@@ -71,6 +72,19 @@
                                      "application/transit+msgpack"
                                      "application/json"])
 
+(defresource memory-thread [id]
+             :allowed-methods [:get]
+             :authorized? (fn [ctx]
+                            (some? (get-in ctx [:request :identity])))
+             :handle-ok (fn [{request :request}]
+                          (->> (memory/query-memory-thread (UUID/fromString id))
+                               (filter #(= (:username %) (:identity request)))
+                               (hash-map :results)
+                               memory/format-created))
+             :available-media-types ["application/transit+json"
+                                     "application/transit+msgpack"
+                                     "application/json"])
+
 (defresource login
              :allowed-methods [:post]
              :authorized? (fn [ctx]
@@ -78,7 +92,7 @@
                                   token   (auth/create-auth-token (:username content) (:password content))]
                               (if (not-empty token)
                                 {:token token})))
-             :post! true                                              ; All the work is done on authorized?
+             :post! true                                    ; All the work is done on authorized?
              :handle-created (fn [ctx]
                                {:token (:token ctx)})
              :available-media-types ["application/transit+json"
@@ -112,4 +126,5 @@
            (ANY "/api/auth/login" request login)
            (ANY "/api/auth/signup" request signup)
            (ANY "/api/memory" request memory)
+           (ANY "/api/memory/thread/:id" [id] (memory-thread id))
            (ANY "/api/memory/search" request memory-search))

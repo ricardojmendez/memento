@@ -9,6 +9,12 @@ VALUES (:created, :username, :thought, :root_id, :refine_id);
 SELECT * FROM thoughts
 WHERE id = :id;
 
+-- name: get-thread-by-root-id
+-- Returns all thoughts matching a root id
+SELECT * FROM thoughts
+WHERE id = :id OR root_id = :id
+ORDER BY created ASC;
+
 
 -- name: get-thoughts
 -- Returns all thoughts for a username

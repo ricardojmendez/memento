@@ -66,12 +66,13 @@
 
 (deftest test-save-memory-refine
   (tdu/init-placeholder-data!)
-  (let [_  (memory/save-memory! {:username tdu/ph-username :thought "Just wondering"})
-        m1 (first (:results (memory/query-memories tdu/ph-username)))
-        _  (memory/save-memory! {:username tdu/ph-username :thought "Second memory" :refine_id (:id m1)})
-        m2 (first (:results (memory/query-memories tdu/ph-username)))
-        _  (memory/save-memory! {:username tdu/ph-username :thought "Third memory" :refine_id (:id m2)})
-        m3 (first (:results (memory/query-memories tdu/ph-username)))]
+  (let [_      (memory/save-memory! {:username tdu/ph-username :thought "Just wondering"})
+        m1     (first (:results (memory/query-memories tdu/ph-username)))
+        _      (memory/save-memory! {:username tdu/ph-username :thought "Second memory" :refine_id (:id m1)})
+        m2     (first (:results (memory/query-memories tdu/ph-username)))
+        _      (memory/save-memory! {:username tdu/ph-username :thought "Third memory" :refine_id (:id m2)})
+        m3     (first (:results (memory/query-memories tdu/ph-username)))
+        thread (memory/query-memory-thread (:root_id m3))]
     ;; First memory has on refine_id nor root_id
     (is m1)
     (is (nil? (:root_id m1)))
@@ -83,8 +84,12 @@
     ;; If we refine an already-refined memory, the root points to the initial item
     (is m2)
     (is (= (:id m1) (:root_id m3)))
-    (is (= (:id m2) (:refine_id m3))))
-  )
+    (is (= (:id m2) (:refine_id m3)))
+    ;; Check the thread
+    (is thread)
+    (is (= 3 (count thread)))
+    (is (= [m1 m2 m3] thread))
+    ))
 
 
 ;;;

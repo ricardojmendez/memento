@@ -11,7 +11,8 @@
             [markdown.core :refer [md->html]]
             [markdown.transformers :as transformers]
             [ajax.core :refer [GET POST]])
-  (:require-macros [reagent.ratom :refer [reaction]])
+  (:require-macros [reagent.ratom :refer [reaction]]
+                   [memento.misc.cljs-macros :refer [adapt-bootstrap]])
   (:import goog.History))
 
 
@@ -42,7 +43,18 @@
    transformers/br])
 
 
+#_(adapt-bootstrap Pagination)
+(adapt-bootstrap OverlayTrigger)
+(adapt-bootstrap Popover)
+(adapt-bootstrap Tooltip)
 (def Pagination (reagent/adapt-react-class js/ReactBootstrap.Pagination))
+(def Modal (reagent/adapt-react-class js/ReactBootstrap.Modal))
+(def ModalBody (reagent/adapt-react-class js/ReactBootstrap.ModalBody))
+(def ModalFooter (reagent/adapt-react-class js/ReactBootstrap.ModalFooter))
+(def ModalHeader (reagent/adapt-react-class js/ReactBootstrap.ModalHeader))
+(def ModalTitle (reagent/adapt-react-class js/ReactBootstrap.ModalTitle))
+(def ModalTrigger (reagent/adapt-react-class js/ReactBootstrap.ModalTrigger))
+
 
 (defn find-dom-elem
   "Find a dom element by its id. Expects a keyword."
@@ -83,6 +95,7 @@
     (dispatch [:set-token (cookies/get :token nil)])
     (merge app-state {:ui-state {:is-busy?      false
                                  :wip-login?    false
+                                 :show-thread?  false
                                  :section       :login
                                  :current-query ""
                                  :results-page  0
@@ -184,6 +197,35 @@
     ))
 
 (register-handler
+  :load-thread
+  (fn [app-state [_ thought]]
+    (GET (str "/api/memory/thread/" (:root_id thought)) {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                                                         :handler       #(dispatch [:load-thread-success %])
+                                                         :error-handler #(dispatch [:load-thread-error %])}
+         )
+    app-state))
+
+(register-handler
+  :load-thread-error
+  (fn [app-state [_ result]]
+    (.log js/console (str result))
+    app-state))
+
+(register-handler
+  :load-thread-success
+  (fn [app-state [_ result]]
+    (.log js/console (str result))
+    (-> app-state
+        (assoc-in [:ui-state :show-thread?] true)
+        (assoc-in [:note :thread] (:results result)))
+    ))
+
+(register-handler
+  :set-show-thread
+  (fn [app-state [_ state]]
+    (assoc-in app-state [:ui-state :show-thread?] state)))
+
+(register-handler
   :load-memories-success
   (fn [app-state [_ memories]]
     (-> app-state
@@ -226,7 +268,7 @@
   :save-note
   (fn [app-state _]
     (let [note (get-in app-state [:note :current-note])]
-      (POST "/api/memory" {:params        {:thought note :refine_id (get-in app-state [:note :focus :id]) }
+      (POST "/api/memory" {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
                            :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                            :handler       #(dispatch [:save-note-success note])
                            :error-handler #(dispatch [:save-note-error %])}))
@@ -403,6 +445,43 @@
 
                       }]]))))
 
+(defn list-memories [results show-thread-btn?]
+  (for [memory results]
+    ^{:key (:id memory)}
+    [:div {:class "col-sm-12 thought"}
+     [:div {:class "memory col-sm-12"}
+      [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought memory) :replacement-transformers md-transformers)}}]
+      ]
+     [:div
+      [:div {:class "col-sm-4"}
+       [:a {:class    "btn btn-primary btn-xs"
+            :on-click #(do
+                        (.scrollIntoView top-div-target)
+                        (dispatch [:refine memory]))}
+        "Refine" [:i {:class "fa fa-comment fa-space"}]]
+       (if (and show-thread-btn? (:root_id memory))
+         [:a {:class    "btn btn-primary btn-xs"
+              :on-click #(dispatch [:load-thread memory])}
+          "Thread" [:i {:class "fa fa-file-text fa-space"}]])
+
+       ]
+      [:div {:class "col-sm-4 col-sm-offset-4" :style {:text-align "right"}}
+       [:i [:small (:created memory)]]
+       ]]]))
+
+(defn memory-thread []
+  (let [show?  (subscribe [:ui-state :show-thread?])
+        thread (subscribe [:note :thread])]
+    (fn []
+      [Modal {:show @show? :onHide #(dispatch [:set-show-thread false])}
+       [ModalBody
+        (list-memories @thread false)]
+       [ModalFooter
+        [:button {:type     "reset"
+                  :class    "btn btn-default"
+                  :on-click #(dispatch [:set-show-thread false])} "Close"]]])))
+
+
 (defn memory-results []
   (let [busy?    (subscribe [:ui-state :is-searching?])
         memories (subscribe [:ui-state :memories])
@@ -414,23 +493,7 @@
        [:span
         (if (empty? @results)
           [:p "Nothing."]
-          (for [memory @results]
-            ^{:key (:id memory)}
-            [:div {:class "col-sm-12 thought"}
-             [:div {:class "memory col-sm-12"}
-              [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought memory) :replacement-transformers md-transformers)}}]
-              ]
-             [:div
-              [:div {:class "col-sm-4"}
-               [:a {:class    "btn btn-primary btn-xs"
-                    :on-click #(do
-                                (.scrollIntoView top-div-target)
-                                (dispatch [:refine memory]))}
-                "Refine" [:i {:class "fa fa-comment fa-space"}]]
-               ]
-              [:div {:class "col-sm-4 col-sm-offset-4" :style {:text-align "right"}}
-               [:i [:small (:created memory)]]
-               ]]]))
+          (list-memories @results true))
         [memory-pager]
         ]
        "panel-primary"]
@@ -439,6 +502,7 @@
 (defn memory-list []
   (fn []
     [:span
+     [memory-thread]
      [memory-query]
      [memory-results]]))
 

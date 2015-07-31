@@ -60,3 +60,8 @@
      (assoc result :pages (int (Math/ceil (/ (:total result) result-limit))))
      )))
 
+(defn query-memory-thread
+  "Returns a list with all the memories belonging to a root id"
+  [id]
+  (db/get-thread-by-root-id {:id id}))
+
