@@ -220,13 +220,12 @@
 (register-handler
   :load-thread-error
   (fn [app-state [_ result]]
-    (.log js/console (str result))
+    (dispatch [:set-message (str "Error loading thread: " result) "alert-danger"])
     app-state))
 
 (register-handler
   :load-thread-success
   (fn [app-state [_ result]]
-    (.log js/console (str result))
     (-> app-state
         (assoc-in [:ui-state :show-thread?] true)
         (assoc-in [:note :thread] (:results result)))
