@@ -239,6 +239,7 @@
 (register-handler
   :load-memories-success
   (fn [app-state [_ memories]]
+    (.scrollIntoView top-div-target)
     (-> app-state
         (assoc-in [:ui-state :results-page] (:current-page memories))
         (assoc-in [:ui-state :memories] memories)
@@ -450,10 +451,7 @@
                       :first      (>= @current @max-btn)
                       :last       (< @current (- @pages @max-btn))
                       :activePage (inc @current)
-                      :onSelect   #(do
-                                    (.scrollIntoView top-div-target)
-                                    (dispatch [:page-memories (dec (aget %2 "eventKey"))]))
-
+                      :onSelect   #(dispatch [:page-memories (dec (aget %2 "eventKey"))])
                       }]]))))
 
 (defn list-memories [results show-thread-btn?]
