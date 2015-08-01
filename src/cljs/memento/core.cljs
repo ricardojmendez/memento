@@ -365,7 +365,7 @@
     (if @focus
       [:div {:class "col-sm-10 col-sm-offset-1"}
        [:div {:class "panel panel-default"}
-        [:div {:class "panel-heading"} "Refining..."
+        [:div {:class "panel-heading"} "Refining... " [:i [:small "(from " (:created @focus) ")"]]
          [:button {:type "button" :class "close" :aria-hidden "true" :on-click #(dispatch [:refine nil])} "×"]]
         [:div {:class "panel-body"}
          [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought @focus) :replacement-transformers md-transformers)}}]
