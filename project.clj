@@ -12,6 +12,7 @@
                  [buddy/buddy-auth "0.6.0" :exclusions [com.fasterxml.jackson.core/jackson-core]]
                  [buddy/buddy-hashers "0.6.0"]
                  [buddy/buddy-sign "0.6.0"]
+                 [clj-dbcp "0.8.1"]
                  [cljs-ajax "0.3.14"]
                  [cljsjs/react-bootstrap "0.23.7-0" :exclusions [org.webjars.bower/jquery]]
                  [compojure "1.4.0"]
@@ -35,6 +36,7 @@
                  [ring/ring-defaults "0.1.5"]
                  [ring/ring-session-timeout "0.1.0"]
                  [selmer "0.8.7"]
+                 [to-jdbc-uri "0.2.0"]
                  [yesql "0.5.0-rc3"]
                  ]
 
@@ -122,13 +124,13 @@
              :injections   [(require 'pjstadig.humane-test-output)
                             (pjstadig.humane-test-output/activate!)]
              :env          {:dev          true
-                            :database-url "postgresql://memento:testdb@localhost/memento_dev"
+                            :database-url "postgres://memento:testdb@localhost/memento_dev"
                             :auth-conf    {:passphrase "testpassword"
                                            :pubkey     "keys/dev_auth_pubkey.pem"
                                            :privkey    "keys/dev_auth_privkey.pem"}
                             }}
    :test    {:env          {:dev          true
-                            :database-url "postgresql://memento:testdb@localhost/memento_test"
+                            :database-url "postgres://memento:testdb@localhost/memento_test"
                             :auth-conf    {:passphrase "testpassword"
                                            :pubkey     "keys/dev_auth_pubkey.pem"
                                            :privkey    "keys/dev_auth_privkey.pem"}

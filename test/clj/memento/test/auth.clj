@@ -2,10 +2,18 @@
   (:require [clojure.test :refer :all]
             [memento.auth :as auth]
             [memento.test.db.core :as tdb]
-            [memento.db.user :as user]))
+            [memento.db.user :as user]
+            [memento.db.core :as db]))
+
+
+(use-fixtures
+  :once
+  (fn [f]
+    (db/connect!)
+    (f)))
 
 (deftest test-create-auth-token
-  (tdb/wipe-database!)
+  (db/run tdb/wipe-database!)
   (user/create-user! "user1" "password1")
   (let [token (auth/create-auth-token "user1" "password1")]
     (is token)
@@ -15,7 +23,7 @@
 
 
 (deftest test-decode-auth-token
-  (tdb/wipe-database!)
+  (db/run tdb/wipe-database!)
   (user/create-user! "user1" "password1")
   (testing "Attempt to decode a good token"
     (let [token  (auth/create-auth-token "user1" "password1")
@@ -30,7 +38,7 @@
 
 
 (deftest test-username-lower-case
-  (tdb/wipe-database!)
+  (db/run tdb/wipe-database!)
   (user/create-user! "User1" "password1")
   ;; Confirm we always get the username in lower case for the token
   (let [token (auth/create-auth-token "User1" "password1")

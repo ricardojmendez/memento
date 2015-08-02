@@ -7,7 +7,8 @@
             [memento.db.user :as user]
             [memento.test.db.core :as tdb]
             [memento.test.db.memory :as tdm]
-            [memento.test.db.user :as tdu])
+            [memento.test.db.user :as tdu]
+            [memento.db.core :as db])
   (:import java.io.ByteArrayOutputStream))
 
 
@@ -81,7 +82,7 @@
 ;;;
 
 (deftest test-login
-  (tdb/wipe-database!)
+  (db/run tdb/wipe-database!)
   (user/create-user! "user1" "password1")
   (testing "We get a login token when authenticating with a valid username/password"
     (let [[response data] (post-request "/api/auth/login" {:username "user1" :password "password1"} nil)]
@@ -105,7 +106,7 @@
 
 
 (deftest test-signup
-  (tdb/wipe-database!)
+  (db/run tdb/wipe-database!)
   (let [username "newuser"
         password "password"]
     (testing "Attempting to log in with the credentials initially results on a 401"

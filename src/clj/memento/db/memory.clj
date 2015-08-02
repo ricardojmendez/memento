@@ -4,7 +4,8 @@
             [clj-time.coerce :as tc]
             [clojure.string :as s]
             [memento.db.core :as db]
-            [numergent.utils :refer [remove-html]])
+            [numergent.utils :refer [remove-html]]
+            [clojure.java.jdbc :as jdbc])
   (:import (java.util Date)))
 
 (defn now [] (Date.))
@@ -22,19 +23,19 @@
 (defn save-memory!
   "Saves a new memory, after removing HTML tags from the thought."
   [memory]
-  (let [refine-id (:refine_id memory)
-        refined   (if refine-id (first (db/get-thought-by-id {:id refine-id})))
-        root-id   (or (:root_id refined) refine-id)
-        item      (assoc memory :created (now)
-                                :username (s/lower-case (:username memory))
-                                :thought (remove-html (:thought memory))
-                                :refine_id refine-id
-                                :root_id root-id)]
-    ;; TODO: Transaction handling
-    (if refined
-      (db/make-root! {:id root-id}))
-    (db/create-thought! item)
-    ))
+  (jdbc/with-db-transaction [trans-conn @db/conn]
+    (let [refine-id (:refine_id memory)
+          refined   (if refine-id (first (db/run db/get-thought-by-id {:id refine-id} trans-conn)))
+          root-id   (or (:root_id refined) refine-id)
+          item      (assoc memory :created (now)
+                                  :username (s/lower-case (:username memory))
+                                  :thought (remove-html (:thought memory))
+                                  :refine_id refine-id
+                                  :root_id root-id)]
+      (if refined
+        (db/run db/make-root! {:id root-id} trans-conn))
+      (db/run db/create-thought! item trans-conn)
+      )))
 
 (defn query-memories
   "Queries for a user's memories"
@@ -56,10 +57,10 @@
                     ;; since we'll need it twice on search.
                     :query    query-str}
          result    (if (empty? query-str)
-                     {:total   (-> (db/get-thought-count params) first :count)
-                      :results (db/get-thoughts params)}
-                     {:total   (-> (db/search-thought-count params) first :count)
-                      :results (db/search-thoughts params)})
+                     {:total   (-> (db/run db/get-thought-count params) first :count)
+                      :results (db/run db/get-thoughts params)}
+                     {:total   (-> (db/run db/search-thought-count params) first :count)
+                      :results (db/run db/search-thoughts params)})
          ]
      (assoc result :pages (int (Math/ceil (/ (:total result) result-limit))))
      )))
@@ -67,5 +68,5 @@
 (defn query-memory-thread
   "Returns a list with all the memories belonging to a root id"
   [id]
-  (db/get-thread-by-root-id {:id id}))
+  (db/run db/get-thread-by-root-id {:id id}))
 
