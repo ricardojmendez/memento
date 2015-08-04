@@ -114,10 +114,10 @@
   (import-placeholder-memories!)
   (import-placeholder-memories! "shortuser" "quotes2.txt")
   (testing "Getting an all-memory count returns the total memories"
-    (is (= {:count 22} (first (db/get-thought-count {:username tdu/ph-username}))))
-    (is (= {:count 5} (first (db/get-thought-count {:username "shortuser"})))))
+    (is (= {:count 22} (first (db/run db/get-thought-count {:username tdu/ph-username}))))
+    (is (= {:count 5} (first (db/run db/get-thought-count {:username "shortuser"})))))
   (testing "Getting an memory query count returns the count of matching memories"
-    (are [count q u] (= {:count count} (first (db/search-thought-count {:username u :query q})))
+    (are [count q u] (= {:count count} (first (db/run db/search-thought-count {:username u :query q})))
                      3 "memory" tdu/ph-username
                      0 "memory" "shortuser"
                      4 "people" tdu/ph-username
@@ -232,8 +232,8 @@
   ;; consistent with the search data we have, so there's no point in testing
   ;; that we're getting the "right" page.
   ;;
-  ;; This will mean we won't get consistent paging.
   (import-placeholder-memories! tdu/ph-username "numbers.txt")
+  ;; This will mean we won't get consistent paging.
   (testing "Querying without any pagination parameters returns the first few memories"
     (let [result   (memory/query-memories tdu/ph-username)
           thoughts (map :thought (:results result))

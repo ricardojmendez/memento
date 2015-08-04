@@ -1,6 +1,7 @@
 (ns memento.db.migrations
   (:require
     [migratus.core :as migratus]
+    [to-jdbc-uri.core :refer [to-jdbc-uri]]
     [environ.core :refer [env]]))
 
 (defn parse-ids [args]
@@ -8,7 +9,7 @@
 
 (defn migrate [args]
   (let [config {:store :database
-                :db (:database-url env)}]
+                :db {:connection-uri (to-jdbc-uri (:database-url env))}}]
     (case (first args)
       "migrate"
       (if (> (count args) 1)

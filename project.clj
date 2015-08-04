@@ -3,15 +3,16 @@
   :url "https://mementoapp.herokuapp.com/"
 
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "1.7.10" :scope "provided"]
+                 [org.clojure/clojurescript "1.7.28" :scope "provided"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [org.clojure/java.jdbc "0.4.1"]
                  [org.clojure/tools.nrepl "0.2.10"]
                  [org.clojure/tools.reader "0.9.2"]
                  [bouncer "0.3.3"]
-                 [buddy/buddy-auth "0.6.0" :exclusions [com.fasterxml.jackson.core/jackson-core]]
+                 [buddy/buddy-auth "0.6.1" :exclusions [com.fasterxml.jackson.core/jackson-core]]
                  [buddy/buddy-hashers "0.6.0"]
-                 [buddy/buddy-sign "0.6.0"]
+                 [buddy/buddy-sign "0.6.1"]
+                 [clj-dbcp "0.8.1"]
                  [cljs-ajax "0.3.14"]
                  [cljsjs/react-bootstrap "0.23.7-0" :exclusions [org.webjars.bower/jquery]]
                  [compojure "1.4.0"]
@@ -35,6 +36,7 @@
                  [ring/ring-defaults "0.1.5"]
                  [ring/ring-session-timeout "0.1.0"]
                  [selmer "0.8.7"]
+                 [to-jdbc-uri "0.2.0"]
                  [yesql "0.5.0-rc3"]
                  ]
 
@@ -122,13 +124,13 @@
              :injections   [(require 'pjstadig.humane-test-output)
                             (pjstadig.humane-test-output/activate!)]
              :env          {:dev          true
-                            :database-url "postgresql://memento:testdb@localhost/memento_dev"
+                            :database-url "postgres://memento:testdb@localhost/memento_dev"
                             :auth-conf    {:passphrase "testpassword"
                                            :pubkey     "keys/dev_auth_pubkey.pem"
                                            :privkey    "keys/dev_auth_privkey.pem"}
                             }}
    :test    {:env          {:dev          true
-                            :database-url "postgresql://memento:testdb@localhost/memento_test"
+                            :database-url "postgres://memento:testdb@localhost/memento_test"
                             :auth-conf    {:passphrase "testpassword"
                                            :pubkey     "keys/dev_auth_pubkey.pem"
                                            :privkey    "keys/dev_auth_privkey.pem"}

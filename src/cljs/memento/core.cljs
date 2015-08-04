@@ -220,13 +220,12 @@
 (register-handler
   :load-thread-error
   (fn [app-state [_ result]]
-    (.log js/console (str result))
+    (dispatch [:set-message (str "Error loading thread: " result) "alert-danger"])
     app-state))
 
 (register-handler
   :load-thread-success
   (fn [app-state [_ result]]
-    (.log js/console (str result))
     (-> app-state
         (assoc-in [:ui-state :show-thread?] true)
         (assoc-in [:note :thread] (:results result)))
@@ -240,6 +239,7 @@
 (register-handler
   :load-memories-success
   (fn [app-state [_ memories]]
+    (.scrollIntoView top-div-target)
     (-> app-state
         (assoc-in [:ui-state :results-page] (:current-page memories))
         (assoc-in [:ui-state :memories] memories)
@@ -366,7 +366,7 @@
     (if @focus
       [:div {:class "col-sm-10 col-sm-offset-1"}
        [:div {:class "panel panel-default"}
-        [:div {:class "panel-heading"} "Refining..."
+        [:div {:class "panel-heading"} "Refining... " [:i [:small "(from " (:created @focus) ")"]]
          [:button {:type "button" :class "close" :aria-hidden "true" :on-click #(dispatch [:refine nil])} "×"]]
         [:div {:class "panel-body"}
          [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought @focus) :replacement-transformers md-transformers)}}]
@@ -451,10 +451,7 @@
                       :first      (>= @current @max-btn)
                       :last       (< @current (- @pages @max-btn))
                       :activePage (inc @current)
-                      :onSelect   #(do
-                                    (.scrollIntoView top-div-target)
-                                    (dispatch [:page-memories (dec (aget %2 "eventKey"))]))
-
+                      :onSelect   #(dispatch [:page-memories (dec (aget %2 "eventKey"))])
                       }]]))))
 
 (defn list-memories [results show-thread-btn?]
