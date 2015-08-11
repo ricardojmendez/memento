@@ -37,3 +37,11 @@
   (is (= "a < b or else" (remove-html "a < b<script>injected!</script> or else")))
   (is (= "a < b nice try" (remove-html "a < b <a onclick='alert()'>nice try</a>")))
   )
+
+(deftest test-clean-memory-text
+  ;; Memory text is cleared up
+  (is (= {:thought "Hello\n world\n\n**some bold**"} (clean-memory-text {:thought "Hello\n<h1>world</h1>\n\n**some bold**"})))
+  ;; Id is retained
+  (is (= {:thought "Hello\n world\n\n**some bold**" :id 1} (clean-memory-text {:thought "Hello\n<h1>world</h1>\n\n**some bold**" :id 1})))
+  ;; Other values are preserved
+  (is (= {:thought "a < b nice try" :id 1 :ignored true} (clean-memory-text {:thought "a < b <a onclick='alert()'>nice try</a>" :id 1 :ignored true}))))

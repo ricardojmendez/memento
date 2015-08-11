@@ -1,14 +1,17 @@
 (ns memento.test.routes.api
   ;; Let's NOT require memento.auth here, all calls should go through the API
   (:require [clojure.test :refer :all]
+            [clj-time.coerce :as c]
+            [clj-time.core :as t]
             [cognitect.transit :as transit]
-            [ring.mock.request :refer [request header body]]
             [memento.handler :refer [app]]
             [memento.db.user :as user]
             [memento.test.db.core :as tdb]
             [memento.test.db.memory :as tdm]
             [memento.test.db.user :as tdu]
-            [memento.db.core :as db])
+            [memento.db.core :as db]
+            [memento.db.memory :as memory]
+            [ring.mock.request :refer [request header body]])
   (:import java.io.ByteArrayOutputStream))
 
 
@@ -56,6 +59,18 @@
   response and the translated body."
   [^String url req-body auth-token]
   (let [response (app (-> (request :post url)
+                          (body (clj->transit req-body))
+                          (header "Content-Type" "application/transit+json; charset=UTF-8")
+                          (header "Accept" "application/transit+json, text/plain, */*")
+                          (add-auth-token auth-token)))
+        data     (transit->clj (:body response))]
+    [response data]))
+
+(defn put-request
+  "Makes a put request to a URL with a body, under a specific path. Returns
+  a vector with the response and the translated body."
+  [^String url id path req-body auth-token]
+  (let [response (app (-> (request :put (str url "/" id "/" path))
                           (body (clj->transit req-body))
                           (header "Content-Type" "application/transit+json; charset=UTF-8")
                           (header "Accept" "application/transit+json, text/plain, */*")
@@ -376,10 +391,10 @@
         (is (:id item))))
     (testing "We can refine a memory through the API"
       (let [[_ {:keys [results]}] (get-request "/api/memory" nil token)
-            m1 (first results)
-            _  (post-request "/api/memory" {:thought "Refining an idea" :refine_id (:id m1)} token)
+            m1  (first results)
+            _   (post-request "/api/memory" {:thought "Refining an idea" :refine_id (:id m1)} token)
             [_ {:keys [results]}] (get-request "/api/memory" nil token)
-            m2 (first results)
+            m2  (first results)
             [_ data] (get-request (str "/api/memory/thread/" (:id m1)) nil token)
             ; m1 became a root after m2 was created, so we will expect it to have a root_id when returned
             m1r (assoc m1 :root_id (:id m1))
@@ -415,10 +430,10 @@
   (let [token (invoke-login {:username "user1" :password "password1"})]
     (testing "HTML is cleaned up from the saved string"
       (let [[response record] (post-request "/api/memory"
-                                              {:thought "Just a <b>brilliant!</b> new <i>idea</i><script>and some scripting!</script>\n
+                                            {:thought "Just a <b>brilliant!</b> new <i>idea</i><script>and some scripting!</script>\n
 
                                               **BRILLIANT!**"}
-                                              token)]
+                                            token)]
         (is (= 201 (:status response)))
         (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
         (is (= "Just a brilliant! new idea \n\n\n **BRILLIANT!**" (:thought record)))
@@ -434,5 +449,47 @@
         (is (:created item))
         (is (:id item))))
     ))
+
+(deftest test-update-memory
+  (tdu/init-placeholder-data!)
+  (user/create-user! "user1" "password1")
+  (user/create-user! "user2" "password2")
+  (let [token-u1 (invoke-login {:username "user1" :password "password1"})
+        token-u2 (invoke-login {:username "user2" :password "password2"})]
+    (testing "We can update a memory by posting to an ID"
+      (let [[_ memory] (post-request "/api/memory" {:thought "Memora"} token-u1)
+            [_ query1] (get-request "/api/memory" nil token-u1)
+            [_ updated] (put-request "/api/memory" (:id memory) "thought" {:thought "Memory"} token-u1)
+            [_ query2] (get-request "/api/memory" nil token-u1)
+            ;; After we have updated it, check that we _aren't_ allowed to do PUT with an ID that does not belog to us
+            [ru2 data-ru2] (put-request "/api/memory" (:id memory) "thought" {:thought "Memories"} token-u2)
+            [_ query3] (get-request "/api/memory" nil token-u1)
+            ]
+        (is memory)
+        (is (= "Memora" (:thought memory)))
+        (is (= "Memora" (:thought (first (:results query1)))))
+        (is (= "Memory" (:thought updated)))
+        (is (= "Memory" (:thought (first (:results query2)))))
+        ;; We still have only one record
+        (is (= 1 (:total query2)))
+        ;; Verify that we couldn't update it with token-u2
+        (is (= 401 (:status ru2)))
+        (is (nil? data-ru2))
+        (is (= "Memory" (:thought (first (:results query3)))))
+        ))
+    (testing "Attempting to update a closed memory returns an empty dataset"
+      (let [[_ memory] (post-request "/api/memory" {:thought "Memora"} token-u1)
+            ;; Force the date as if we created it a while ago
+            _ (db/run tdb/update-thought-created! (assoc memory :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
+            ;; Try to update
+            [_ updated] (put-request "/api/memory" (:id memory) "thought" {:thought "Memory"} token-u1)
+            ]
+        (is memory)
+        (is (= "Memora" (:thought memory)))
+        (is (empty? updated))
+        ))
+    ))
+
+
 
 

@@ -30,6 +30,13 @@ SELECT COUNT(*) FROM thoughts
 WHERE username = :username;
 
 
+-- name: update-thought<!
+-- Updates a thought's text
+UPDATE thoughts
+SET thought = :thought
+WHERE id = :id;
+
+
 -- name: make-root!
 -- Marks a thought as a root by setting its root_id to itself.
 -- Ensures that the thought isn't refining any other thought before

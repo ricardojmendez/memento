@@ -4,11 +4,11 @@
             [clj-time.coerce :as tc]
             [clojure.string :as s]
             [memento.db.core :as db]
-            [numergent.utils :refer [remove-html]]
+            [numergent.utils :refer [remove-html clean-memory-text]]
             [clojure.java.jdbc :as jdbc]
             [clj-time.coerce :as c]
             [clj-time.core :as t])
-  (:import (java.util Date)))
+  (:import (java.util Date UUID)))
 
 (defn now [] (Date.))
 (def result-limit 10)
@@ -34,6 +34,11 @@
     ))
 
 
+(defn load-memory
+  "Loads a memory by its id"
+  [^UUID id]
+  (first (db/run db/get-thought-by-id {:id id})))
+
 (defn create-memory!
   "Saves a new memory, after removing HTML tags from the thought."
   [memory]
@@ -41,15 +46,29 @@
     (let [refine-id (:refine_id memory)
           refined   (if refine-id (first (db/run db/get-thought-by-id {:id refine-id} trans-conn)))
           root-id   (or (:root_id refined) refine-id)
-          item      (assoc memory :created (now)
+          item      (->
+                      (assoc memory :created (now)
                                   :username (s/lower-case (:username memory))
-                                  :thought (remove-html (:thought memory))
                                   :refine_id refine-id
-                                  :root_id root-id)]
+                                  :root_id root-id)
+                      clean-memory-text)]
       (if refined
         (db/run db/make-root! {:id root-id} trans-conn))
       (db/run db/create-thought<! item trans-conn)
       )))
+
+
+(defn update-memory!
+  "Updates a memory, after removing HTML tags from the thought. It will only
+  let you update the text itself, no other values are changed. Only memories
+  considered open can be updated."
+  [memory]
+  (let [current (set-memory-status (first (db/run db/get-thought-by-id memory)))]
+    (if (= :open (:status current))
+      (db/run db/update-thought<! (clean-memory-text memory))
+      {}
+      )))
+
 
 (defn query-memories
   "Queries for a user's memories"
@@ -79,8 +98,7 @@
          ]
      {:total   total
       :pages   (int (Math/ceil (/ total result-limit)))
-      :results (map set-memory-status results)
-      }
+      :results (map set-memory-status results)}
      )))
 
 (defn query-memory-thread

@@ -2,14 +2,15 @@
   (:require [clojure.string :refer [split-lines split]]
             [clojure.set :refer [intersection]]
             [clojure.test :refer :all]
-            [yesql.core :refer [defqueries]]
+            [clj-time.coerce :as c]
+            [clj-time.core :as t]
             [memento.db.core :as db]
             [memento.db.memory :as memory]
             [memento.db.user :as user]
+            [memento.test.db.core :as tdb]
             [memento.test.db.user :as tdu]
             [numergent.utils :as u]
-            [clj-time.coerce :as c]
-            [clj-time.core :as t]))
+            ))
 
 
 ;;;;
@@ -321,3 +322,48 @@
         ;; until the Postgresql scoring algorithm changes
         (is (>= 0.21 i)))
       )))
+
+
+
+;;;
+;;; Memory updates
+;;;
+
+(deftest test-can-update-memory
+  (testing "Lexemes are updated along with the memory"
+    (tdu/init-placeholder-data!)
+    (let [_         (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
+          m1        (first (:results (memory/query-memories tdu/ph-username "wondering")))
+          updated   (memory/update-memory! (assoc m1 :thought "Different text"))
+          ;; Ensure that we didn't leave the lexeme table as it was by querying for the
+          ;; old search term and the new one
+          wondering (first (:results (memory/query-memories tdu/ph-username "wondering")))
+          different (first (:results (memory/query-memories tdu/ph-username "different")))
+          all       (memory/query-memories tdu/ph-username)]
+      ;; Pre-update values
+      (is m1)
+      (is (= "Just wondering" (:thought m1)))
+      ;; Check the post-update values
+      (is updated)
+      (is (= (:id m1) (:id updated)))
+      (is (= "Different text" (:thought updated)))
+      ;; Check we updated the lexemes
+      (is (nil? wondering))
+      (is different)
+      (is (= "Different text" (:thought different)))
+      (is (= (:id m1) (:id different)))
+      (is (= 1 (count (:results all))))
+      ))
+  (testing "Cannot update closed thoughts"
+    (tdu/init-placeholder-data!)
+    (let [_       (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
+          m1      (first (:results (memory/query-memories tdu/ph-username)))
+          ;; Force the date as if we created it a while ago
+          _       (db/run tdb/update-thought-created! (assoc m1 :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
+          updated (memory/update-memory! (assoc m1 :thought "Different text"))
+          m2      (first (:results (memory/query-memories tdu/ph-username)))]
+      (is (empty? updated))
+      (is (= 0 (:total (memory/query-memories tdu/ph-username "text"))))
+      (is (= 1 (:total (memory/query-memories tdu/ph-username "wondering"))))
+      (is (= :closed (:status m2)))))
+  )
