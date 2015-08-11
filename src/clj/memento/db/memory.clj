@@ -5,7 +5,9 @@
             [clojure.string :as s]
             [memento.db.core :as db]
             [numergent.utils :refer [remove-html]]
-            [clojure.java.jdbc :as jdbc])
+            [clojure.java.jdbc :as jdbc]
+            [clj-time.coerce :as c]
+            [clj-time.core :as t])
   (:import (java.util Date)))
 
 (defn now [] (Date.))
@@ -19,6 +21,18 @@
                   (map #(assoc % :created (tf/unparse (tf/formatters :date-hour-minute)
                                                       (tc/from-date (:created %))))
                        (:results memories))))
+
+
+(def open-duration (* 12 60 60 1000))
+
+
+(defn set-memory-status
+  "Associates a :status with a memory depending on if it's still considered open."
+  [memory]
+  (let [millis (t/in-millis (t/interval (c/from-date (:created memory)) (t/now)))]
+    (assoc memory :status (if (< millis open-duration) :open :closed))
+    ))
+
 
 (defn save-memory!
   "Saves a new memory, after removing HTML tags from the thought."
@@ -45,10 +59,10 @@
    (query-memories username query-str 0))
   ([^String username ^String query-str ^Integer offset]
    (let [query-str (-> (or query-str "")
-                       (s/replace #"[,.;:]" " ")            ; Consider commas whitespace
-                       (s/replace #"[$!&=\-\*|%&^]" "")     ; Remove characters which could cause it to barf
+                       (s/replace #"[,.;:]" " ")                      ; Consider commas whitespace
+                       (s/replace #"[$!&=\-\*|%&^]" "")               ; Remove characters which could cause it to barf
                        s/trim
-                       (s/replace #"\s+" "|")               ; Replace white space sequences with a single or operator
+                       (s/replace #"\s+" "|")                         ; Replace white space sequences with a single or operator
                        )
          params    {:limit    result-limit
                     :offset   offset
@@ -56,17 +70,22 @@
                     ;; Query won't be used in the case of get-thoughts, but bind it on let
                     ;; since we'll need it twice on search.
                     :query    query-str}
-         result    (if (empty? query-str)
-                     {:total   (-> (db/run db/get-thought-count params) first :count)
-                      :results (db/run db/get-thoughts params)}
-                     {:total   (-> (db/run db/search-thought-count params) first :count)
-                      :results (db/run db/search-thoughts params)})
+         total     (if (empty? query-str)
+                     (-> (db/run db/get-thought-count params) first :count)
+                     (-> (db/run db/search-thought-count params) first :count))
+         results   (if (empty? query-str)
+                     (db/run db/get-thoughts params)
+                     (db/run db/search-thoughts params))
          ]
-     (assoc result :pages (int (Math/ceil (/ (:total result) result-limit))))
+     {:total   total
+      :pages   (int (Math/ceil (/ total result-limit)))
+      :results (map set-memory-status results)
+      }
      )))
 
 (defn query-memory-thread
   "Returns a list with all the memories belonging to a root id"
   [id]
-  (db/run db/get-thread-by-root-id {:id id}))
+  (->> (db/run db/get-thread-by-root-id {:id id})
+       (map set-memory-status)))
 

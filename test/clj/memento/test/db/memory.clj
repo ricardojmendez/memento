@@ -7,7 +7,9 @@
             [memento.db.memory :as memory]
             [memento.db.user :as user]
             [memento.test.db.user :as tdu]
-            [numergent.utils :as u]))
+            [numergent.utils :as u]
+            [clj-time.coerce :as c]
+            [clj-time.core :as t]))
 
 
 ;;;;
@@ -51,6 +53,20 @@
 ;;;;
 ;;;; Tests
 ;;;;
+
+
+;;;
+;;; Status overview
+;;;
+
+
+(deftest test-set-memory-status
+  (is (= :open (:status (memory/set-memory-status {:created (c/to-date (t/now))}))))
+  (is (= :open (:status (memory/set-memory-status {:created (c/to-date (.minusHours (t/now) 1))}))))
+  (is (= :closed (:status (memory/set-memory-status {:created (c/to-date (.minusMillis (t/now) memory/open-duration))}))))
+  (is (= :closed (:status (memory/set-memory-status {:created (c/to-date (.minusYears (t/now) 1))}))))
+  )
+
 
 ;;;
 ;;; Saving
@@ -125,10 +141,7 @@
                      0 "creativity|akira" tdu/ph-username
                      3 "creativity|akira" "shortuser"
                      1 "mistake" tdu/ph-username
-                     1 "mistake" "shortuser")
-    )
-  )
-
+                     1 "mistake" "shortuser")))
 
 
 (deftest test-query-memories
@@ -159,12 +172,16 @@
       (let [texts     (extract-text (:results result))
             to-search (conj memories "Just wondering")]
         (doseq [m to-search]
-          (is (u/in-seq? texts m))))))
+          (is (u/in-seq? texts m))))
+      ;; All items are considered open, since we just created them
+      (is (= 4 (count (filter #(= :open (:status %)) (:results result)))))))
   (testing "Test querying for a string"
     (let [result (memory/query-memories tdu/ph-username "memory")
           texts  (extract-text (:results result))]
       (is (= 2 (:total result)))
       (is (= 2 (count texts)))
+      ;; All items are considered open, since we just created them
+      (is (= 2 (count (filter #(= :open (:status %)) (:results result)))))
       (doseq [m texts]
         (is (re-seq #"memory" m)))))
   (testing "Confirm words from a similar root are returned"

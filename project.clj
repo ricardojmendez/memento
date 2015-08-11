@@ -13,6 +13,7 @@
                  [buddy/buddy-hashers "0.6.0"]
                  [buddy/buddy-sign "0.6.1"]
                  [clj-dbcp "0.8.1"]
+                 [clj-time "0.10.0"]
                  [cljs-ajax "0.3.14"]
                  [cljsjs/react-bootstrap "0.23.7-0" :exclusions [org.webjars.bower/jquery]]
                  [compojure "1.4.0"]
