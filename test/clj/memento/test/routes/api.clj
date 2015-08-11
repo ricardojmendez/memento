@@ -356,10 +356,13 @@
           (is (= 401 (:status response)))
           )))
     (testing "We can add a new memory"
-      (let [[response clj-data] (post-request "/api/memory" {:thought "Just a new idea"} token)]
+      (let [[response record] (post-request "/api/memory" {:thought "Just a thought"} token)]
         (is (= 201 (:status response)))
         (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
-        (is (= {:count 1} clj-data))
+        (is (map? record))
+        (is (:id record))
+        (is (= "Just a thought" (:thought record)))
+        (is (= (str "/api/memory/" (:id record)) (get-in response [:headers "Location"])))
         ))
     (testing "After adding a memoy, we can query for it"
       (let [[_ {:keys [total results]}] (get-request "/api/memory" nil token)
@@ -368,7 +371,7 @@
         (is (= 1 (count results)))
         (is (= 1 total))
         (is (= "user1" (:username item)))
-        (is (= "Just a new idea" (:thought item)))
+        (is (= "Just a thought" (:thought item)))
         (is (:created item))
         (is (:id item))))
     (testing "We can refine a memory through the API"
@@ -396,10 +399,12 @@
     )
   (let [token (invoke-login {:username "User1" :password "password1"})]
     (testing "Username on memory addition is not case sensitive"
-      (let [[response clj-data] (post-request "/api/memory" {:thought "Just a new idea"} token)]
+      (let [[response record] (post-request "/api/memory" {:thought "Just a new idea"} token)]
         (is (= 201 (:status response)))
         (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
-        (is (= {:count 1} clj-data))
+        (is (map? record))
+        (is (:id record))
+        (is (= "Just a new idea" (:thought record)))
         )))
   )
 
@@ -409,14 +414,14 @@
   (user/create-user! "user1" "password1")
   (let [token (invoke-login {:username "user1" :password "password1"})]
     (testing "HTML is cleaned up from the saved string"
-      (let [[response clj-data] (post-request "/api/memory"
+      (let [[response record] (post-request "/api/memory"
                                               {:thought "Just a <b>brilliant!</b> new <i>idea</i><script>and some scripting!</script>\n
 
                                               **BRILLIANT!**"}
                                               token)]
         (is (= 201 (:status response)))
         (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
-        (is (= {:count 1} clj-data))
+        (is (= "Just a brilliant! new idea \n\n\n **BRILLIANT!**" (:thought record)))
         ))
     (testing "After adding a memoy, we can query for it"
       (let [[_ {:keys [total results]}] (get-request "/api/memory" nil token)

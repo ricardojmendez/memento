@@ -38,7 +38,7 @@
    (import-placeholder-memories! username "quotes.txt"))
   ([username filename]
    (let [memories (-> (slurp (str test-file-path filename)) (split-lines))]
-     (doseq [m memories] (memory/save-memory! {:username username :thought m})))))
+     (doseq [m memories] (memory/create-memory! {:username username :thought m})))))
 
 
 (defn extract-thought-idx
@@ -74,21 +74,25 @@
 
 (deftest test-save-memory
   (tdu/init-placeholder-data!)
-  (let [result (memory/save-memory! {:username tdu/ph-username :thought "Just wondering"})]
+  (let [result (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})]
     ;; We return only the number of records updated
-    (is (= 1 result))))
+    (is (map? result))
+    (is (:id result))
+    (is (:created result))
+    (is (= "Just wondering" (:thought result)))
+    (is (= tdu/ph-username (:username result)))))
 
 
 (deftest test-save-memory-refine
   (tdu/init-placeholder-data!)
-  (let [_      (memory/save-memory! {:username tdu/ph-username :thought "Just wondering"})
+  (let [_      (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
         m1     (first (:results (memory/query-memories tdu/ph-username)))
-        _      (memory/save-memory! {:username tdu/ph-username :thought "Second memory" :refine_id (:id m1)})
+        _      (memory/create-memory! {:username tdu/ph-username :thought "Second memory" :refine_id (:id m1)})
         m2     (first (:results (memory/query-memories tdu/ph-username)))
-        _      (memory/save-memory! {:username tdu/ph-username :thought "Third memory" :refine_id (:id m2)})
+        _      (memory/create-memory! {:username tdu/ph-username :thought "Third memory" :refine_id (:id m2)})
         m3     (first (:results (memory/query-memories tdu/ph-username)))
         m1r    (last (:results (memory/query-memories tdu/ph-username))) ; Memories are returned in reverse date order on the default query
-        _      (memory/save-memory! {:username tdu/ph-username :thought "Unrelated memory, not for thread"})
+        _      (memory/create-memory! {:username tdu/ph-username :thought "Unrelated memory, not for thread"})
         all    (memory/query-memories tdu/ph-username)
         thread (memory/query-memory-thread (:root_id m3))]
     ;; First memory has on refine_id nor root_id
@@ -151,7 +155,7 @@
       (is (= 0 (:total r)))
       (is (empty? (:results r)))))
   (testing "Query previous value"
-    (let [_        (memory/save-memory! {:username tdu/ph-username :thought "Just wondering"})
+    (let [_        (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
           result   (memory/query-memories tdu/ph-username)
           thoughts (:results result)
           thought  (first thoughts)]
@@ -165,7 +169,7 @@
       ))
   (testing "Test what happens after adding a few memories"
     (let [memories ["A memory" "A second one" "A _somewhat_ longish memory including a bit or *markdown*"]
-          _        (doseq [m memories] (memory/save-memory! {:username tdu/ph-username :thought m}))
+          _        (doseq [m memories] (memory/create-memory! {:username tdu/ph-username :thought m}))
           result   (memory/query-memories tdu/ph-username)]
       (is (= 4 (count (:results result))))
       (is (= 4 (:total result)))
@@ -317,5 +321,3 @@
         ;; until the Postgresql scoring algorithm changes
         (is (>= 0.21 i)))
       )))
-
-

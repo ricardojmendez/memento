@@ -47,9 +47,12 @@
                       (let [content  (read-content ctx)
                             username (get-in ctx [:request :identity])]
                         (when (not-empty content)
-                          {:save-result (memory/save-memory! (assoc content :username username))})))
-             :handle-created (fn [ctx]
-                               {:count (:save-result ctx)})
+                          {:save-result (memory/create-memory! (assoc content :username username))})))
+             :handle-created (fn [{record :save-result}]
+                               (ring-response {:status 201
+                                               :headers {"Location" (str "/api/memory/" (:id record))}
+                                               :body record})
+                               )
              :available-media-types ["application/transit+json"
                                      "application/transit+msgpack"
                                      "application/json"])
@@ -92,7 +95,7 @@
                                   token   (auth/create-auth-token (:username content) (:password content))]
                               (if (not-empty token)
                                 {:token token})))
-             :post! true                                    ; All the work is done on authorized?
+             :post! true                                              ; All the work is done on authorized?
              :handle-created (fn [ctx]
                                {:token (:token ctx)})
              :available-media-types ["application/transit+json"

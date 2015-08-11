@@ -1,4 +1,4 @@
--- name: create-thought!
+-- name: create-thought<!
 -- Creates a new thought record
 INSERT INTO thoughts (created, username, thought, root_id, refine_id)
 VALUES (:created, :username, :thought, :root_id, :refine_id);

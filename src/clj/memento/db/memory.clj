@@ -34,7 +34,7 @@
     ))
 
 
-(defn save-memory!
+(defn create-memory!
   "Saves a new memory, after removing HTML tags from the thought."
   [memory]
   (jdbc/with-db-transaction [trans-conn @db/conn]
@@ -48,7 +48,7 @@
                                   :root_id root-id)]
       (if refined
         (db/run db/make-root! {:id root-id} trans-conn))
-      (db/run db/create-thought! item trans-conn)
+      (db/run db/create-thought<! item trans-conn)
       )))
 
 (defn query-memories
