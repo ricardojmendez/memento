@@ -20,6 +20,18 @@
 ;;;; Data and helpers
 ;;;;------------------------------
 
+(defn autourl-freestanding-transformer
+  "Transforms a URL even if it's not surrounded by <>"
+  [text state]
+  [(if (:code state)
+     text
+     (clojure.string/replace
+       text
+       #"https?://[-A-Za-z0-9+&@#/%?=~_()|!:,.;]*[-A-Za-z0-9+&@#/%=~_()|]"
+       #(str "<a href=\"" % "\">" % "</a>")))
+   state])
+
+
 ;; Transformer vector. We are excluding headings, since we use the hash as tags.
 (def md-transformers
   [transformers/empty-line
@@ -29,6 +41,7 @@
    transformers/inline-code
    transformers/autoemail-transformer
    transformers/autourl-transformer
+   autourl-freestanding-transformer
    transformers/link
    transformers/reference-link
    transformers/li
