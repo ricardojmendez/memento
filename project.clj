@@ -69,22 +69,23 @@
   :clean-targets ^{:protect false} ["resources/public/js" "target"]
 
   :source-paths ["src/clj" "src/cljs" "src/cljc"]
-  :test-paths ["test/clj" "test/cljc" "test/cljs"]
+  :test-paths ["test/clj" "test/cljs" "test/cljc"]
 
   :cljsbuild
-  {:builds        {:app  {:compiler
-                                        {:output-dir    "resources/public/js/"
-                                         :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]
-                                         :optimizations :none
-                                         :output-to     "resources/public/js/memento.js"
-                                         :source-map    "resources/public/js/memento.js.map"
-                                         :pretty-print  true}}
+  {:builds        {:app  {:source-paths  ["src/cljs"]
+                          :compiler
+                          {:output-dir    "resources/public/js/"
+                           :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]
+                           :optimizations :none
+                           :output-to     "resources/public/js/memento.js"
+                           :source-map    "resources/public/js/memento.js.map"
+                           :pretty-print  true}}
                    :test {:compiler
-                                        {:output-dir    "target/test/"
-                                         :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]
-                                         :optimizations :whitespace
-                                         :pretty-print  true
-                                         :output-to     "target/test/memento-tests.js"}}
+                          {:output-dir    "target/test/"
+                           :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]
+                           :optimizations :whitespace
+                           :pretty-print  true
+                           :output-to     "target/test/memento-tests.js"}}
                    }
    :test-commands {"test" ["phantomjs" "phantom/unit-test.js" "phantom/unit-test.html"]}}
 
