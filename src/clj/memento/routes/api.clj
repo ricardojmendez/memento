@@ -140,6 +140,6 @@
            (ANY "/api/auth/login" request login)
            (ANY "/api/auth/signup" request signup)
            (ANY "/api/memory" request memory)
-           (ANY "/api/memory/thread/:id" [id] (memory-thread id))
+           (ANY "/api/memory/:id/thread" [id] (memory-thread id))
            (ANY "/api/memory/:id/thought" request memory)
            (ANY "/api/memory/search" request memory-search))

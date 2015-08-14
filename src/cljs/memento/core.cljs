@@ -272,10 +272,11 @@
 (register-handler
   :load-thread
   (fn [app-state [_ thought]]
-    (GET (str "/api/memory/thread/" (:root_id thought)) {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                                                         :handler       #(dispatch [:load-thread-success %])
-                                                         :error-handler #(dispatch [:load-thread-error %])}
-         )
+    (let [url (str "/api/memory/" (:root_id thought) "/thread")]
+      (GET url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                :handler       #(dispatch [:load-thread-success %])
+                :error-handler #(dispatch [:load-thread-error %])}
+           ))
     app-state))
 
 (register-handler
