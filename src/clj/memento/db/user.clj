@@ -3,7 +3,7 @@
             [environ.core :refer [env]]
             [buddy.hashers :as hashers]
             [memento.db.core :as db])
-  (:import java.sql.BatchUpdateException))
+  (:import (org.postgresql.util PSQLException)))
 
 
 
@@ -18,10 +18,10 @@
     :else (try
             (let [encrypted (hashers/encrypt password)
                   record    {:username (lower-case username) :password encrypted}]
-              (db/create-user! record)
+              (db/run db/create-user! record)
               (assoc record :success? true))
-            (catch BatchUpdateException e
-              {:success? false :message (.getMessage (.getNextException e))}))))
+            (catch PSQLException e
+              {:success? false :message (.getMessage e)}))))
 
 
 (defn validate-user
@@ -30,5 +30,5 @@
   (if (or (empty? username)
           (empty? password))
     false
-    (let [record (first (db/get-user {:username (lower-case username)}))]
+    (let [record (first (db/run db/get-user {:username (lower-case username)}))]
       (hashers/check password (:password record)))))

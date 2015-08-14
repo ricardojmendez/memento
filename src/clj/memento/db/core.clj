@@ -1,18 +1,60 @@
 (ns memento.db.core
   (:require
     [clojure.java.jdbc :as jdbc]
+    [clj-dbcp.core :as dbcp]
     [yesql.core :refer [defqueries]]
     [cheshire.core :refer [generate-string parse-string]]
+    [taoensso.timbre :as timbre]
+    [to-jdbc-uri.core :refer [to-jdbc-uri]]
     [environ.core :refer [env]])
   (:import org.postgresql.util.PGobject
            org.postgresql.jdbc4.Jdbc4Array
            clojure.lang.IPersistentMap
            clojure.lang.IPersistentVector
-           [java.sql Date Timestamp PreparedStatement]))
+           [java.sql BatchUpdateException
+                     Date
+                     Timestamp
+                     PreparedStatement]))
 
-(def db-spec (env :database-url))
+(defonce conn (atom nil))
 
-(defqueries "sql/queries.sql" {:connection db-spec})
+(defqueries "sql/queries.sql")
+
+(def pool-spec
+  {:adapter    :postgresql
+   :init-size  1
+   :min-idle   1
+   :max-idle   4
+   :max-active 32})
+
+(defn connect! []
+  (try
+    (reset!
+      conn
+      {:datasource
+       (dbcp/make-datasource
+         (assoc pool-spec
+           :jdbc-url (to-jdbc-uri (env :database-url))))})
+    (catch Exception e
+      (timbre/error "Error occured while connecting to the database!" e))))
+
+(defn disconnect! []
+  (when-let [ds (:datasource @conn)]
+    (when-not (.isClosed ds)
+      (.close ds)
+      (reset! conn nil))))
+
+(defn run
+  "executes a Yesql query using the given database connection and parameter map
+  the parameter map defaults to an empty map and the database conection defaults
+  to the conn atom"
+  ([query-fn] (run query-fn {}))
+  ([query-fn query-map] (run query-fn query-map @conn))
+  ([query-fn query-map db]
+   (try
+     (query-fn query-map {:connection db})
+     (catch BatchUpdateException e
+       (throw (or (.getNextException e) e))))))
 
 (defn to-date [sql-date]
   (-> sql-date (.getTime) (java.util.Date.)))

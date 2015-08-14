@@ -13,7 +13,8 @@
             [memento.session :as session]
             [selmer.parser :as parser]
             [taoensso.timbre :as timbre]
-            [taoensso.timbre.appenders.3rd-party.rotor :as rotor]))
+            [taoensso.timbre.appenders.3rd-party.rotor :as rotor]
+            [memento.db.core :as db]))
 
 (defonce nrepl-server (atom nil))
 
@@ -55,6 +56,7 @@
 
   (if (env :dev) (parser/cache-off!))
   (start-nrepl)
+  (db/connect!)
   ;;start the expired session cleanup job
   (session/start-cleanup-job!)
   (timbre/info (str
@@ -67,6 +69,7 @@
    shuts down, put any clean up code here"
   []
   (timbre/info "memento is shutting down...")
+  (db/disconnect!)
   (stop-nrepl)
   (timbre/info "shutdown complete!"))
 

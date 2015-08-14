@@ -19,12 +19,12 @@
   "Wipes the database and inserts a test user. We don't care about adding
   a hashed password since it's there only for foreign key purposes."
   []
-  (tdb/wipe-database!)
+  (db/run tdb/wipe-database!)
   (user/create-user! ph-username ph-password))
 
 
 (deftest test-create-user
-  (tdb/wipe-database!)
+  (db/run tdb/wipe-database!)
   (testing "We can create a new user successfully"
     (let [result (user/create-user! "user1" "password1")]
       (is (:success? result))
@@ -63,7 +63,7 @@
       (is (.contains (:message result) "username is required"))))
   (testing "User login is converted to lowercase before creation"
     (let [result  (user/create-user! "USER2" "password1")
-          get-res (first (db/get-user {:username "user2"}))]
+          get-res (first (db/run db/get-user {:username "user2"}))]
       (is (:success? result))
       (is (= "user2" (:username result)))
       (is (= "user2" (:username get-res)))
@@ -72,7 +72,7 @@
 
 
 (deftest test-validate-user
-  (tdb/wipe-database!)
+  (db/run tdb/wipe-database!)
   (user/create-user! "user1" "password1")
   (user/create-user! "user2" "password2")
   (is (user/validate-user "user1" "password1"))

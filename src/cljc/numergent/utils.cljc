@@ -21,3 +21,9 @@
         clean (.text (Jsoup/parse no-nl))]
     (string/replace clean #"\\n" "\n"))
   )
+
+(defn clean-memory-text
+  "Removes the HTML from a memory's thought.
+  Probably best suited for a memento.utils, but we don't have one of those yet"
+  [memory]
+  (assoc memory :thought (remove-html (:thought memory))))

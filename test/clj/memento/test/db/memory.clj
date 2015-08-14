@@ -2,12 +2,15 @@
   (:require [clojure.string :refer [split-lines split]]
             [clojure.set :refer [intersection]]
             [clojure.test :refer :all]
-            [yesql.core :refer [defqueries]]
+            [clj-time.coerce :as c]
+            [clj-time.core :as t]
             [memento.db.core :as db]
             [memento.db.memory :as memory]
             [memento.db.user :as user]
+            [memento.test.db.core :as tdb]
             [memento.test.db.user :as tdu]
-            [numergent.utils :as u]))
+            [numergent.utils :as u]
+            ))
 
 
 ;;;;
@@ -36,7 +39,7 @@
    (import-placeholder-memories! username "quotes.txt"))
   ([username filename]
    (let [memories (-> (slurp (str test-file-path filename)) (split-lines))]
-     (doseq [m memories] (memory/save-memory! {:username username :thought m})))))
+     (doseq [m memories] (memory/create-memory! {:username username :thought m})))))
 
 
 (defn extract-thought-idx
@@ -53,11 +56,75 @@
 ;;;;
 
 
+;;;
+;;; Status overview
+;;;
+
+
+(deftest test-set-memory-status
+  (is (= :open (:status (memory/set-memory-status {:created (c/to-date (t/now))}))))
+  (is (= :open (:status (memory/set-memory-status {:created (c/to-date (.minusHours (t/now) 1))}))))
+  (is (= :closed (:status (memory/set-memory-status {:created (c/to-date (.minusMillis (t/now) memory/open-duration))}))))
+  (is (= :closed (:status (memory/set-memory-status {:created (c/to-date (.minusYears (t/now) 1))}))))
+  )
+
+
+;;;
+;;; Saving
+;;;
+
 (deftest test-save-memory
   (tdu/init-placeholder-data!)
-  (let [result (memory/save-memory! {:username tdu/ph-username :thought "Just wondering"})]
+  (let [result (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})]
     ;; We return only the number of records updated
-    (is (= result 1))))
+    (is (map? result))
+    (is (:id result))
+    (is (:created result))
+    (is (= "Just wondering" (:thought result)))
+    (is (= tdu/ph-username (:username result)))))
+
+
+(deftest test-save-memory-refine
+  (tdu/init-placeholder-data!)
+  (let [_      (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
+        m1     (first (:results (memory/query-memories tdu/ph-username)))
+        _      (memory/create-memory! {:username tdu/ph-username :thought "Second memory" :refine_id (:id m1)})
+        m2     (first (:results (memory/query-memories tdu/ph-username)))
+        _      (memory/create-memory! {:username tdu/ph-username :thought "Third memory" :refine_id (:id m2)})
+        m3     (first (:results (memory/query-memories tdu/ph-username)))
+        m1r    (last (:results (memory/query-memories tdu/ph-username))) ; Memories are returned in reverse date order on the default query
+        _      (memory/create-memory! {:username tdu/ph-username :thought "Unrelated memory, not for thread"})
+        all    (memory/query-memories tdu/ph-username)
+        thread (memory/query-memory-thread (:root_id m3))]
+    ;; First memory has on refine_id nor root_id
+    (is m1)
+    (is (nil? (:root_id m1)))
+    (is (nil? (:refine_id m1)))
+    ;; First time we refine a memory, both refine_id and root_id point to the same
+    (is m2)
+    (is (= (:id m1) (:root_id m2)))
+    (is (= (:id m1) (:refine_id m2)))
+    ;; If we refine an already-refined memory, the root points to the initial item
+    (is m2)
+    (is (= (:id m1) (:root_id m3)))
+    (is (= (:id m2) (:refine_id m3)))
+    ;; After refining, m1 has the root_id assigned to itself
+    (is (= (:id m1r) (:root_id m1r)))
+    (is (= (:id m1r) (:id m1)))
+    ;; Check the thread
+    (is thread)
+    ; We have four memories for the user
+    (is (= 4 (count (:results all))))
+    ; Thread only includes three
+    (is (= 3 (count thread)))
+    ; Thread includes the updated record for the first memory
+    (is (= [m1r m2 m3] thread))
+    ))
+
+
+;;;
+;;; Querying
+;;;
 
 
 ;; Strictly speaking, the following belongs in the tests for db.core, but
@@ -68,10 +135,10 @@
   (import-placeholder-memories!)
   (import-placeholder-memories! "shortuser" "quotes2.txt")
   (testing "Getting an all-memory count returns the total memories"
-    (is (= {:count 22} (first (db/get-thought-count {:username tdu/ph-username}))))
-    (is (= {:count 5} (first (db/get-thought-count {:username "shortuser"})))))
+    (is (= {:count 22} (first (db/run db/get-thought-count {:username tdu/ph-username}))))
+    (is (= {:count 5} (first (db/run db/get-thought-count {:username "shortuser"})))))
   (testing "Getting an memory query count returns the count of matching memories"
-    (are [count q u] (= {:count count} (first (db/search-thought-count {:username u :query q})))
+    (are [count q u] (= {:count count} (first (db/run db/search-thought-count {:username u :query q})))
                      3 "memory" tdu/ph-username
                      0 "memory" "shortuser"
                      4 "people" tdu/ph-username
@@ -79,10 +146,7 @@
                      0 "creativity|akira" tdu/ph-username
                      3 "creativity|akira" "shortuser"
                      1 "mistake" tdu/ph-username
-                     1 "mistake" "shortuser")
-    )
-  )
-
+                     1 "mistake" "shortuser")))
 
 
 (deftest test-query-memories
@@ -92,7 +156,7 @@
       (is (= 0 (:total r)))
       (is (empty? (:results r)))))
   (testing "Query previous value"
-    (let [_        (memory/save-memory! {:username tdu/ph-username :thought "Just wondering"})
+    (let [_        (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
           result   (memory/query-memories tdu/ph-username)
           thoughts (:results result)
           thought  (first thoughts)]
@@ -106,19 +170,23 @@
       ))
   (testing "Test what happens after adding a few memories"
     (let [memories ["A memory" "A second one" "A _somewhat_ longish memory including a bit or *markdown*"]
-          _        (doseq [m memories] (memory/save-memory! {:username tdu/ph-username :thought m}))
+          _        (doseq [m memories] (memory/create-memory! {:username tdu/ph-username :thought m}))
           result   (memory/query-memories tdu/ph-username)]
       (is (= 4 (count (:results result))))
       (is (= 4 (:total result)))
       (let [texts     (extract-text (:results result))
             to-search (conj memories "Just wondering")]
         (doseq [m to-search]
-          (is (u/in-seq? texts m))))))
+          (is (u/in-seq? texts m))))
+      ;; All items are considered open, since we just created them
+      (is (= 4 (count (filter #(= :open (:status %)) (:results result)))))))
   (testing "Test querying for a string"
     (let [result (memory/query-memories tdu/ph-username "memory")
           texts  (extract-text (:results result))]
       (is (= 2 (:total result)))
       (is (= 2 (count texts)))
+      ;; All items are considered open, since we just created them
+      (is (= 2 (count (filter #(= :open (:status %)) (:results result)))))
       (doseq [m texts]
         (is (re-seq #"memory" m)))))
   (testing "Confirm words from a similar root are returned"
@@ -186,8 +254,8 @@
   ;; consistent with the search data we have, so there's no point in testing
   ;; that we're getting the "right" page.
   ;;
-  ;; This will mean we won't get consistent paging.
   (import-placeholder-memories! tdu/ph-username "numbers.txt")
+  ;; This will mean we won't get consistent paging.
   (testing "Querying without any pagination parameters returns the first few memories"
     (let [result   (memory/query-memories tdu/ph-username)
           thoughts (map :thought (:results result))
@@ -253,7 +321,49 @@
         ;; This should hold for all values being returned at that offset,
         ;; until the Postgresql scoring algorithm changes
         (is (>= 0.21 i)))
+      )))
+
+
+
+;;;
+;;; Memory updates
+;;;
+
+(deftest test-can-update-memory
+  (testing "Lexemes are updated along with the memory"
+    (tdu/init-placeholder-data!)
+    (let [_         (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
+          m1        (first (:results (memory/query-memories tdu/ph-username "wondering")))
+          updated   (memory/update-memory! (assoc m1 :thought "Different text"))
+          ;; Ensure that we didn't leave the lexeme table as it was by querying for the
+          ;; old search term and the new one
+          wondering (first (:results (memory/query-memories tdu/ph-username "wondering")))
+          different (first (:results (memory/query-memories tdu/ph-username "different")))
+          all       (memory/query-memories tdu/ph-username)]
+      ;; Pre-update values
+      (is m1)
+      (is (= "Just wondering" (:thought m1)))
+      ;; Check the post-update values
+      (is updated)
+      (is (= (:id m1) (:id updated)))
+      (is (= "Different text" (:thought updated)))
+      ;; Check we updated the lexemes
+      (is (nil? wondering))
+      (is different)
+      (is (= "Different text" (:thought different)))
+      (is (= (:id m1) (:id different)))
+      (is (= 1 (count (:results all))))
       ))
+  (testing "Cannot update closed thoughts"
+    (tdu/init-placeholder-data!)
+    (let [_       (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
+          m1      (first (:results (memory/query-memories tdu/ph-username)))
+          ;; Force the date as if we created it a while ago
+          _       (db/run tdb/update-thought-created! (assoc m1 :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
+          updated (memory/update-memory! (assoc m1 :thought "Different text"))
+          m2      (first (:results (memory/query-memories tdu/ph-username)))]
+      (is (empty? updated))
+      (is (= 0 (:total (memory/query-memories tdu/ph-username "text"))))
+      (is (= 1 (:total (memory/query-memories tdu/ph-username "wondering"))))
+      (is (= :closed (:status m2)))))
   )
-
-

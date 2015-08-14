@@ -1,24 +1,27 @@
-(defproject memento "0.2-SNAPSHOT"
+(defproject memento "0.3-SNAPSHOT"
   :description "Memento mori"
   :url "https://mementoapp.herokuapp.com/"
 
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "0.0-3308" :scope "provided"]
+                 [org.clojure/clojurescript "1.7.28" :scope "provided"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
-                 [org.clojure/java.jdbc "0.3.7"]
+                 [org.clojure/java.jdbc "0.4.1"]
                  [org.clojure/tools.nrepl "0.2.10"]
                  [org.clojure/tools.reader "0.9.2"]
                  [bouncer "0.3.3"]
-                 [buddy/buddy-auth "0.6.0" :exclusions [com.fasterxml.jackson.core/jackson-core]]
+                 [buddy/buddy-auth "0.6.1" :exclusions [com.fasterxml.jackson.core/jackson-core]]
                  [buddy/buddy-hashers "0.6.0"]
-                 [buddy/buddy-sign "0.6.0"]
-                 [cljs-ajax "0.3.13"]
+                 [buddy/buddy-sign "0.6.1"]
+                 [clj-dbcp "0.8.1"]
+                 [clj-time "0.10.0"]
+                 [cljs-ajax "0.3.14"]
                  [cljsjs/react-bootstrap "0.23.7-0" :exclusions [org.webjars.bower/jquery]]
-                 [compojure "1.3.4"]
+                 [compojure "1.4.0"]
                  [com.taoensso/timbre "4.0.2"]
                  [com.taoensso/tower "3.1.0-beta3"]
                  [environ "1.0.0"]
                  [io.clojure/liberator-transit "0.3.0"]
+                 [jayq "2.5.4"]
                  [liberator "0.13"]
                  [markdown-clj "0.9.67"]
                  [metosin/ring-middleware-format "0.6.0"]
@@ -33,7 +36,8 @@
                  [ring-server "0.4.0"]
                  [ring/ring-defaults "0.1.5"]
                  [ring/ring-session-timeout "0.1.0"]
-                 [selmer "0.8.2"]
+                 [selmer "0.8.7"]
+                 [to-jdbc-uri "0.2.0"]
                  [yesql "0.5.0-rc3"]
                  ]
 
@@ -60,25 +64,30 @@
          :uberwar-name "memento.war"}
 
   :migratus {:store         :database
-             :migration-dir "migrations"
-             }
+             :migration-dir "migrations"}
 
   :clean-targets ^{:protect false} ["resources/public/js" "target"]
 
   :source-paths ["src/clj" "src/cljs" "src/cljc"]
-  :test-paths ["test/clj" "test/cljc"]
+  :test-paths ["test/clj" "test/cljs" "test/cljc"]
 
   :cljsbuild
-  {:builds
-   {:app
-    {:source-paths ["src/cljs"]
-     :compiler
-                   {:output-dir    "resources/public/js/"
-                    :externs       ["react/externs/react.js"]
-                    :optimizations :none
-                    :output-to     "resources/public/js/memento.js"
-                    :source-map    "resources/public/js/memento.js.map"
-                    :pretty-print  true}}}}
+  {:builds        {:app  {:source-paths  ["src/cljs"]
+                          :compiler
+                          {:output-dir    "resources/public/js/"
+                           :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]
+                           :optimizations :none
+                           :output-to     "resources/public/js/memento.js"
+                           :source-map    "resources/public/js/memento.js.map"
+                           :pretty-print  true}}
+                   :test {:compiler
+                          {:output-dir    "target/test/"
+                           :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]
+                           :optimizations :whitespace
+                           :pretty-print  true
+                           :output-to     "target/test/memento-tests.js"}}
+                   }
+   :test-commands {"test" ["phantomjs" "phantom/unit-test.js" "phantom/unit-test.html"]}}
 
 
   :profiles
@@ -106,7 +115,7 @@
                                                                 org.codehaus.plexus/plexus-utils]]
                             [org.clojure/tools.nrepl "0.2.10"]]
              :source-paths ["env/dev/clj"]
-             :plugins      [[lein-figwheel "0.3.5" :exclusions [org.clojure/clojure
+             :plugins      [[lein-figwheel "0.3.7" :exclusions [org.clojure/clojure
                                                                 org.clojure/tools.reader
                                                                 org.codehaus.plexus/plexus-utils]]]
              :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}
@@ -121,18 +130,19 @@
              :injections   [(require 'pjstadig.humane-test-output)
                             (pjstadig.humane-test-output/activate!)]
              :env          {:dev          true
-                            :database-url "postgresql://memento:testdb@localhost/memento_dev"
+                            :database-url "postgres://memento:testdb@localhost/memento_dev"
                             :auth-conf    {:passphrase "testpassword"
                                            :pubkey     "keys/dev_auth_pubkey.pem"
                                            :privkey    "keys/dev_auth_privkey.pem"}
                             }}
    :test    {:env          {:dev          true
-                            :database-url "postgresql://memento:testdb@localhost/memento_test"
+                            :database-url "postgres://memento:testdb@localhost/memento_test"
                             :auth-conf    {:passphrase "testpassword"
                                            :pubkey     "keys/dev_auth_pubkey.pem"
                                            :privkey    "keys/dev_auth_privkey.pem"}
                             }
-             :source-paths ["test/clj" "test/cljc"]
+             :hooks        [leiningen.cljsbuild]
+             :source-paths ["test/clj" "test/cljc" "test/cljs"]
              :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}
              }
    })
