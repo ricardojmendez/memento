@@ -10,7 +10,7 @@
             [jayq.core :refer [$]]
             [markdown.core :refer [md->html]]
             [markdown.transformers :as transformers]
-            [ajax.core :refer [GET POST]])
+            [ajax.core :refer [GET POST PUT]])
   (:require-macros [reagent.ratom :refer [reaction]]
                    [memento.misc.cljs-macros :refer [adapt-bootstrap]])
   (:import goog.History))
@@ -103,6 +103,53 @@
 
 
 (register-handler
+  :edit-memory-set
+  (fn [app-state [_ thought]]
+    (if (empty? thought)
+      (dispatch [:update-note nil]))
+    (assoc-in app-state [:note :edit-memory] thought)
+    ))
+
+
+(register-handler
+  :edit-memory-save
+  (fn [app-state _]
+    (let [note   (get-in app-state [:note :current-note])
+          memory (get-in app-state [:note :edit-memory])
+          url    (str "/api/memory/" (:id memory) "/thought")]
+      (PUT url {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
+                :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                :handler       #(dispatch [:edit-memory-success note])
+                :error-handler #(dispatch [:edit-memory-error %])})
+      )
+    (assoc-in app-state [:ui-state :is-busy?] true)
+    ))
+
+
+(register-handler
+  :edit-memory-success
+  (fn [app-state [_ msg]]
+    (dispatch [:set-message (str "Updated memory to: " msg) "alert-success"])
+    (if (= :remember (get-in app-state [:ui-state :section]))         ; Just in case we allow editing from elsewhere...
+      (dispatch [:load-memories]))
+    (-> app-state
+        (assoc-in [:ui-state :is-busy?] false)
+        (assoc-in [:note :edit-memory] nil)
+        (assoc-in [:note :current-note] "")
+        (assoc-in [:note :focus] nil)
+        )))
+
+
+(register-handler
+  :edit-memory-error
+  (fn [app-state [_ result]]
+    (dispatch [:set-message (str "Error editing note: " result) "alert-danger"])
+    (clear-token-on-unauth result)
+    (assoc-in app-state [:ui-state :is-busy?] false)
+    ))
+
+
+(register-handler
   :initialize
   (fn [app-state _]
     (dispatch [:set-token (cookies/get :token nil)])
@@ -114,6 +161,7 @@
                                  :results-page  0
                                  :memories      {:pages 0}
                                  :is-searching? false}
+                      :note     {:edit-memory nil}
                       })))
 
 (register-handler
@@ -384,8 +432,26 @@
         [:div {:class "panel-body"}
          [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought @focus) :replacement-transformers md-transformers)}}]
          ]]])
-
     ))
+
+
+(defn thought-edit-box []
+  (let [note (subscribe [:note :current-note])]
+    (fn []
+      [:div {:class "form-group"}
+       [focused-thought]
+       [:div {:class "col-sm-12"}
+        [initial-focus-wrapper
+         [:textarea {:class       "form-control"
+                     :id          "thought-area"
+                     :placeholder "I was thinking..."
+                     :rows        12
+                     :style       {:font-size "18px"}
+                     :on-change   #(dispatch-sync [:update-note (-> % .-target .-value)])
+                     :value       @note
+                     }]]
+        ]]))
+  )
 
 (defn write-section []
   (let [note     (subscribe [:note :current-note])
@@ -393,20 +459,7 @@
     (fn []
       [:fielset
        [:div {:class "form-horizontal"}
-        [:div {:class "form-group"}
-         [focused-thought]
-
-         [:div {:class "col-sm-12"}
-          [initial-focus-wrapper
-           [:textarea {:class       "form-control"
-                       :id          "thought-area"
-                       :placeholder "I was thinking..."
-                       :rows        12
-                       :style       {:font-size "18px"}
-                       :on-change   #(dispatch-sync [:update-note (-> % .-target .-value)])
-                       :value       @note
-                       }]]
-          ]]
+        [thought-edit-box]
         [:div {:class "form-group"}
          [:div {:class "col-sm-12"}
           [:button {:type     "reset"
@@ -476,6 +529,12 @@
       ]
      [:div
       [:div {:class "col-sm-4"}
+       (if (= :open (:status memory))
+         [:a {:class    "btn btn-primary btn-xs"
+              :on-click #(do
+                          (dispatch [:update-note (:thought memory)])
+                          (dispatch [:edit-memory-set memory]))}
+          "Edit" [:i {:class "fa fa-pencil fa-space"}]])
        [:a {:class    "btn btn-primary btn-xs"
             :on-click #(do
                         (.scrollIntoView top-div-target)
@@ -490,6 +549,30 @@
       [:div {:class "col-sm-4 col-sm-offset-4" :style {:text-align "right"}}
        [:i [:small (:created memory)]]
        ]]]))
+
+
+(defn edit-memory []
+  (let [edit-memory (subscribe [:note :edit-memory])
+        note        (subscribe [:note :current-note])
+        is-busy?    (subscribe [:ui-state :is-busy?])
+        ;; On the next one, we can't use not-empty because (= nil (not-empty nil)), and :show expects true/false,
+        ;; not a truth-ish value.
+        show?       (reaction (not (empty? @edit-memory)))]
+    (fn []
+      [Modal {:show @show? :onHide #(dispatch [:edit-memory-set nil])}
+       [ModalBody
+        [:div {:class "col-sm-12 thought"}
+         [thought-edit-box]]]
+       [ModalFooter
+        [:button {:type     "reset"
+                  :class    "btn btn-default"
+                  :on-click #(dispatch [:edit-memory-set nil])} "Discard"]
+        [:button {:type     "submit"
+                  :class    "btn btn-primary"
+                  :disabled (or @is-busy? (empty? @note))
+                  :on-click #(dispatch [:edit-memory-save])} "Save"]
+        ]])))
+
 
 (defn memory-thread []
   (let [show?  (subscribe [:ui-state :show-thread?])
@@ -524,6 +607,7 @@
 (defn memory-list []
   (fn []
     [:span
+     [edit-memory]
      [memory-thread]
      [memory-query]
      [memory-results]]))
@@ -642,5 +726,3 @@
   (dispatch-sync [:initialize])
   (hook-browser-navigation!)
   (mount-components))
-
-
