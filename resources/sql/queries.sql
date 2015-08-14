@@ -1,4 +1,4 @@
--- name: create-thought!
+-- name: create-thought<!
 -- Creates a new thought record
 INSERT INTO thoughts (created, username, thought, root_id, refine_id)
 VALUES (:created, :username, :thought, :root_id, :refine_id);
@@ -28,6 +28,13 @@ OFFSET :offset;
 -- Returns count of all thoughts for a username
 SELECT COUNT(*) FROM thoughts
 WHERE username = :username;
+
+
+-- name: update-thought<!
+-- Updates a thought's text
+UPDATE thoughts
+SET thought = :thought
+WHERE id = :id;
 
 
 -- name: make-root!

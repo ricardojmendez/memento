@@ -13,6 +13,7 @@
                  [buddy/buddy-hashers "0.6.0"]
                  [buddy/buddy-sign "0.6.1"]
                  [clj-dbcp "0.8.1"]
+                 [clj-time "0.10.0"]
                  [cljs-ajax "0.3.14"]
                  [cljsjs/react-bootstrap "0.23.7-0" :exclusions [org.webjars.bower/jquery]]
                  [compojure "1.4.0"]
@@ -63,25 +64,30 @@
          :uberwar-name "memento.war"}
 
   :migratus {:store         :database
-             :migration-dir "migrations"
-             }
+             :migration-dir "migrations"}
 
   :clean-targets ^{:protect false} ["resources/public/js" "target"]
 
   :source-paths ["src/clj" "src/cljs" "src/cljc"]
-  :test-paths ["test/clj" "test/cljc"]
+  :test-paths ["test/clj" "test/cljs" "test/cljc"]
 
   :cljsbuild
-  {:builds
-   {:app
-    {:source-paths ["src/cljs"]
-     :compiler
-                   {:output-dir    "resources/public/js/"
-                    :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]
-                    :optimizations :none
-                    :output-to     "resources/public/js/memento.js"
-                    :source-map    "resources/public/js/memento.js.map"
-                    :pretty-print  true}}}}
+  {:builds        {:app  {:source-paths  ["src/cljs"]
+                          :compiler
+                          {:output-dir    "resources/public/js/"
+                           :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]
+                           :optimizations :none
+                           :output-to     "resources/public/js/memento.js"
+                           :source-map    "resources/public/js/memento.js.map"
+                           :pretty-print  true}}
+                   :test {:compiler
+                          {:output-dir    "target/test/"
+                           :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]
+                           :optimizations :whitespace
+                           :pretty-print  true
+                           :output-to     "target/test/memento-tests.js"}}
+                   }
+   :test-commands {"test" ["phantomjs" "phantom/unit-test.js" "phantom/unit-test.html"]}}
 
 
   :profiles
@@ -135,7 +141,8 @@
                                            :pubkey     "keys/dev_auth_pubkey.pem"
                                            :privkey    "keys/dev_auth_privkey.pem"}
                             }
-             :source-paths ["test/clj" "test/cljc"]
+             :hooks        [leiningen.cljsbuild]
+             :source-paths ["test/clj" "test/cljc" "test/cljs"]
              :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}
              }
    })

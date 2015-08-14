@@ -30,9 +30,19 @@
                                      "application/json"])
 
 (defresource memory
-             :allowed-methods [:post :get]
-             :authorized? (fn [ctx]
-                            (some? (get-in ctx [:request :identity])))
+             :allowed-methods [:post :get :put]
+             :authorized? (fn [{request :request}]
+                            (let [{:keys [identity request-method params]} request
+                                  id            (:id params)
+                                  has-identity? (not-empty identity)]
+                              (condp = request-method
+                                :get has-identity?
+                                :post has-identity?
+                                :put (and has-identity?
+                                          id
+                                          (= identity (:username (memory/load-memory (UUID/fromString id)))))
+                                false)
+                              ))
              :handle-ok (fn [{request :request}]
                           (let [query    (:query-params request)
                                 username (:identity request)
@@ -42,14 +52,18 @@
                                 (assoc :current-page page)
                                 memory/format-created)
                             ))
-             ; TODO: Reject empty POSTs. We'll do that once we are also validating it's a registered user.
+             :can-put-to-missing? false
+             :put! (fn [{{{:keys [id thought]} :params} :request}]
+                     {:save-result (memory/update-memory! {:id (UUID/fromString id) :thought thought})})
              :post! (fn [ctx]
                       (let [content  (read-content ctx)
                             username (get-in ctx [:request :identity])]
                         (when (not-empty content)
-                          {:save-result (memory/save-memory! (assoc content :username username))})))
-             :handle-created (fn [ctx]
-                               {:count (:save-result ctx)})
+                          {:save-result (memory/create-memory! (assoc content :username username))})))
+             :handle-created (fn [{record :save-result}]
+                               (ring-response {:status  201
+                                               :headers {"Location" (str "/api/memory/" (:id record))}
+                                               :body    record}))
              :available-media-types ["application/transit+json"
                                      "application/transit+msgpack"
                                      "application/json"])
@@ -92,7 +106,7 @@
                                   token   (auth/create-auth-token (:username content) (:password content))]
                               (if (not-empty token)
                                 {:token token})))
-             :post! true                                    ; All the work is done on authorized?
+             :post! true                                              ; All the work is done on authorized?
              :handle-created (fn [ctx]
                                {:token (:token ctx)})
              :available-media-types ["application/transit+json"
@@ -127,4 +141,5 @@
            (ANY "/api/auth/signup" request signup)
            (ANY "/api/memory" request memory)
            (ANY "/api/memory/thread/:id" [id] (memory-thread id))
+           (ANY "/api/memory/:id/thought" request memory)
            (ANY "/api/memory/search" request memory-search))
