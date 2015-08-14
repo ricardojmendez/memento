@@ -189,7 +189,7 @@
     (cookies/set! :token token)
     (-> app-state
         (assoc-in [:credentials :token] token)
-        (assoc-in [:ui-state :section] (if (empty? token) :login :write))
+        (assoc-in [:ui-state :section] (if (empty? token) :login ::record))
         (assoc-in [:ui-state :wip-login?] false)
         (assoc-in [:credentials :password] nil)
         (assoc-in [:credentials :password2] nil))))
@@ -334,7 +334,7 @@
   (fn [app-state [_ thought]]
     (-> app-state
         (assoc-in [:note :focus] thought)
-        (assoc-in [:ui-state :section] :write))
+        (assoc-in [:ui-state :section] ::record))
     ))
 
 
@@ -404,7 +404,7 @@
              [navbar-item "Login" :login]
              [navbar-item "Sign up" :signup]]
             [:ul {:class "nav navbar-nav"}
-             [navbar-item "Record" :write]
+             [navbar-item "Record" ::record]
              [navbar-item "Remember" :remember]])
           ]]
         ]]
@@ -681,7 +681,7 @@
              (not= :signup @section))
       (dispatch [:set-ui-section :login]))
     (condp = @section
-      :write [write-section]
+      ::record [write-section]
       :remember [memory-list]
       [login-form]
       )
@@ -691,7 +691,7 @@
 (defn header []
   (let [state  (subscribe [:ui-state :section])
         header (condp = @state
-                 :write "Make a new memory"
+                 ::record "Make a new memory"
                  :remember "Remember"
                  "")]
     (if (not-empty header)
