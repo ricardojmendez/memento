@@ -529,7 +529,7 @@
       [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought memory) :replacement-transformers md-transformers)}}]
       ]
      [:div
-      [:div {:class "col-sm-4"}
+      [:div {:class "col-sm-6"}
        (if (= :open (:status memory))
          [:a {:class    "btn btn-primary btn-xs"
               :on-click #(do
@@ -547,7 +547,7 @@
           "Thread" [:i {:class "fa fa-file-text fa-space"}]])
 
        ]
-      [:div {:class "col-sm-4 col-sm-offset-4" :style {:text-align "right"}}
+      [:div {:class "col-sm-4 col-sm-offset-2" :style {:text-align "right"}}
        [:i [:small (:created memory)]]
        ]]]))
 
