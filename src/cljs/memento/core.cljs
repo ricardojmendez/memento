@@ -21,18 +21,6 @@
 ;;;; Data and helpers
 ;;;;------------------------------
 
-(defn autourl-freestanding-transformer
-  "Transforms a URL even if it's not surrounded by <>"
-  [text state]
-  [(if (:code state)
-     text
-     (clojure.string/replace
-       text
-       #"https?://[-A-Za-z0-9+&@#/%?=~_()|!:,.;]*[-A-Za-z0-9+&@#/%=~_()|]"
-       #(str "<a href=\"" % "\">" % "</a>")))
-   state])
-
-
 (defn paragraph-on-single-line
   "Adds a <p> even when we're at the end of the file and the last line is empty, so that
   we consistently return lines wrapped in paragraph even if it's free-standing text.
@@ -62,7 +50,6 @@
    transformers/inline-code
    transformers/autoemail-transformer
    transformers/autourl-transformer
-   autourl-freestanding-transformer
    transformers/link
    transformers/reference-link
    transformers/li
