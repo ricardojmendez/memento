@@ -23,7 +23,7 @@
                        (:results memories))))
 
 
-(def open-duration (* 12 60 60 1000))
+(def open-duration (* 24 60 60 1000))
 
 
 (defn set-memory-status
