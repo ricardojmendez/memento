@@ -10,7 +10,8 @@
             [jayq.core :refer [$]]
             [markdown.core :refer [md->html]]
             [markdown.transformers :as transformers]
-            [ajax.core :refer [GET POST PUT]])
+            [ajax.core :refer [GET POST PUT]]
+            [clojure.string :as string])
   (:require-macros [reagent.ratom :refer [reaction]]
                    [memento.misc.cljs-macros :refer [adapt-bootstrap]])
   (:import goog.History))
@@ -32,6 +33,26 @@
    state])
 
 
+(defn paragraph-on-single-line
+  "Adds a <p> even when we're at the end of the file and the last line is empty, so that
+  we consistently return lines wrapped in paragraph even if it's free-standing text.
+  Replaces the default paragraph transformer."
+  [text {:keys [eof heading hr code lists blockquote paragraph last-line-empty?] :as state}]
+  (cond
+    (or heading hr code lists blockquote)
+    [text state]
+
+    paragraph
+    (if (or eof (empty? (string/trim text)))
+      [(str (transformers/paragraph-text last-line-empty? text) "</p>") (assoc state :paragraph false)]
+      [(transformers/paragraph-text last-line-empty? text) state])
+
+    last-line-empty?
+    [(str "<p>" text) (assoc state :paragraph true :last-line-empty? false)]
+
+    :default
+    [text state]))
+
 ;; Transformer vector. We are excluding headings, since we use the hash as tags.
 (def md-transformers
   [transformers/empty-line
@@ -52,7 +73,7 @@
    transformers/strikethrough
    transformers/superscript
    transformers/blockquote
-   transformers/paragraph
+   paragraph-on-single-line                                           ; Replaces transformers/paragraph
    transformers/br])
 
 
@@ -526,7 +547,7 @@
     ^{:key (:id memory)}
     [:div {:class "col-sm-12 thought"}
      [:div {:class "memory col-sm-12"}
-      [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought memory) :replacement-transformers md-transformers)}}]
+      [:span {:dangerouslySetInnerHTML {:__html (md->html (:thought memory) :replacement-transformers md-transformers)}}]
       ]
      [:div
       [:div {:class "col-sm-6"}
