@@ -107,60 +107,13 @@
   dispatches a message to clear the authorization token."
   [result]
   (if (= 401 (:status result))
-    (dispatch [:set-token nil])))
-
-
-(register-handler
-  :edit-memory-set
-  (fn [app-state [_ thought]]
-    (if (empty? thought)
-      (dispatch [:update-note nil]))
-    (assoc-in app-state [:note :edit-memory] thought)
-    ))
-
-
-(register-handler
-  :edit-memory-save
-  (fn [app-state _]
-    (let [note   (get-in app-state [:note :current-note])
-          memory (get-in app-state [:note :edit-memory])
-          url    (str "/api/memory/" (:id memory) "/thought")]
-      (PUT url {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
-                :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                :handler       #(dispatch [:edit-memory-success note])
-                :error-handler #(dispatch [:edit-memory-error %])})
-      )
-    (assoc-in app-state [:ui-state :is-busy?] true)
-    ))
-
-
-(register-handler
-  :edit-memory-success
-  (fn [app-state [_ msg]]
-    (dispatch [:set-message (str "Updated memory to: " msg) "alert-success"])
-    (if (= :remember (get-in app-state [:ui-state :section]))         ; Just in case we allow editing from elsewhere...
-      (dispatch [:load-memories]))
-    (-> app-state
-        (assoc-in [:ui-state :is-busy?] false)
-        (assoc-in [:note :edit-memory] nil)
-        (assoc-in [:note :current-note] "")
-        (assoc-in [:note :focus] nil)
-        )))
-
-
-(register-handler
-  :edit-memory-error
-  (fn [app-state [_ result]]
-    (dispatch [:set-message (str "Error editing note: " result) "alert-danger"])
-    (clear-token-on-unauth result)
-    (assoc-in app-state [:ui-state :is-busy?] false)
-    ))
+    (dispatch [:auth-set-token nil])))
 
 
 (register-handler
   :initialize
   (fn [app-state _]
-    (dispatch [:set-token (cookies/get :token nil)])
+    (dispatch [:auth-set-token (cookies/get :token nil)])
     (merge app-state {:ui-state {:is-busy?      false
                                  :wip-login?    false
                                  :show-thread?  false
@@ -183,27 +136,27 @@
                            (get-in app-state [:credentials :password2])))]
       (if is-valid?
         (POST (str "/api/auth/" url) {:params        (:credentials app-state)
-                                      :handler       #(dispatch [:set-token (:token %)])
-                                      :error-handler #(dispatch [:login-error %])}))
+                                      :handler       #(dispatch [:auth-set-token (:token %)])
+                                      :error-handler #(dispatch [:auth-request-error %])}))
       )
     (assoc-in app-state [:ui-state :wip-login?] true)
     ))
 
 (register-handler
-  :set-token
+  :auth-set-token
   (fn [app-state [_ token]]
     (if (not-empty token)
-      (dispatch [:set-message ""]))
+      (dispatch [:state-message ""]))
     (cookies/set! :token token)
     (-> app-state
         (assoc-in [:credentials :token] token)
-        (assoc-in [:ui-state :section] (if (empty? token) :login ::record))
+        (assoc-in [:ui-state :section] (if (empty? token) :login :record))
         (assoc-in [:ui-state :wip-login?] false)
         (assoc-in [:credentials :password] nil)
         (assoc-in [:credentials :password2] nil))))
 
 (register-handler
-  :login-error
+  :auth-request-error
   (fn [app-state [_ result]]
     (.log js/console (str result))
     (let [status    (:status result)
@@ -220,94 +173,19 @@
 
 
 (register-handler
-  :update-credentials
-  (fn [app-state [_ k v]]
-    (assoc-in app-state [:credentials k] v)))
-
-(register-handler
-  :set-ui-section
-  (fn [app-state [_ section]]
-    (if (= :remember section)
-      (dispatch [:load-memories]))
-    (assoc-in app-state [:ui-state :section] section)))
-
-(register-handler
-  :log-message
-  (fn [app-state [_ msg]]
-    (.log js/console (str "Logging: " msg))
-    app-state))
-
-(register-handler
-  :set-message
-  (fn [app-state [_ msg class]]
-    (let [message {:text msg :class class}]
-      ; TODO: Consider changing this for a keyword
-      (if (= class "alert-success")
-        (js/setTimeout #(dispatch [:set-message-if-same message nil]) 3000))
-      (assoc-in app-state [:ui-state :last-message] message))))
-
-(register-handler
-  :set-message-if-same
-  (fn [app-state [_ msg new-msg]]
-    (if (= msg (get-in app-state [:ui-state :last-message]))
-      (assoc-in app-state [:ui-state :last-message] new-msg)
-      app-state
-      )))
-
-(register-handler
-  :update-note
-  (fn [app-state [_ note]]
-    (assoc-in app-state [:note :current-note] note)))
-
-(register-handler
-  :update-query
-  (fn [app-state [_ q]]
-    (dispatch [:load-memories 0])
-    (assoc-in app-state [:ui-state :current-query] q)))
-
-(register-handler
-  :load-memories
+  :memories-load
   (fn [app-state [_ page-index]]
     (GET "/api/memory/search" {:params        {:q    (get-in app-state [:ui-state :current-query])
                                                :page (or page-index (get-in app-state [:ui-state :results-page]))}
                                :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                               :handler       #(dispatch [:load-memories-success %])
-                               :error-handler #(dispatch [:load-memories-error %])
+                               :handler       #(dispatch [:memories-load-success %])
+                               :error-handler #(dispatch [:memories-load-error %])
                                })
     (assoc-in app-state [:ui-state :is-searching?] true)
     ))
 
 (register-handler
-  :load-thread
-  (fn [app-state [_ thought]]
-    (let [url (str "/api/memory/" (:root_id thought) "/thread")]
-      (GET url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                :handler       #(dispatch [:load-thread-success %])
-                :error-handler #(dispatch [:load-thread-error %])}
-           ))
-    app-state))
-
-(register-handler
-  :load-thread-error
-  (fn [app-state [_ result]]
-    (dispatch [:set-message (str "Error loading thread: " result) "alert-danger"])
-    app-state))
-
-(register-handler
-  :load-thread-success
-  (fn [app-state [_ result]]
-    (-> app-state
-        (assoc-in [:ui-state :show-thread?] true)
-        (assoc-in [:note :thread] (:results result)))
-    ))
-
-(register-handler
-  :set-show-thread
-  (fn [app-state [_ state]]
-    (assoc-in app-state [:ui-state :show-thread?] state)))
-
-(register-handler
-  :load-memories-success
+  :memories-load-success
   (fn [app-state [_ memories]]
     (.scrollIntoView top-div-target)
     (-> app-state
@@ -316,64 +194,188 @@
         (assoc-in [:ui-state :is-searching?] false))
     ))
 
-
 (register-handler
-  :load-memories-error
+  :memories-load-error
   (fn [app-state [_ result]]
-    (dispatch [:set-message (str "Error remembering: " result) "alert-danger"])
+    (dispatch [:state-message (str "Error remembering: " result) "alert-danger"])
     (clear-token-on-unauth result)
     app-state
     ))
 
-
 (register-handler
-  :page-memories
+  :memories-page
   (fn [app-state [_ i]]
     (let [max          (dec (get-in app-state [:ui-state :memories :pages]))
           idx          (Math/max 0 (Math/min max i))
           current-page (get-in app-state [:ui-state :memories :current-page])]
       (if (not= current-page idx)
-        (dispatch [:load-memories idx]))
+        (dispatch [:memories-load idx]))
       (assoc-in app-state [:ui-state :results-page] idx))
     ))
+
+(register-handler
+  :memory-edit-set
+  (fn [app-state [_ thought]]
+    (if (empty? thought)
+      (dispatch [:state-note :edit-note nil]))
+    (assoc-in app-state [:note :edit-memory] thought)
+    ))
+
+
+(register-handler
+  :memory-edit-save
+  (fn [app-state _]
+    (let [note   (get-in app-state [:note :edit-note])
+          memory (get-in app-state [:note :edit-memory])
+          url    (str "/api/memory/" (:id memory) "/thought")]
+      (PUT url {:params        {:thought note}
+                :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                :handler       #(dispatch [:memory-edit-save-success note])
+                :error-handler #(dispatch [:memory-edit-save-error %])}))
+    (assoc-in app-state [:ui-state :is-busy?] true)
+    ))
+
+
+(register-handler
+  :memory-edit-save-success
+  (fn [app-state [_ msg]]
+    (let [thread (get-in app-state [:note :thread])]
+      (dispatch [:state-message (str "Updated memory to: " msg) "alert-success"])
+      (if (= :remember (get-in app-state [:ui-state :section]))       ; Just in case we allow editing from elsewhere...
+        (dispatch [:memories-load]))
+      (if thread
+        (dispatch [:thread-load (first thread)]))
+      (-> app-state
+          (assoc-in [:ui-state :is-busy?] false)
+          (assoc-in [:note :edit-memory] nil)
+          (assoc-in [:note :edit-note] "")
+          (assoc-in [:note :focus] nil)
+          ))))
+
+
+(register-handler
+  :memory-edit-save-error
+  (fn [app-state [_ result]]
+    (dispatch [:state-message (str "Error editing note: " result) "alert-danger"])
+    (clear-token-on-unauth result)
+    (assoc-in app-state [:ui-state :is-busy?] false)
+    ))
+
+
+(register-handler
+  :memory-save
+  (fn [app-state _]
+    (let [note (get-in app-state [:note :current-note])]
+      (POST "/api/memory" {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
+                           :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                           :handler       #(dispatch [:memory-save-success note])
+                           :error-handler #(dispatch [:memory-save-error %])}))
+    (assoc-in app-state [:ui-state :is-busy?] true)
+    ))
+
+(register-handler
+  :memory-save-success
+  (fn [app-state [_ msg]]
+    (dispatch [:state-message (str "Saved: " msg) "alert-success"])
+    (-> app-state
+        (assoc-in [:ui-state :is-busy?] false)
+        (assoc-in [:note :current-note] "")
+        (assoc-in [:note :thread] nil)
+        (assoc-in [:ui-state :show-thread?] false)
+        (assoc-in [:note :focus] nil)
+        )))
+
+(register-handler
+  :memory-save-error
+  (fn [app-state [_ result]]
+    (dispatch [:state-message (str "Error saving note: " result) "alert-danger"])
+    (clear-token-on-unauth result)
+    (assoc-in app-state [:ui-state :is-busy?] false)
+    ))
+
+
+
+
+(register-handler
+  :thread-load
+  (fn [app-state [_ thought]]
+    (let [url (str "/api/memory/" (:root_id thought) "/thread")]
+      (GET url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                :handler       #(dispatch [:thread-load-success %])
+                :error-handler #(dispatch [:thread-load-error %])}
+           ))
+    app-state))
+
+(register-handler
+  :thread-load-error
+  (fn [app-state [_ result]]
+    (dispatch [:state-message (str "Error loading thread: " result) "alert-danger"])
+    app-state))
+
+(register-handler
+  :thread-load-success
+  (fn [app-state [_ result]]
+    (-> app-state
+        (assoc-in [:ui-state :show-thread?] true)
+        (assoc-in [:note :thread] (:results result)))
+    ))
+
 
 (register-handler
   :refine
   (fn [app-state [_ thought]]
     (-> app-state
         (assoc-in [:note :focus] thought)
-        (assoc-in [:ui-state :section] ::record))
-    ))
-
-
-(register-handler
-  :save-note
-  (fn [app-state _]
-    (let [note (get-in app-state [:note :current-note])]
-      (POST "/api/memory" {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
-                           :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                           :handler       #(dispatch [:save-note-success note])
-                           :error-handler #(dispatch [:save-note-error %])}))
-    (assoc-in app-state [:ui-state :is-busy?] true)
+        (assoc-in [:ui-state :section] :record))
     ))
 
 (register-handler
-  :save-note-success
-  (fn [app-state [_ msg]]
-    (dispatch [:set-message (str "Saved: " msg) "alert-success"])
-    (-> app-state
-        (assoc-in [:ui-state :is-busy?] false)
-        (assoc-in [:note :current-note] "")
-        (assoc-in [:note :focus] nil)
-        )))
+  :state-credentials
+  (fn [app-state [_ k v]]
+    (assoc-in app-state [:credentials k] v)))
+
 
 (register-handler
-  :save-note-error
-  (fn [app-state [_ result]]
-    (dispatch [:set-message (str "Error saving note: " result) "alert-danger"])
-    (clear-token-on-unauth result)
-    (assoc-in app-state [:ui-state :is-busy?] false)
-    ))
+  :state-ui-section
+  (fn [app-state [_ section]]
+    (if (= :remember section)
+      (dispatch [:memories-load]))
+    (assoc-in app-state [:ui-state :section] section)))
+
+(register-handler
+  :state-message
+  (fn [app-state [_ msg class]]
+    (let [message {:text msg :class class}]
+      ; TODO: Consider changing this for a keyword
+      (if (= class "alert-success")
+        (js/setTimeout #(dispatch [:state-message-if-same message nil]) 3000))
+      (assoc-in app-state [:ui-state :last-message] message))))
+
+(register-handler
+  :state-message-if-same
+  (fn [app-state [_ compare-msg new-msg]]
+    (if (= compare-msg (get-in app-state [:ui-state :last-message]))
+      (assoc-in app-state [:ui-state :last-message] new-msg)
+      app-state
+      )))
+
+(register-handler
+  :state-note
+  (fn [app-state [_ note-id note]]
+    (assoc-in app-state [:note note-id] note)))
+
+(register-handler
+  :state-current-query
+  (fn [app-state [_ q]]
+    (dispatch [:memories-load 0])
+    (assoc-in app-state [:ui-state :current-query] q)))
+
+(register-handler
+  :state-show-thread
+  (fn [app-state [_ state]]
+    (assoc-in app-state [:ui-state :show-thread?] state)))
+
+
 
 
 ;;;;------------------------------
@@ -393,7 +395,7 @@
   (let [current     (subscribe [:ui-state :section])
         is-current? (reaction (= section @current))
         class       (when @is-current? "active")]
-    [:li {:class class} [:a {:on-click #(dispatch [:set-ui-section section])} name
+    [:li {:class class} [:a {:on-click #(dispatch [:state-ui-section section])} name
                          (if @is-current?
                            [:span {:class "sr-only"} "(current)"])]]))
 
@@ -412,7 +414,7 @@
              [navbar-item "Login" :login]
              [navbar-item "Sign up" :signup]]
             [:ul {:class "nav navbar-nav"}
-             [navbar-item "Record" ::record]
+             [navbar-item "Record" :record]
              [navbar-item "Remember" :remember]])
           ]]
         ]]
@@ -424,7 +426,7 @@
     (fn []
       (if (not-empty (:text @msg))
         [:div {:class (str "alert " (:class @msg))}
-         [:button {:type :button :class "close" :on-click #(dispatch [:set-message ""])} "x"]
+         [:button {:type :button :class "close" :on-click #(dispatch [:state-message ""])} "x"]
          (:text @msg)]
         )
       )))
@@ -432,7 +434,6 @@
 
 (defn focused-thought []
   (let [focus (subscribe [:note :focus])]
-
     (if @focus
       [:div {:class "col-sm-10 col-sm-offset-1"}
        [:div {:class "panel panel-default"}
@@ -444,8 +445,8 @@
     ))
 
 
-(defn thought-edit-box []
-  (let [note (subscribe [:note :current-note])]
+(defn thought-edit-box [note-id]
+  (let [note (subscribe [:note note-id])]
     (fn []
       [:div {:class "form-group"}
        [focused-thought]
@@ -456,7 +457,7 @@
                      :placeholder "I was thinking..."
                      :rows        12
                      :style       {:font-size "18px"}
-                     :on-change   #(dispatch-sync [:update-note (-> % .-target .-value)])
+                     :on-change   #(dispatch-sync [:state-note note-id (-> % .-target .-value)])
                      :value       @note
                      }]]
         ]]))
@@ -468,16 +469,16 @@
     (fn []
       [:fielset
        [:div {:class "form-horizontal"}
-        [thought-edit-box]
+        [thought-edit-box :current-note]
         [:div {:class "form-group"}
          [:div {:class "col-sm-12"}
           [:button {:type     "reset"
                     :class    "btn btn-default"
-                    :on-click #(dispatch [:update-note ""])} "Clear"]
+                    :on-click #(dispatch [:state-note :current-note ""])} "Clear"]
           [:button {:type     "submit"
                     :disabled (or @is-busy? (empty? @note))
                     :class    "btn btn-primary"
-                    :on-click #(dispatch [:save-note])} "Submit"]
+                    :on-click #(dispatch [:memory-save])} "Submit"]
           ]]
         ]]
       )))
@@ -508,7 +509,7 @@
                    :class     "form-control"
                    :id        "input-search"
                    :value     @query
-                   :on-change #(dispatch-sync [:update-query (-> % .-target .-value)])}]]
+                   :on-change #(dispatch-sync [:state-current-query (-> % .-target .-value)])}]]
          ]]])))
 
 (defn memory-pager []
@@ -526,7 +527,7 @@
                       :first      (>= @current @max-btn)
                       :last       (< @current (- @pages @max-btn))
                       :activePage (inc @current)
-                      :onSelect   #(dispatch [:page-memories (dec (aget %2 "eventKey"))])
+                      :onSelect   #(dispatch [:memories-page (dec (aget %2 "eventKey"))])
                       }]]))))
 
 (defn list-memories [results show-thread-btn?]
@@ -541,8 +542,8 @@
        (if (= :open (:status memory))
          [:a {:class    "btn btn-primary btn-xs"
               :on-click #(do
-                          (dispatch [:update-note (:thought memory)])
-                          (dispatch [:edit-memory-set memory]))}
+                          (dispatch [:state-note :edit-note (:thought memory)])
+                          (dispatch [:memory-edit-set memory]))}
           "Edit" [:i {:class "fa fa-pencil fa-space"}]])
        [:a {:class    "btn btn-primary btn-xs"
             :on-click #(do
@@ -551,7 +552,7 @@
         "Refine" [:i {:class "fa fa-comment fa-space"}]]
        (if (and show-thread-btn? (:root_id memory))
          [:a {:class    "btn btn-primary btn-xs"
-              :on-click #(dispatch [:load-thread memory])}
+              :on-click #(dispatch [:thread-load memory])}
           "Thread" [:i {:class "fa fa-file-text fa-space"}]])
 
        ]
@@ -562,24 +563,24 @@
 
 (defn edit-memory []
   (let [edit-memory (subscribe [:note :edit-memory])
-        note        (subscribe [:note :current-note])
+        note        (subscribe [:note :edit-note])
         is-busy?    (subscribe [:ui-state :is-busy?])
         ;; On the next one, we can't use not-empty because (= nil (not-empty nil)), and :show expects true/false,
         ;; not a truth-ish value.
         show?       (reaction (not (empty? @edit-memory)))]
     (fn []
-      [Modal {:show @show? :onHide #(dispatch [:edit-memory-set nil])}
+      [Modal {:show @show? :onHide #(dispatch [:memory-edit-set nil])}
        [ModalBody
         [:div {:class "col-sm-12 thought"}
-         [thought-edit-box]]]
+         [thought-edit-box :edit-note]]]
        [ModalFooter
         [:button {:type     "reset"
                   :class    "btn btn-default"
-                  :on-click #(dispatch [:edit-memory-set nil])} "Discard"]
+                  :on-click #(dispatch [:memory-edit-set nil])} "Discard"]
         [:button {:type     "submit"
                   :class    "btn btn-primary"
                   :disabled (or @is-busy? (empty? @note))
-                  :on-click #(dispatch [:edit-memory-save])} "Save"]
+                  :on-click #(dispatch [:memory-edit-save])} "Save"]
         ]])))
 
 
@@ -587,13 +588,13 @@
   (let [show?  (subscribe [:ui-state :show-thread?])
         thread (subscribe [:note :thread])]
     (fn []
-      [Modal {:show @show? :onHide #(dispatch [:set-show-thread false])}
+      [Modal {:show @show? :onHide #(dispatch [:state-show-thread false])}
        [ModalBody
         (list-memories @thread false)]
        [ModalFooter
         [:button {:type     "reset"
                   :class    "btn btn-default"
-                  :on-click #(dispatch [:set-show-thread false])} "Close"]]])))
+                  :on-click #(dispatch [:state-show-thread false])} "Close"]]])))
 
 
 (defn memory-results []
@@ -651,7 +652,7 @@
                      :class        "formControl col-sm-8"
                      :id           "inputLogin"
                      :placeholder  "user name"
-                     :on-change    #(dispatch-sync [:update-credentials :username (-> % .-target .-value)])
+                     :on-change    #(dispatch-sync [:state-credentials :username (-> % .-target .-value)])
                      :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
                      :value        @username}]]]
           [:div {:class (str "form-group" @pw-class)}
@@ -660,7 +661,7 @@
             [:input {:type         "password"
                      :class        "formControl col-sm-8"
                      :id           "inputPassword"
-                     :on-change    #(dispatch-sync [:update-credentials :password (-> % .-target .-value)])
+                     :on-change    #(dispatch-sync [:state-credentials :password (-> % .-target .-value)])
                      :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
                      :value        @password}]]]
           (if @signup?
@@ -670,7 +671,7 @@
               [:input {:type         "password"
                        :class        "formControl col-sm-8 col-lg-8"
                        :id           "inputPassword2"
-                       :on-change    #(dispatch-sync [:update-credentials :password2 (-> % .-target .-value)])
+                       :on-change    #(dispatch-sync [:state-credentials :password2 (-> % .-target .-value)])
                        :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
                        :value        @confirm}]]])
 
@@ -687,9 +688,9 @@
     (if (and (nil? @token)
              (not= :login @section)
              (not= :signup @section))
-      (dispatch [:set-ui-section :login]))
+      (dispatch [:state-ui-section :login]))
     (condp = @section
-      ::record [write-section]
+      :record [write-section]
       :remember [memory-list]
       [login-form]
       )
@@ -699,13 +700,12 @@
 (defn header []
   (let [state  (subscribe [:ui-state :section])
         header (condp = @state
-                 ::record "Make a new memory"
+                 :record "Make a new memory"
                  :remember "Remember"
                  "")]
     (if (not-empty header)
       [:h1 {:id "forms"} header])
     ))
-
 
 
 
