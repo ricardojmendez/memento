@@ -228,11 +228,10 @@
     (let [note   (get-in app-state [:note :edit-note])
           memory (get-in app-state [:note :edit-memory])
           url    (str "/api/memory/" (:id memory) "/thought")]
-      (PUT url {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
+      (PUT url {:params        {:thought note}
                 :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                 :handler       #(dispatch [:memory-edit-save-success note])
-                :error-handler #(dispatch [:memory-edit-save-error %])})
-      )
+                :error-handler #(dispatch [:memory-edit-save-error %])}))
     (assoc-in app-state [:ui-state :is-busy?] true)
     ))
 
@@ -240,15 +239,18 @@
 (register-handler
   :memory-edit-save-success
   (fn [app-state [_ msg]]
-    (dispatch [:state-message (str "Updated memory to: " msg) "alert-success"])
-    (if (= :remember (get-in app-state [:ui-state :section]))         ; Just in case we allow editing from elsewhere...
-      (dispatch [:memories-load]))
-    (-> app-state
-        (assoc-in [:ui-state :is-busy?] false)
-        (assoc-in [:note :edit-memory] nil)
-        (assoc-in [:note :edit-note] "")
-        (assoc-in [:note :focus] nil)
-        )))
+    (let [thread (get-in app-state [:note :thread])]
+      (dispatch [:state-message (str "Updated memory to: " msg) "alert-success"])
+      (if (= :remember (get-in app-state [:ui-state :section]))       ; Just in case we allow editing from elsewhere...
+        (dispatch [:memories-load]))
+      (if thread
+        (dispatch [:thread-load (first thread)]))
+      (-> app-state
+          (assoc-in [:ui-state :is-busy?] false)
+          (assoc-in [:note :edit-memory] nil)
+          (assoc-in [:note :edit-note] "")
+          (assoc-in [:note :focus] nil)
+          ))))
 
 
 (register-handler
@@ -278,6 +280,8 @@
     (-> app-state
         (assoc-in [:ui-state :is-busy?] false)
         (assoc-in [:note :current-note] "")
+        (assoc-in [:note :thread] nil)
+        (assoc-in [:ui-state :show-thread?] false)
         (assoc-in [:note :focus] nil)
         )))
 
