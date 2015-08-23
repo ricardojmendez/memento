@@ -217,7 +217,7 @@
   :memory-edit-set
   (fn [app-state [_ thought]]
     (if (empty? thought)
-      (dispatch [:state-current-note nil]))
+      (dispatch [:state-note :edit-note nil]))
     (assoc-in app-state [:note :edit-memory] thought)
     ))
 
@@ -225,7 +225,7 @@
 (register-handler
   :memory-edit-save
   (fn [app-state _]
-    (let [note   (get-in app-state [:note :current-note])
+    (let [note   (get-in app-state [:note :edit-note])
           memory (get-in app-state [:note :edit-memory])
           url    (str "/api/memory/" (:id memory) "/thought")]
       (PUT url {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
@@ -246,7 +246,7 @@
     (-> app-state
         (assoc-in [:ui-state :is-busy?] false)
         (assoc-in [:note :edit-memory] nil)
-        (assoc-in [:note :current-note] "")
+        (assoc-in [:note :edit-note] "")
         (assoc-in [:note :focus] nil)
         )))
 
@@ -356,9 +356,9 @@
       )))
 
 (register-handler
-  :state-current-note
-  (fn [app-state [_ note]]
-    (assoc-in app-state [:note :current-note] note)))
+  :state-note
+  (fn [app-state [_ note-id note]]
+    (assoc-in app-state [:note note-id] note)))
 
 (register-handler
   :state-current-query
@@ -430,7 +430,6 @@
 
 (defn focused-thought []
   (let [focus (subscribe [:note :focus])]
-
     (if @focus
       [:div {:class "col-sm-10 col-sm-offset-1"}
        [:div {:class "panel panel-default"}
@@ -442,8 +441,8 @@
     ))
 
 
-(defn thought-edit-box []
-  (let [note (subscribe [:note :current-note])]
+(defn thought-edit-box [note-id]
+  (let [note (subscribe [:note note-id])]
     (fn []
       [:div {:class "form-group"}
        [focused-thought]
@@ -454,7 +453,7 @@
                      :placeholder "I was thinking..."
                      :rows        12
                      :style       {:font-size "18px"}
-                     :on-change   #(dispatch-sync [:state-current-note (-> % .-target .-value)])
+                     :on-change   #(dispatch-sync [:state-note note-id (-> % .-target .-value)])
                      :value       @note
                      }]]
         ]]))
@@ -466,12 +465,12 @@
     (fn []
       [:fielset
        [:div {:class "form-horizontal"}
-        [thought-edit-box]
+        [thought-edit-box :current-note]
         [:div {:class "form-group"}
          [:div {:class "col-sm-12"}
           [:button {:type     "reset"
                     :class    "btn btn-default"
-                    :on-click #(dispatch [:state-current-note ""])} "Clear"]
+                    :on-click #(dispatch [:state-note :current-note ""])} "Clear"]
           [:button {:type     "submit"
                     :disabled (or @is-busy? (empty? @note))
                     :class    "btn btn-primary"
@@ -539,7 +538,7 @@
        (if (= :open (:status memory))
          [:a {:class    "btn btn-primary btn-xs"
               :on-click #(do
-                          (dispatch [:state-current-note (:thought memory)])
+                          (dispatch [:state-note :edit-note (:thought memory)])
                           (dispatch [:memory-edit-set memory]))}
           "Edit" [:i {:class "fa fa-pencil fa-space"}]])
        [:a {:class    "btn btn-primary btn-xs"
@@ -560,7 +559,7 @@
 
 (defn edit-memory []
   (let [edit-memory (subscribe [:note :edit-memory])
-        note        (subscribe [:note :current-note])
+        note        (subscribe [:note :edit-note])
         is-busy?    (subscribe [:ui-state :is-busy?])
         ;; On the next one, we can't use not-empty because (= nil (not-empty nil)), and :show expects true/false,
         ;; not a truth-ish value.
@@ -569,7 +568,7 @@
       [Modal {:show @show? :onHide #(dispatch [:memory-edit-set nil])}
        [ModalBody
         [:div {:class "col-sm-12 thought"}
-         [thought-edit-box]]]
+         [thought-edit-box :edit-note]]]
        [ModalFooter
         [:button {:type     "reset"
                   :class    "btn btn-default"
