@@ -2,13 +2,12 @@
   (:require [buddy.auth.backends.token :refer [token-backend]]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
             [clojure.tools.nrepl.server :as nrepl]
-            [compojure.core :refer [defroutes routes wrap-routes]]
-            [compojure.route :as route]
+            [bidi.ring :refer [make-handler]]
             [environ.core :refer [env]]
             [memento.auth :as auth]
             [memento.db.migrations :as migrations]
             [memento.middleware :as middleware]
-            [memento.routes.api :refer [api-routes]]
+            [memento.routes.api :refer [api-routes not-found-route]]
             [memento.routes.home :refer [home-routes]]
             [memento.session :as session]
             [selmer.parser :as parser]
@@ -18,9 +17,6 @@
 
 (defonce nrepl-server (atom nil))
 
-(defroutes base-routes
-           (route/resources "/")
-           (route/not-found "Not Found"))
 
 (defn start-nrepl
   "Start a network repl for debugging when the :repl-port is set in the environment."
@@ -86,10 +82,9 @@
 
 
 (def app
-  (-> (routes
-        api-routes
-        (wrap-routes #'home-routes middleware/wrap-csrf)
-        base-routes)
+  (-> (make-handler ["" [api-routes home-routes not-found-route]])
+      ; TODO Wrap-csrf only for the home-routes
+      ; middleware/wrap-csrf
       (wrap-authentication auth-backend)
       (wrap-authorization auth-backend)
       middleware/wrap-base
