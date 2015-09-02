@@ -1,15 +1,15 @@
 (ns memento.core
   (:require [ajax.core :refer [GET POST PUT]]
+            [bidi.bidi :as bidi]
             [clojure.string :refer [trim split]]
             [cljsjs.react-bootstrap]
             [reagent.cookies :as cookies]
             [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [dispatch register-sub register-handler subscribe dispatch-sync]]
-            [goog.events :as events]
-            [goog.history.EventType :as EventType]
             [jayq.core :refer [$]]
             [markdown.core :refer [md->html]]
             [markdown.transformers :as transformers]
+            [pushy.core :as pushy]
             [ajax.core :refer [GET POST PUT]]
             [clojure.string :as string])
   (:require-macros [reagent.ratom :refer [reaction]]
@@ -84,6 +84,10 @@
 
 (def top-div-target (find-dom-elem :#header))
 
+
+
+
+
 ;;;;------------------------------
 ;;;; Queries
 ;;;;------------------------------
@@ -95,6 +99,30 @@
 (register-sub :note general-query)
 (register-sub :ui-state general-query)
 (register-sub :credentials general-query)
+
+
+;;;;-------------------------
+;;;; Routing
+;;;;-------------------------
+
+(def routes ["/" {"record"   :record
+                  "remember" :remember
+                  "signup"   :signup
+                  "login"    :login
+                  "thread/"  {[:id] #(dispatch [:thread-load (:id %)])}
+                  ""         :record}])
+
+(defn set-page! [match]
+  (let [{:keys [handler route-params]} match]
+    (if (fn? handler)
+      (handler route-params)
+      (dispatch [:state-ui-section handler]))))
+
+(defn bidi-matcher [s]
+  (bidi/match-route routes s))
+
+(def history
+  (pushy/pushy set-page! bidi-matcher #_(partial bidi/match-route routes)))
 
 
 
@@ -113,7 +141,6 @@
 (register-handler
   :initialize
   (fn [app-state _]
-    (dispatch [:auth-set-token (cookies/get :token nil)])
     (merge app-state {:ui-state {:is-busy?      false
                                  :wip-login?    false
                                  :show-thread?  false
@@ -124,6 +151,7 @@
                                  :is-searching? false}
                       :note     {:edit-memory nil}
                       })))
+
 
 (register-handler
   :auth-request
@@ -148,9 +176,11 @@
     (if (not-empty token)
       (dispatch [:state-message ""]))
     (cookies/set! :token token)
+    (if (empty? token)
+      (set-page! "/login")
+      (set-page! (bidi-matcher (-> js/window .-location .-pathname))))
     (-> app-state
         (assoc-in [:credentials :token] token)
-        (assoc-in [:ui-state :section] (if (empty? token) :login :record))
         (assoc-in [:ui-state :wip-login?] false)
         (assoc-in [:credentials :password] nil)
         (assoc-in [:credentials :password2] nil))))
@@ -175,13 +205,22 @@
 (register-handler
   :memories-load
   (fn [app-state [_ page-index]]
-    (GET "/api/memory/search" {:params        {:q    (get-in app-state [:ui-state :current-query])
-                                               :page (or page-index (get-in app-state [:ui-state :results-page]))}
-                               :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                               :handler       #(dispatch [:memories-load-success %])
-                               :error-handler #(dispatch [:memories-load-error %])
-                               })
-    (assoc-in app-state [:ui-state :is-searching?] true)
+    (let [q (get-in app-state [:ui-state :current-query])
+          p (or page-index (get-in app-state [:ui-state :results-page]))]
+      (if (or (get-in app-state [:search-state :force?])
+              (not= q (get-in app-state [:search-state :query]))
+              (not= p (get-in app-state [:search-state :page-index])))
+        (do
+          (GET "/api/memory/search" {:params        {:q q :page p}
+                                     :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                                     :handler       #(dispatch [:memories-load-success %])
+                                     :error-handler #(dispatch [:memories-load-error %])
+                                     })
+          (-> app-state
+              (assoc-in [:ui-state :is-searching?] true)
+              (assoc :search-state {:query q :page-index p})))
+        app-state
+        ))
     ))
 
 (register-handler
@@ -221,7 +260,6 @@
     (assoc-in app-state [:note :edit-memory] thought)
     ))
 
-
 (register-handler
   :memory-edit-save
   (fn [app-state _]
@@ -244,14 +282,14 @@
       (if (= :remember (get-in app-state [:ui-state :section]))       ; Just in case we allow editing from elsewhere...
         (dispatch [:memories-load]))
       (if thread
-        (dispatch [:thread-load (first thread)]))
+        (dispatch [:thread-load (:root-id (first thread))]))
       (-> app-state
           (assoc-in [:ui-state :is-busy?] false)
           (assoc-in [:note :edit-memory] nil)
           (assoc-in [:note :edit-note] "")
           (assoc-in [:note :focus] nil)
+          (assoc-in [:search-state :force?] true)
           ))))
-
 
 (register-handler
   :memory-edit-save-error
@@ -260,7 +298,6 @@
     (clear-token-on-unauth result)
     (assoc-in app-state [:ui-state :is-busy?] false)
     ))
-
 
 (register-handler
   :memory-save
@@ -283,6 +320,7 @@
         (assoc-in [:note :thread] nil)
         (assoc-in [:ui-state :show-thread?] false)
         (assoc-in [:note :focus] nil)
+        (assoc-in [:search-state :force?] true)
         )))
 
 (register-handler
@@ -294,12 +332,10 @@
     ))
 
 
-
-
 (register-handler
   :thread-load
-  (fn [app-state [_ thought]]
-    (let [url (str "/api/memory/" (:root_id thought) "/thread")]
+  (fn [app-state [_ root-id]]
+    (let [url (str "/api/memory/" root-id "/thread")]
       (GET url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                 :handler       #(dispatch [:thread-load-success %])
                 :error-handler #(dispatch [:thread-load-error %])}
@@ -315,6 +351,7 @@
 (register-handler
   :thread-load-success
   (fn [app-state [_ result]]
+    (dispatch [:state-ui-section :remember])
     (-> app-state
         (assoc-in [:ui-state :show-thread?] true)
         (assoc-in [:note :thread] (:results result)))
@@ -324,16 +361,25 @@
 (register-handler
   :refine
   (fn [app-state [_ thought]]
-    (-> app-state
-        (assoc-in [:note :focus] thought)
-        (assoc-in [:ui-state :section] :record))
+    (dispatch [:state-browser-token :record])
+    (assoc-in app-state [:note :focus] thought)
     ))
+
+
+;; Handler for changing the browser token from a keyword, so that
+;; :record leads to /record. The handler is expected to apply any
+;; necessary changes to the ui state, or dispatch the relevant
+;; events.
+(register-handler
+  :state-browser-token
+  (fn [app-state [_ token-key]]
+    (pushy/set-token! history (bidi/path-for routes token-key))
+    app-state))
 
 (register-handler
   :state-credentials
   (fn [app-state [_ k v]]
     (assoc-in app-state [:credentials k] v)))
-
 
 (register-handler
   :state-ui-section
@@ -372,9 +418,9 @@
 
 (register-handler
   :state-show-thread
-  (fn [app-state [_ state]]
-    (assoc-in app-state [:ui-state :show-thread?] state)))
-
+  (fn [app-state [_ show?]]
+    (if (not show?) (dispatch [:state-browser-token :remember]))
+    (assoc-in app-state [:ui-state :show-thread?] show?)))
 
 
 
@@ -390,12 +436,15 @@
 (defn navbar-item
   "Renders a navbar item. Having each navbar item have its own subscription will probably
   have a bit of overhead, but I don't imagine it'll be anything major since we won't have
-  more than a couple of them."
-  [name section]
+  more than a couple of them.
+
+  It will use the section id to get the route to link to."
+  [label section]
   (let [current     (subscribe [:ui-state :section])
         is-current? (reaction (= section @current))
         class       (when @is-current? "active")]
-    [:li {:class class} [:a {:on-click #(dispatch [:state-ui-section section])} name
+    [:li {:class class} [:a {:href (bidi/path-for routes section)}
+                         label
                          (if @is-current?
                            [:span {:class "sr-only"} "(current)"])]]))
 
@@ -551,8 +600,8 @@
                         (dispatch [:refine memory]))}
         "Refine" [:i {:class "fa fa-comment fa-space"}]]
        (if (and show-thread-btn? (:root_id memory))
-         [:a {:class    "btn btn-primary btn-xs"
-              :on-click #(dispatch [:thread-load memory])}
+         [:a {:class "btn btn-primary btn-xs"
+              :href  (str "/thread/" (:root_id memory)) }
           "Thread" [:i {:class "fa fa-file-text fa-space"}]])
 
        ]
@@ -688,14 +737,13 @@
     (if (and (nil? @token)
              (not= :login @section)
              (not= :signup @section))
-      (dispatch [:state-ui-section :login]))
+      (dispatch-sync [:state-ui-section :login]))
     (condp = @section
       :record [write-section]
       :remember [memory-list]
       [login-form]
       )
-    )
-  )
+    ))
 
 (defn header []
   (let [state  (subscribe [:ui-state :section])
@@ -709,19 +757,6 @@
 
 
 
-
-;; -------------------------
-;; History
-;; must be called after routes have been defined
-;; TODO: Figure out how to do that with re-frame
-(defn hook-browser-navigation! []
-  #_(doto (History.)
-      (events/listen
-        EventType/NAVIGATE
-        (fn [event]
-          (secretary/dispatch! (.-token event))))
-      (.setEnabled true)))
-
 ;; -------------------------
 ;; Initialize app
 
@@ -732,6 +767,7 @@
   (reagent/render-component [header] (.getElementById js/document "header")))
 
 (defn init! []
+  (pushy/start! history)
   (dispatch-sync [:initialize])
-  (hook-browser-navigation!)
+  (dispatch-sync [:auth-set-token (cookies/get :token nil)])
   (mount-components))

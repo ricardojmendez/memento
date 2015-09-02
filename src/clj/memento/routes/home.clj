@@ -1,13 +1,13 @@
 (ns memento.routes.home
   (:require [memento.layout :as layout]
-            [compojure.core :refer [defroutes GET]]
-            [ring.util.http-response :refer [ok]]
-            [clojure.java.io :as io]))
+            [ring.util.http-response :refer [ok]]))
 
-(defn home-page []
+(defn home-page [_]
   (layout/render "bootswatch.html"))
 
-(defroutes home-routes
-  (GET "/" [] (home-page))
-  (GET "/docs" [] (ok (-> "docs/docs.md" io/resource slurp))))
-
+(def home-routes ["/" {""         home-page
+                       "record"   home-page
+                       "login"    home-page
+                       "remember" home-page
+                       "thread/"   {[:id] home-page}
+                       }])
