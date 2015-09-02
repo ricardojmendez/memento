@@ -10,7 +10,7 @@
                  [org.clojure/tools.reader "0.9.2"]
                  [bidi "1.21.0" :exclusions [ring/ring-core]]
                  [bouncer "0.3.3"]
-                 [buddy/buddy-auth "0.6.1" :exclusions [com.fasterxml.jackson.core/jackson-core]]
+                 [buddy/buddy-auth "0.6.2" :exclusions [com.fasterxml.jackson.core/jackson-core]]
                  [buddy/buddy-hashers "0.6.0"]
                  [buddy/buddy-sign "0.6.1"]
                  [clj-dbcp "0.8.1"]
@@ -26,7 +26,7 @@
                  [liberator "0.13"]
                  [markdown-clj "0.9.69"]
                  [metosin/ring-middleware-format "0.6.0"]
-                 [metosin/ring-http-response "0.6.4"]
+                 [metosin/ring-http-response "0.6.5"]
                  [migratus "0.8.4"]
                  [org.jsoup/jsoup "1.8.3"]
                  [org.postgresql/postgresql "9.4-1201-jdbc41"]
@@ -37,8 +37,8 @@
                  [ring-server "0.4.0"]
                  [ring/ring-defaults "0.1.5"]
                  [ring/ring-session-timeout "0.1.0"]
-                 [selmer "0.9.0"]
-                 [to-jdbc-uri "0.2.0"]
+                 [selmer "0.9.1"]
+                 [to-jdbc-uri "0.3.0"]
                  [yesql "0.5.0"]
                  ]
 
@@ -54,7 +54,7 @@
   :plugins [[lein-ring "0.9.1"]
             [lein-environ "1.0.0"]
             [lein-ancient "0.6.5"]
-            [lein-cljsbuild "1.0.6"]
+            [lein-cljsbuild "1.1.0"]
             [migratus-lein "0.1.3"]]
 
 
@@ -111,7 +111,7 @@
    :dev     {:dependencies [[ring-mock "0.1.5"]
                             [ring/ring-devel "1.4.0"]
                             [pjstadig/humane-test-output "0.7.0"]
-                            [lein-figwheel "0.3.7" :exclusions [org.clojure/clojure
+                            [lein-figwheel "0.3.8" :exclusions [org.clojure/clojure
                                                                 org.clojure/tools.reader
                                                                 org.codehaus.plexus/plexus-utils]]
                             [org.clojure/tools.nrepl "0.2.10"]]
