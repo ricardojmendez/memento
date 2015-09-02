@@ -22,6 +22,7 @@
                  [environ "1.0.0"]
                  [io.clojure/liberator-transit "0.3.0"]
                  [jayq "2.5.4"]
+                 [kibu/pushy "0.3.3"]
                  [liberator "0.13"]
                  [markdown-clj "0.9.69"]
                  [metosin/ring-middleware-format "0.6.0"]
@@ -72,14 +73,14 @@
   :test-paths ["test/clj" "test/cljs" "test/cljc"]
 
   :cljsbuild
-  {:builds        {:app  {:source-paths  ["src/cljs"]
+  {:builds        {:app  {:source-paths ["src/cljs"]
                           :compiler
-                          {:output-dir    "resources/public/js/"
-                           :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]
-                           :optimizations :none
-                           :output-to     "resources/public/js/memento.js"
-                           :source-map    "resources/public/js/memento.js.map"
-                           :pretty-print  true}}
+                                        {:output-dir    "resources/public/js/"
+                                         :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]
+                                         :optimizations :none
+                                         :output-to     "resources/public/js/memento.js"
+                                         :source-map    "resources/public/js/memento.js.map"
+                                         :pretty-print  true}}
                    :test {:compiler
                           {:output-dir    "target/test/"
                            :externs       ["react/externs/react.js" "externs/jquery-1.9.js"]

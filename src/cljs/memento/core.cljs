@@ -1,15 +1,15 @@
 (ns memento.core
   (:require [ajax.core :refer [GET POST PUT]]
+            [bidi.bidi :as bidi]
             [clojure.string :refer [trim split]]
             [cljsjs.react-bootstrap]
             [reagent.cookies :as cookies]
             [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [dispatch register-sub register-handler subscribe dispatch-sync]]
-            [goog.events :as events]
-            [goog.history.EventType :as EventType]
             [jayq.core :refer [$]]
             [markdown.core :refer [md->html]]
             [markdown.transformers :as transformers]
+            [pushy.core :as pushy]
             [ajax.core :refer [GET POST PUT]]
             [clojure.string :as string])
   (:require-macros [reagent.ratom :refer [reaction]]
@@ -84,6 +84,10 @@
 
 (def top-div-target (find-dom-elem :#header))
 
+
+
+
+
 ;;;;------------------------------
 ;;;; Queries
 ;;;;------------------------------
@@ -95,6 +99,28 @@
 (register-sub :note general-query)
 (register-sub :ui-state general-query)
 (register-sub :credentials general-query)
+
+
+;;;;-------------------------
+;;;; Routing
+;;;;-------------------------
+
+(def routes ["/" {"record"   :record
+                  "remember" :remember
+                  "signup"   :signup
+                  "login"    :login
+                  ""         :record}])
+
+(defn set-page! [match]
+  (.log js/console "Matched: " (str match))
+  (dispatch [:state-ui-section (:handler match)]))
+
+(defn bidi-matcher [s]
+  (.log js/console "Matching: " s)
+  (bidi/match-route routes s))
+
+(def history
+  (pushy/pushy set-page! bidi-matcher #_(partial bidi/match-route routes)))
 
 
 
@@ -125,6 +151,7 @@
                       :note     {:edit-memory nil}
                       })))
 
+
 (register-handler
   :auth-request
   (fn [app-state [_ signup?]]
@@ -150,7 +177,10 @@
     (cookies/set! :token token)
     (-> app-state
         (assoc-in [:credentials :token] token)
-        (assoc-in [:ui-state :section] (if (empty? token) :login :record))
+        (assoc-in [:ui-state :section]
+                  (if (empty? token)
+                    :login
+                    (:handler (bidi-matcher (-> js/window .-location .-pathname)))))
         (assoc-in [:ui-state :wip-login?] false)
         (assoc-in [:credentials :password] nil)
         (assoc-in [:credentials :password2] nil))))
@@ -377,7 +407,6 @@
 
 
 
-
 ;;;;------------------------------
 ;;;; Components
 ;;;;------------------------------
@@ -390,12 +419,15 @@
 (defn navbar-item
   "Renders a navbar item. Having each navbar item have its own subscription will probably
   have a bit of overhead, but I don't imagine it'll be anything major since we won't have
-  more than a couple of them."
-  [name section]
+  more than a couple of them.
+
+  It will use the section id to get the route to link to."
+  [label section]
   (let [current     (subscribe [:ui-state :section])
         is-current? (reaction (= section @current))
         class       (when @is-current? "active")]
-    [:li {:class class} [:a {:on-click #(dispatch [:state-ui-section section])} name
+    [:li {:class class} [:a {:href (bidi/path-for routes section)}
+                         label
                          (if @is-current?
                            [:span {:class "sr-only"} "(current)"])]]))
 
@@ -688,14 +720,13 @@
     (if (and (nil? @token)
              (not= :login @section)
              (not= :signup @section))
-      (dispatch [:state-ui-section :login]))
+      (dispatch-sync [:state-ui-section :login]))
     (condp = @section
       :record [write-section]
       :remember [memory-list]
       [login-form]
       )
-    )
-  )
+    ))
 
 (defn header []
   (let [state  (subscribe [:ui-state :section])
@@ -709,19 +740,6 @@
 
 
 
-
-;; -------------------------
-;; History
-;; must be called after routes have been defined
-;; TODO: Figure out how to do that with re-frame
-(defn hook-browser-navigation! []
-  #_(doto (History.)
-      (events/listen
-        EventType/NAVIGATE
-        (fn [event]
-          (secretary/dispatch! (.-token event))))
-      (.setEnabled true)))
-
 ;; -------------------------
 ;; Initialize app
 
@@ -732,6 +750,6 @@
   (reagent/render-component [header] (.getElementById js/document "header")))
 
 (defn init! []
+  (pushy/start! history)
   (dispatch-sync [:initialize])
-  (hook-browser-navigation!)
   (mount-components))

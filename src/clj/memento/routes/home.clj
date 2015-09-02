@@ -5,4 +5,7 @@
 (defn home-page [_]
   (layout/render "bootswatch.html"))
 
-(def home-routes ["/" home-page])
+(def home-routes ["/" {""         home-page
+                       "record"   home-page
+                       "login"    home-page
+                       "remember" home-page}])
