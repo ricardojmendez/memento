@@ -109,14 +109,16 @@
                   "remember" :remember
                   "signup"   :signup
                   "login"    :login
+                  "thread/"  {[:id] #(dispatch [:thread-load (:id %)])}
                   ""         :record}])
 
 (defn set-page! [match]
-  (.log js/console "Matched: " (str match))
-  (dispatch [:state-ui-section (:handler match)]))
+  (let [{:keys [handler route-params]} match]
+    (if (fn? handler)
+      (handler route-params)
+      (dispatch [:state-ui-section handler]))))
 
 (defn bidi-matcher [s]
-  (.log js/console "Matching: " s)
   (bidi/match-route routes s))
 
 (def history
@@ -139,7 +141,6 @@
 (register-handler
   :initialize
   (fn [app-state _]
-    (dispatch [:auth-set-token (cookies/get :token nil)])
     (merge app-state {:ui-state {:is-busy?      false
                                  :wip-login?    false
                                  :show-thread?  false
@@ -175,12 +176,11 @@
     (if (not-empty token)
       (dispatch [:state-message ""]))
     (cookies/set! :token token)
+    (if (empty? token)
+      (set-page! "/login")
+      (set-page! (bidi-matcher (-> js/window .-location .-pathname))))
     (-> app-state
         (assoc-in [:credentials :token] token)
-        (assoc-in [:ui-state :section]
-                  (if (empty? token)
-                    :login
-                    (:handler (bidi-matcher (-> js/window .-location .-pathname)))))
         (assoc-in [:ui-state :wip-login?] false)
         (assoc-in [:credentials :password] nil)
         (assoc-in [:credentials :password2] nil))))
@@ -205,13 +205,22 @@
 (register-handler
   :memories-load
   (fn [app-state [_ page-index]]
-    (GET "/api/memory/search" {:params        {:q    (get-in app-state [:ui-state :current-query])
-                                               :page (or page-index (get-in app-state [:ui-state :results-page]))}
-                               :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                               :handler       #(dispatch [:memories-load-success %])
-                               :error-handler #(dispatch [:memories-load-error %])
-                               })
-    (assoc-in app-state [:ui-state :is-searching?] true)
+    (let [q (get-in app-state [:ui-state :current-query])
+          p (or page-index (get-in app-state [:ui-state :results-page]))]
+      (if (or (get-in app-state [:search-state :force?])
+              (not= q (get-in app-state [:search-state :query]))
+              (not= p (get-in app-state [:search-state :page-index])))
+        (do
+          (GET "/api/memory/search" {:params        {:q q :page p}
+                                     :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                                     :handler       #(dispatch [:memories-load-success %])
+                                     :error-handler #(dispatch [:memories-load-error %])
+                                     })
+          (-> app-state
+              (assoc-in [:ui-state :is-searching?] true)
+              (assoc :search-state {:query q :page-index p})))
+        app-state
+        ))
     ))
 
 (register-handler
@@ -251,7 +260,6 @@
     (assoc-in app-state [:note :edit-memory] thought)
     ))
 
-
 (register-handler
   :memory-edit-save
   (fn [app-state _]
@@ -274,14 +282,14 @@
       (if (= :remember (get-in app-state [:ui-state :section]))       ; Just in case we allow editing from elsewhere...
         (dispatch [:memories-load]))
       (if thread
-        (dispatch [:thread-load (first thread)]))
+        (dispatch [:thread-load (:root-id (first thread))]))
       (-> app-state
           (assoc-in [:ui-state :is-busy?] false)
           (assoc-in [:note :edit-memory] nil)
           (assoc-in [:note :edit-note] "")
           (assoc-in [:note :focus] nil)
+          (assoc-in [:search-state :force?] true)
           ))))
-
 
 (register-handler
   :memory-edit-save-error
@@ -290,7 +298,6 @@
     (clear-token-on-unauth result)
     (assoc-in app-state [:ui-state :is-busy?] false)
     ))
-
 
 (register-handler
   :memory-save
@@ -313,6 +320,7 @@
         (assoc-in [:note :thread] nil)
         (assoc-in [:ui-state :show-thread?] false)
         (assoc-in [:note :focus] nil)
+        (assoc-in [:search-state :force?] true)
         )))
 
 (register-handler
@@ -324,12 +332,10 @@
     ))
 
 
-
-
 (register-handler
   :thread-load
-  (fn [app-state [_ thought]]
-    (let [url (str "/api/memory/" (:root_id thought) "/thread")]
+  (fn [app-state [_ root-id]]
+    (let [url (str "/api/memory/" root-id "/thread")]
       (GET url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                 :handler       #(dispatch [:thread-load-success %])
                 :error-handler #(dispatch [:thread-load-error %])}
@@ -345,6 +351,7 @@
 (register-handler
   :thread-load-success
   (fn [app-state [_ result]]
+    (dispatch [:state-ui-section :remember])
     (-> app-state
         (assoc-in [:ui-state :show-thread?] true)
         (assoc-in [:note :thread] (:results result)))
@@ -354,16 +361,25 @@
 (register-handler
   :refine
   (fn [app-state [_ thought]]
-    (-> app-state
-        (assoc-in [:note :focus] thought)
-        (assoc-in [:ui-state :section] :record))
+    (dispatch [:state-browser-token :record])
+    (assoc-in app-state [:note :focus] thought)
     ))
+
+
+;; Handler for changing the browser token from a keyword, so that
+;; :record leads to /record. The handler is expected to apply any
+;; necessary changes to the ui state, or dispatch the relevant
+;; events.
+(register-handler
+  :state-browser-token
+  (fn [app-state [_ token-key]]
+    (pushy/set-token! history (bidi/path-for routes token-key))
+    app-state))
 
 (register-handler
   :state-credentials
   (fn [app-state [_ k v]]
     (assoc-in app-state [:credentials k] v)))
-
 
 (register-handler
   :state-ui-section
@@ -402,8 +418,9 @@
 
 (register-handler
   :state-show-thread
-  (fn [app-state [_ state]]
-    (assoc-in app-state [:ui-state :show-thread?] state)))
+  (fn [app-state [_ show?]]
+    (if (not show?) (dispatch [:state-browser-token :remember]))
+    (assoc-in app-state [:ui-state :show-thread?] show?)))
 
 
 
@@ -583,8 +600,8 @@
                         (dispatch [:refine memory]))}
         "Refine" [:i {:class "fa fa-comment fa-space"}]]
        (if (and show-thread-btn? (:root_id memory))
-         [:a {:class    "btn btn-primary btn-xs"
-              :on-click #(dispatch [:thread-load memory])}
+         [:a {:class "btn btn-primary btn-xs"
+              :href  (str "/thread/" (:root_id memory)) }
           "Thread" [:i {:class "fa fa-file-text fa-space"}]])
 
        ]
@@ -752,4 +769,5 @@
 (defn init! []
   (pushy/start! history)
   (dispatch-sync [:initialize])
+  (dispatch-sync [:auth-set-token (cookies/get :token nil)])
   (mount-components))

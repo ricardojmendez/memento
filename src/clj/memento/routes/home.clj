@@ -8,4 +8,6 @@
 (def home-routes ["/" {""         home-page
                        "record"   home-page
                        "login"    home-page
-                       "remember" home-page}])
+                       "remember" home-page
+                       "thread/"   {[:id] home-page}
+                       }])
