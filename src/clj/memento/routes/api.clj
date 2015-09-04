@@ -3,7 +3,6 @@
             [buddy.auth.backends.token :refer [token-backend]]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
             [cognitect.transit :as transit]
-            [compojure.core :refer [defroutes GET ANY]]
             [liberator.core :refer [defresource resource request-method-in]]
             [liberator.representation :refer [ring-response]]
             [io.clojure.liberator-transit]
@@ -86,12 +85,14 @@
                                      "application/transit+msgpack"
                                      "application/json"])
 
-(defresource memory-thread [id]
+(defresource memory-thread
              :allowed-methods [:get]
              :authorized? (fn [ctx]
                             (some? (get-in ctx [:request :identity])))
              :handle-ok (fn [{request :request}]
-                          (->> (memory/query-memory-thread (UUID/fromString id))
+                          (->> (get-in request [:route-params :id])
+                               UUID/fromString
+                               memory/query-memory-thread
                                (filter #(= (:username %) (:identity request)))
                                (hash-map :results)
                                memory/format-created))
@@ -134,12 +135,22 @@
                                      "application/json"])
 
 
+(defresource not-found
+             :exists? false
+             :can-post-to-missing? false
+             :available-media-types ["application/transit+json"
+                                     "application/transit+msgpack"
+                                     "application/json"])
 
-(defroutes api-routes
-           (ANY "/api/echo/:val" [val] echo)
-           (ANY "/api/auth/login" request login)
-           (ANY "/api/auth/signup" request signup)
-           (ANY "/api/memory" request memory)
-           (ANY "/api/memory/:id/thread" [id] (memory-thread id))
-           (ANY "/api/memory/:id/thought" request memory)
-           (ANY "/api/memory/search" request memory-search))
+
+(def api-routes
+  ["/api/" {"echo/"       {[:val] echo}
+            "auth/login"  login
+            "auth/signup" signup
+            "memory"      memory
+            "memory/"     {"search"         memory-search
+                           [:id "/thread"]  memory-thread
+                           [:id "/thought"] memory}}])
+
+(def not-found-route
+  ["/" [[true not-found]]])

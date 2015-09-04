@@ -3,7 +3,6 @@
             [selmer.filters :as filters]
             [markdown.core :refer [md-to-html-string]]
             [ring.util.response :refer [content-type response]]
-            [compojure.response :refer [Renderable]]
             [ring.util.anti-forgery :refer [anti-forgery-field]]
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [environ.core :refer [env]]))
