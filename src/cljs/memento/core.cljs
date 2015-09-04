@@ -68,7 +68,6 @@
 (adapt-bootstrap OverlayTrigger)
 (adapt-bootstrap Popover)
 (adapt-bootstrap Tooltip)
-(def Pagination (reagent/adapt-react-class js/ReactBootstrap.Pagination))
 (def Modal (reagent/adapt-react-class js/ReactBootstrap.Modal))
 (def ModalBody (reagent/adapt-react-class js/ReactBootstrap.ModalBody))
 (def ModalFooter (reagent/adapt-react-class js/ReactBootstrap.ModalFooter))
@@ -571,13 +570,11 @@
         page-index  (subscribe [:search-state :page-index])
         total-pages (reaction (:pages @(subscribe [:search-state :last-result])))]
     (fn []
-      (if (< @page-index @total-pages)
+      (if (< @page-index (dec @total-pages))
         [:div {:style {:text-align "center"}}
          (if @searching?
            [:i {:class "fa fa-spinner fa-spin"}]
-           [:i {:class "fa fa-ellipsis-h" :id "load-trigger"}])
-
-         ]))))
+           [:i {:class "fa fa-ellipsis-h" :id "load-trigger"}])]))))
 
 (defn list-memories [results show-thread-btn?]
   (for [memory results]
