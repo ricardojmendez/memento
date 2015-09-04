@@ -98,6 +98,7 @@
 
 (register-sub :note general-query)
 (register-sub :ui-state general-query)
+(register-sub :search-state general-query)
 (register-sub :credentials general-query)
 
 
@@ -205,10 +206,14 @@
 (register-handler
   :memories-load
   (fn [app-state [_ page-index]]
-    (let [q (get-in app-state [:ui-state :current-query])
-          p (or page-index (get-in app-state [:ui-state :results-page]))]
+    (let [q      (get-in app-state [:ui-state :current-query])
+          last-q (get-in app-state [:search-state :query])
+          list   (if (= q last-q)
+                   (get-in app-state [:search-state :list])
+                   [])
+          p      (or page-index (get-in app-state [:ui-state :results-page]))]
       (if (or (get-in app-state [:search-state :force?])
-              (not= q (get-in app-state [:search-state :query]))
+              (not= q last-q)
               (not= p (get-in app-state [:search-state :page-index])))
         (do
           (GET "/api/memory/search" {:params        {:q q :page p}
@@ -218,18 +223,23 @@
                                      })
           (-> app-state
               (assoc-in [:ui-state :is-searching?] true)
-              (assoc :search-state {:query q :page-index p})))
+              (assoc :search-state {:query q :page-index p :list list})
+              ))
         app-state
-        ))
-    ))
+        ))))
+
+(register-handler
+  :memories-load-next
+  (fn [app-state [_]]
+    (dispatch [:memories-load (inc (get-in app-state [:search-state :page-index]))])
+    app-state))
 
 (register-handler
   :memories-load-success
   (fn [app-state [_ memories]]
-    (.scrollIntoView top-div-target)
     (-> app-state
-        (assoc-in [:ui-state :results-page] (:current-page memories))
-        (assoc-in [:ui-state :memories] memories)
+        (assoc-in [:search-state :list] (concat (get-in app-state [:search-state :list]) (:results memories)))
+        (assoc-in [:search-state :last-result] memories)
         (assoc-in [:ui-state :is-searching?] false))
     ))
 
@@ -241,16 +251,6 @@
     app-state
     ))
 
-(register-handler
-  :memories-page
-  (fn [app-state [_ i]]
-    (let [max          (dec (get-in app-state [:ui-state :memories :pages]))
-          idx          (Math/max 0 (Math/min max i))
-          current-page (get-in app-state [:ui-state :memories :current-page])]
-      (if (not= current-page idx)
-        (dispatch [:memories-load idx]))
-      (assoc-in app-state [:ui-state :results-page] idx))
-    ))
 
 (register-handler
   :memory-edit-set
@@ -288,7 +288,8 @@
           (assoc-in [:note :edit-memory] nil)
           (assoc-in [:note :edit-note] "")
           (assoc-in [:note :focus] nil)
-          (assoc-in [:search-state :force?] true)
+          (assoc :search-state nil)
+          #_ (assoc-in [:search-state :force?] true)
           ))))
 
 (register-handler
@@ -320,7 +321,8 @@
         (assoc-in [:note :thread] nil)
         (assoc-in [:ui-state :show-thread?] false)
         (assoc-in [:note :focus] nil)
-        (assoc-in [:search-state :force?] true)
+        #_ (assoc-in [:search-state :force?] true)
+        (assoc :search-state nil)
         )))
 
 (register-handler
@@ -561,23 +563,19 @@
                    :on-change #(dispatch-sync [:state-current-query (-> % .-target .-value)])}]]
          ]]])))
 
-(defn memory-pager []
-  (let [memories (subscribe [:ui-state :memories])
-        pages    (reaction (:pages @memories))
-        current  (subscribe [:ui-state :results-page])
-        max-btn  (reaction (Math/min @pages 8))]
+
+(defn memory-load-trigger []
+  (let [searching?  (subscribe [:ui-state :is-searching?])
+        page-index  (subscribe [:search-state :page-index])
+        total-pages (reaction (:pages @(subscribe [:search-state :last-result])))]
     (fn []
-      (if (> @pages 1)
+      (if (< @page-index @total-pages)
         [:div {:style {:text-align "center"}}
-         [Pagination {:items      @pages
-                      :maxButtons @max-btn
-                      :prev       true
-                      :next       true
-                      :first      (>= @current @max-btn)
-                      :last       (< @current (- @pages @max-btn))
-                      :activePage (inc @current)
-                      :onSelect   #(dispatch [:memories-page (dec (aget %2 "eventKey"))])
-                      }]]))))
+         (if @searching?
+           [:i {:class "fa fa-spinner fa-spin"}]
+           [:i {:class "fa fa-ellipsis-h" :id "load-trigger"}])
+
+         ]))))
 
 (defn list-memories [results show-thread-btn?]
   (for [memory results]
@@ -601,7 +599,7 @@
         "Refine" [:i {:class "fa fa-comment fa-space"}]]
        (if (and show-thread-btn? (:root_id memory))
          [:a {:class "btn btn-primary btn-xs"
-              :href  (str "/thread/" (:root_id memory)) }
+              :href  (str "/thread/" (:root_id memory))}
           "Thread" [:i {:class "fa fa-file-text fa-space"}]])
 
        ]
@@ -647,9 +645,9 @@
 
 
 (defn memory-results []
-  (let [busy?    (subscribe [:ui-state :is-searching?])
-        memories (subscribe [:ui-state :memories])
-        results  (reaction (:results @memories))]
+  (let [busy?   (subscribe [:ui-state :is-searching?])
+        results (subscribe [:search-state :list])
+        ]
     (fn []
       [panel (if @busy?
                [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]]
@@ -658,7 +656,7 @@
         (if (empty? @results)
           [:p "Nothing."]
           (list-memories @results true))
-        [memory-pager]
+        [memory-load-trigger]
         ]
        "panel-primary"]
       )))
@@ -760,6 +758,18 @@
 ;; -------------------------
 ;; Initialize app
 
+
+(defn add-on-appear-handler
+  "Adds an event that dispatches a memory loader when an element comes into
+  view. Expects an element id as parameter and a function"
+  [id f]
+  (let [e ($ id)]
+    (.appear e)
+    (.on ($ js/document.body) "appear" id (fn [event elements]
+                                            (f event elements)
+                                            ))
+    ))
+
 (defn mount-components []
   (reagent/render-component [navbar] (.getElementById js/document "navbar"))
   (reagent/render-component [content-section] (.getElementById js/document "content-section"))
@@ -770,4 +780,5 @@
   (pushy/start! history)
   (dispatch-sync [:initialize])
   (dispatch-sync [:auth-set-token (cookies/get :token nil)])
+  (add-on-appear-handler "#load-trigger" #(dispatch [:memories-load-next]))
   (mount-components))
