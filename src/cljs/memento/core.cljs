@@ -237,10 +237,12 @@
 (register-handler
   :memories-load-success
   (fn [app-state [_ memories]]
-    (-> app-state
-        (assoc-in [:search-state :list] (concat (get-in app-state [:search-state :list]) (:results memories)))
-        (assoc-in [:search-state :last-result] memories)
-        (assoc-in [:ui-state :is-searching?] false))
+    (let [transformed (map #(assoc % :html (md->html (:thought %) :replacement-transformers md-transformers))
+                           (:results memories))]
+      (-> app-state
+          (assoc-in [:search-state :list] (concat (get-in app-state [:search-state :list]) transformed))
+          (assoc-in [:search-state :last-result] memories)
+          (assoc-in [:ui-state :is-searching?] false)))
     ))
 
 (register-handler
@@ -289,7 +291,7 @@
           (assoc-in [:note :edit-note] "")
           (assoc-in [:note :focus] nil)
           (assoc :search-state nil)
-          #_ (assoc-in [:search-state :force?] true)
+          #_(assoc-in [:search-state :force?] true)
           ))))
 
 (register-handler
@@ -321,7 +323,7 @@
         (assoc-in [:note :thread] nil)
         (assoc-in [:ui-state :show-thread?] false)
         (assoc-in [:note :focus] nil)
-        #_ (assoc-in [:search-state :force?] true)
+        #_(assoc-in [:search-state :force?] true)
         (assoc :search-state nil)
         )))
 
@@ -491,7 +493,7 @@
         [:div {:class "panel-heading"} "Refining... " [:i [:small "(from " (:created @focus) ")"]]
          [:button {:type "button" :class "close" :aria-hidden "true" :on-click #(dispatch [:refine nil])} "×"]]
         [:div {:class "panel-body"}
-         [:p {:dangerouslySetInnerHTML {:__html (md->html (:thought @focus) :replacement-transformers md-transformers)}}]
+         [:p {:dangerouslySetInnerHTML {:__html (:html @focus)}}]
          ]]])
     ))
 
@@ -582,7 +584,7 @@
     ^{:key (:id memory)}
     [:div {:class "col-sm-12 thought"}
      [:div {:class "memory col-sm-12"}
-      [:span {:dangerouslySetInnerHTML {:__html (md->html (:thought memory) :replacement-transformers md-transformers)}}]
+      [:span {:dangerouslySetInnerHTML {:__html (:html memory)}}]
       ]
      [:div
       [:div {:class "col-sm-6"}
