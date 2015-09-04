@@ -3,7 +3,7 @@
   :url "https://mementoapp.herokuapp.com/"
 
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "1.7.107" :scope "provided"]
+                 [org.clojure/clojurescript "1.7.122" :scope "provided"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [org.clojure/java.jdbc "0.4.1"]
                  [org.clojure/tools.nrepl "0.2.10"]
@@ -16,7 +16,7 @@
                  [clj-dbcp "0.8.1"]
                  [clj-time "0.11.0"]
                  [cljs-ajax "0.3.14"]
-                 [cljsjs/react-bootstrap "0.23.7-0" :exclusions [org.webjars.bower/jquery]]
+                 [cljsjs/react-bootstrap "0.25.1-0" :exclusions [org.webjars.bower/jquery]]
                  [com.taoensso/timbre "4.1.1"]
                  [com.taoensso/tower "3.1.0-beta3"]
                  [environ "1.0.0"]
@@ -112,7 +112,7 @@
    :dev     {:dependencies [[ring-mock "0.1.5"]
                             [ring/ring-devel "1.4.0"]
                             [pjstadig/humane-test-output "0.7.0"]
-                            [lein-figwheel "0.3.8" :exclusions [org.clojure/clojure
+                            [lein-figwheel "0.3.9" :exclusions [org.clojure/clojure
                                                                 org.clojure/tools.reader
                                                                 org.codehaus.plexus/plexus-utils]]
                             [org.clojure/tools.nrepl "0.2.10"]]
