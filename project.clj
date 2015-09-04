@@ -117,7 +117,7 @@
                                                                 org.codehaus.plexus/plexus-utils]]
                             [org.clojure/tools.nrepl "0.2.10"]]
              :source-paths ["env/dev/clj"]
-             :plugins      [[lein-figwheel "0.3.7" :exclusions [org.clojure/clojure
+             :plugins      [[lein-figwheel "0.3.9" :exclusions [org.clojure/clojure
                                                                 org.clojure/tools.reader
                                                                 org.codehaus.plexus/plexus-utils]]]
              :cljsbuild    {:builds {:app {:source-paths ["env/dev/cljs"]}}}
