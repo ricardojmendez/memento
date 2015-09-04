@@ -223,9 +223,8 @@
                    (get-in app-state [:search-state :list])
                    [])
           p      (or page-index (get-in app-state [:ui-state :results-page]))]
-      (if (or (get-in app-state [:search-state :force?])
-              (not= q last-q)
-              (not= p (get-in app-state [:search-state :page-index])))
+      (if (or (not= q last-q)
+              (> p (or (get-in app-state [:search-state :page-index]) -1)))
         (do
           (GET "/api/memory/search" {:params        {:q q :page p}
                                      :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
@@ -300,7 +299,6 @@
           (assoc-in [:note :edit-note] "")
           (assoc-in [:note :focus] nil)
           (assoc :search-state nil)
-          #_(assoc-in [:search-state :force?] true)
           ))))
 
 (register-handler
@@ -332,7 +330,6 @@
         (assoc-in [:note :thread] nil)
         (assoc-in [:ui-state :show-thread?] false)
         (assoc-in [:note :focus] nil)
-        #_(assoc-in [:search-state :force?] true)
         (assoc :search-state nil)
         )))
 
