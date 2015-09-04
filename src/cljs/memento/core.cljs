@@ -125,6 +125,18 @@
   (pushy/pushy set-page! bidi-matcher #_(partial bidi/match-route routes)))
 
 
+;;;;-------------------------
+;;;; Helpers
+;;;;-------------------------
+
+(defn add-html-to-thoughts
+  "Receives a list of thoughts and converts the markdown to html, adding it
+  to the map as a :html attribute"
+  [thoughts]
+  (map #(assoc % :html (md->html (:thought %) :replacement-transformers md-transformers))
+       thoughts))
+
+
 
 ;;;;------------------------------
 ;;;; Handlers
@@ -236,12 +248,10 @@
 (register-handler
   :memories-load-success
   (fn [app-state [_ memories]]
-    (let [transformed (map #(assoc % :html (md->html (:thought %) :replacement-transformers md-transformers))
-                           (:results memories))]
-      (-> app-state
-          (assoc-in [:search-state :list] (concat (get-in app-state [:search-state :list]) transformed))
-          (assoc-in [:search-state :last-result] memories)
-          (assoc-in [:ui-state :is-searching?] false)))
+    (-> app-state
+        (assoc-in [:search-state :list] (concat (get-in app-state [:search-state :list]) (add-html-to-thoughts (:results memories))))
+        (assoc-in [:search-state :last-result] memories)
+        (assoc-in [:ui-state :is-searching?] false))
     ))
 
 (register-handler
@@ -357,7 +367,7 @@
     (dispatch [:state-ui-section :remember])
     (-> app-state
         (assoc-in [:ui-state :show-thread?] true)
-        (assoc-in [:note :thread] (:results result)))
+        (assoc-in [:note :thread] (add-html-to-thoughts (:results result))))
     ))
 
 
