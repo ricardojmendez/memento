@@ -233,7 +233,10 @@
                                      })
           (-> app-state
               (assoc-in [:ui-state :is-searching?] true)
-              (assoc :search-state {:query q :page-index p :list list})
+              (assoc :search-state {:query       q
+                                    :page-index  p
+                                    :list        list
+                                    :last-result (get-in app-state [:search-state :last-result])})
               ))
         app-state
         ))))
