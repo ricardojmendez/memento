@@ -1,10 +1,7 @@
 (ns memento.test.handler
   (:require [memento.handler :refer :all]
             [clojure.test :refer :all]
-            [ring.mock.request :refer :all])
-  (:use clojure.test
-        ring.mock.request
-        memento.handler))
+            [ring.mock.request :refer :all]))
 
 (deftest test-app
   (testing "main route"

@@ -8,6 +8,9 @@
             [re-frame.core :refer [dispatch register-sub register-handler subscribe dispatch-sync]]
             [jayq.core :refer [$]]
             [markdown.core :refer [md->html]]
+            [markdown.common :as mdcommon]
+            [markdown.links :as mdlinks]
+            [markdown.lists :as mdlists]
             [markdown.transformers :as transformers]
             [pushy.core :as pushy]
             [ajax.core :refer [GET POST PUT]]
@@ -46,34 +49,30 @@
   [transformers/empty-line
    transformers/codeblock
    transformers/code
-   transformers/escaped-chars
-   transformers/inline-code
+   mdcommon/escaped-chars
+   mdcommon/inline-code
    transformers/autoemail-transformer
    transformers/autourl-transformer
-   transformers/link
-   transformers/reference-link
-   transformers/li
-   transformers/italics
-   transformers/em
-   transformers/strong
-   transformers/bold
-   transformers/strikethrough
+   mdlinks/link
+   mdlinks/reference-link
+   mdlists/li
+   mdcommon/italics
+   mdcommon/em
+   mdcommon/strong
+   mdcommon/bold
+   mdcommon/strikethrough
    transformers/superscript
    transformers/blockquote
-   paragraph-on-single-line                                           ; Replaces transformers/paragraph
+   paragraph-on-single-line                                 ; Replaces transformers/paragraph
    transformers/br])
 
 
-#_(adapt-bootstrap Pagination)
 (adapt-bootstrap OverlayTrigger)
 (adapt-bootstrap Popover)
 (adapt-bootstrap Tooltip)
 (def Modal (reagent/adapt-react-class js/ReactBootstrap.Modal))
 (def ModalBody (reagent/adapt-react-class js/ReactBootstrap.ModalBody))
 (def ModalFooter (reagent/adapt-react-class js/ReactBootstrap.ModalFooter))
-(def ModalHeader (reagent/adapt-react-class js/ReactBootstrap.ModalHeader))
-(def ModalTitle (reagent/adapt-react-class js/ReactBootstrap.ModalTitle))
-(def ModalTrigger (reagent/adapt-react-class js/ReactBootstrap.ModalTrigger))
 
 
 (defn find-dom-elem
@@ -292,7 +291,7 @@
   (fn [app-state [_ msg]]
     (let [thread (get-in app-state [:note :thread])]
       (dispatch [:state-message (str "Updated memory to: " msg) "alert-success"])
-      (if (= :remember (get-in app-state [:ui-state :section]))       ; Just in case we allow editing from elsewhere...
+      (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
         (dispatch [:memories-load]))
       (if thread
         (dispatch [:thread-load (:root-id (first thread))]))

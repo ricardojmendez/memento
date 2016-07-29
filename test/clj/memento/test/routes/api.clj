@@ -49,8 +49,8 @@
    (get-request url nil nil))
   ([url params auth-token]
    (let [response ((app) (-> (request :get url params)
-                           (header "Accept" "application/transit+json")
-                           (add-auth-token auth-token)))]
+                             (header "Accept" "application/transit+json")
+                             (add-auth-token auth-token)))]
      [response (transit->clj (:body response))])))
 
 
@@ -59,10 +59,10 @@
   response and the translated body."
   [^String url req-body auth-token]
   (let [response ((app) (-> (request :post url)
-                          (body (clj->transit req-body))
-                          (header "Content-Type" "application/transit+json; charset=UTF-8")
-                          (header "Accept" "application/transit+json, text/plain, */*")
-                          (add-auth-token auth-token)))
+                            (body (clj->transit req-body))
+                            (header "Content-Type" "application/transit+json; charset=UTF-8")
+                            (header "Accept" "application/transit+json, text/plain, */*")
+                            (add-auth-token auth-token)))
         data     (transit->clj (:body response))]
     [response data]))
 
@@ -71,10 +71,10 @@
   a vector with the response and the translated body."
   [^String url id path req-body auth-token]
   (let [response ((app) (-> (request :put (str url "/" id "/" path))
-                          (body (clj->transit req-body))
-                          (header "Content-Type" "application/transit+json; charset=UTF-8")
-                          (header "Accept" "application/transit+json, text/plain, */*")
-                          (add-auth-token auth-token)))
+                            (body (clj->transit req-body))
+                            (header "Content-Type" "application/transit+json; charset=UTF-8")
+                            (header "Accept" "application/transit+json, text/plain, */*")
+                            (add-auth-token auth-token)))
         data     (transit->clj (:body response))]
     [response data]))
 
@@ -377,7 +377,7 @@
         (is (map? record))
         (is (:id record))
         (is (= "Just a thought" (:thought record)))
-        (is (= (str "/api/memory/" (:id record)) (get-in response [:headers "Location"])))
+        (is (= (str "http://localhost/api/memory/" (:id record)) (get-in response [:headers "Location"])))
         ))
     (testing "After adding a memoy, we can query for it"
       (let [[_ {:keys [total results]}] (get-request "/api/memory" nil token)
