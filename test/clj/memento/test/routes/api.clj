@@ -9,7 +9,7 @@
             [memento.test.db.core :as tdb]
             [memento.test.db.memory :as tdm]
             [memento.test.db.user :as tdu]
-            [memento.db.core :as db]
+            [memento.db.core :refer [*db*] :as db]
             [memento.db.memory :as memory]
             [ring.mock.request :refer [request header body]])
   (:import java.io.ByteArrayOutputStream))
@@ -48,9 +48,9 @@
   ([url]
    (get-request url nil nil))
   ([url params auth-token]
-   (let [response (app (-> (request :get url params)
-                           (header "Accept" "application/transit+json")
-                           (add-auth-token auth-token)))]
+   (let [response ((app) (-> (request :get url params)
+                             (header "Accept" "application/transit+json")
+                             (add-auth-token auth-token)))]
      [response (transit->clj (:body response))])))
 
 
@@ -58,11 +58,11 @@
   "Makes a post request to a URL with a body. Returns a vector with the
   response and the translated body."
   [^String url req-body auth-token]
-  (let [response (app (-> (request :post url)
-                          (body (clj->transit req-body))
-                          (header "Content-Type" "application/transit+json; charset=UTF-8")
-                          (header "Accept" "application/transit+json, text/plain, */*")
-                          (add-auth-token auth-token)))
+  (let [response ((app) (-> (request :post url)
+                            (body (clj->transit req-body))
+                            (header "Content-Type" "application/transit+json; charset=UTF-8")
+                            (header "Accept" "application/transit+json, text/plain, */*")
+                            (add-auth-token auth-token)))
         data     (transit->clj (:body response))]
     [response data]))
 
@@ -70,11 +70,11 @@
   "Makes a put request to a URL with a body, under a specific path. Returns
   a vector with the response and the translated body."
   [^String url id path req-body auth-token]
-  (let [response (app (-> (request :put (str url "/" id "/" path))
-                          (body (clj->transit req-body))
-                          (header "Content-Type" "application/transit+json; charset=UTF-8")
-                          (header "Accept" "application/transit+json, text/plain, */*")
-                          (add-auth-token auth-token)))
+  (let [response ((app) (-> (request :put (str url "/" id "/" path))
+                            (body (clj->transit req-body))
+                            (header "Content-Type" "application/transit+json; charset=UTF-8")
+                            (header "Accept" "application/transit+json, text/plain, */*")
+                            (add-auth-token auth-token)))
         data     (transit->clj (:body response))]
     [response data]))
 
@@ -97,7 +97,7 @@
 ;;;
 
 (deftest test-login
-  (db/run tdb/wipe-database!)
+  (tdb/wipe-database! *db*)
   (user/create-user! "user1" "password1")
   (testing "We get a login token when authenticating with a valid username/password"
     (let [[response data] (post-request "/api/auth/login" {:username "user1" :password "password1"} nil)]
@@ -121,7 +121,7 @@
 
 
 (deftest test-signup
-  (db/run tdb/wipe-database!)
+  (tdb/wipe-database! *db*)
   (let [username "newuser"
         password "password"]
     (testing "Attempting to log in with the credentials initially results on a 401"
@@ -377,7 +377,7 @@
         (is (map? record))
         (is (:id record))
         (is (= "Just a thought" (:thought record)))
-        (is (= (str "/api/memory/" (:id record)) (get-in response [:headers "Location"])))
+        (is (= (str "http://localhost/api/memory/" (:id record)) (get-in response [:headers "Location"])))
         ))
     (testing "After adding a memoy, we can query for it"
       (let [[_ {:keys [total results]}] (get-request "/api/memory" nil token)
@@ -480,7 +480,7 @@
     (testing "Attempting to update a closed memory returns an empty dataset"
       (let [[_ memory] (post-request "/api/memory" {:thought "Memora"} token-u1)
             ;; Force the date as if we created it a while ago
-            _ (db/run tdb/update-thought-created! (assoc memory :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
+            _ (tdb/update-thought-created! *db* (assoc memory :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
             ;; Try to update
             [_ updated] (put-request "/api/memory" (:id memory) "thought" {:thought "Memory"} token-u1)
             ]

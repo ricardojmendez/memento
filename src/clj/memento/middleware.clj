@@ -2,7 +2,7 @@
   (:require [memento.session :as session]
             [memento.layout :refer [*servlet-context*]]
             [taoensso.timbre :as timbre]
-            [environ.core :refer [env]]
+            [memento.config :refer [env]]
             [clojure.java.io :as io]
             [selmer.middleware :refer [wrap-error-page]]
             [prone.middleware :refer [wrap-exceptions]]
@@ -37,12 +37,6 @@
          :headers {"Content-Type" "text/html"}
          :body (-> "templates/error.html" io/resource slurp)}))))
 
-(defn wrap-dev [handler]
-  (if (env :dev)
-    (-> handler
-        wrap-error-page
-        wrap-exceptions)
-    handler))
 
 (defn wrap-csrf [handler]
   (wrap-anti-forgery handler))
@@ -52,8 +46,6 @@
 
 (defn wrap-base [handler]
   (-> handler
-      wrap-dev
-      
       (wrap-idle-session-timeout
         {:timeout (* 60 30)
          :timeout-response (redirect "/")})

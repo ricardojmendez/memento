@@ -1,9 +1,9 @@
 (ns memento.db.memory
-  (:require [environ.core :refer [env]]
+  (:require [memento.config :refer [env]]
             [clj-time.format :as tf]
             [clj-time.coerce :as tc]
             [clojure.string :as s]
-            [memento.db.core :as db]
+            [memento.db.core :refer [*db*] :as db]
             [numergent.utils :refer [remove-html clean-memory-text]]
             [clojure.java.jdbc :as jdbc]
             [clj-time.coerce :as c]
@@ -37,24 +37,25 @@
 (defn load-memory
   "Loads a memory by its id"
   [^UUID id]
-  (first (db/run db/get-thought-by-id {:id id})))
+  (db/get-thought-by-id *db* {:id id}))
 
 (defn create-memory!
   "Saves a new memory, after removing HTML tags from the thought."
   [memory]
-  (jdbc/with-db-transaction [trans-conn @db/conn]
+  (jdbc/with-db-transaction
+    [trans-conn *db*]
     (let [refine-id (:refine_id memory)
-          refined   (if refine-id (first (db/run db/get-thought-by-id {:id refine-id} trans-conn)))
+          refined   (if refine-id (db/get-thought-by-id trans-conn {:id refine-id}))
           root-id   (or (:root_id refined) refine-id)
           item      (->
                       (assoc memory :created (now)
-                                  :username (s/lower-case (:username memory))
-                                  :refine_id refine-id
-                                  :root_id root-id)
+                                    :username (s/lower-case (:username memory))
+                                    :refine_id refine-id
+                                    :root_id root-id)
                       clean-memory-text)]
       (if refined
-        (db/run db/make-root! {:id root-id} trans-conn))
-      (db/run db/create-thought<! item trans-conn)
+        (db/make-root! trans-conn {:id root-id}))
+      (db/create-thought! trans-conn item)
       )))
 
 
@@ -63,9 +64,9 @@
   let you update the text itself, no other values are changed. Only memories
   considered open can be updated."
   [memory]
-  (let [current (set-memory-status (first (db/run db/get-thought-by-id memory)))]
+  (let [current (set-memory-status (db/get-thought-by-id *db* memory))]
     (if (= :open (:status current))
-      (db/run db/update-thought<! (clean-memory-text memory))
+      (db/update-thought! *db* (clean-memory-text memory))
       {}
       )))
 
@@ -78,10 +79,10 @@
    (query-memories username query-str 0))
   ([^String username ^String query-str ^Integer offset]
    (let [query-str (-> (or query-str "")
-                       (s/replace #"[,.;:]" " ")                      ; Consider commas whitespace
-                       (s/replace #"[$!&=\-\*|%&^]" "")               ; Remove characters which could cause it to barf
+                       (s/replace #"[,.;:]" " ")            ; Consider commas whitespace
+                       (s/replace #"[$!&=\-\*|%&^]" "")     ; Remove characters which could cause it to barf
                        s/trim
-                       (s/replace #"\s+" "|")                         ; Replace white space sequences with a single or operator
+                       (s/replace #"\s+" "|")               ; Replace white space sequences with a single or operator
                        )
          params    {:limit    result-limit
                     :offset   offset
@@ -90,11 +91,11 @@
                     ;; since we'll need it twice on search.
                     :query    query-str}
          total     (if (empty? query-str)
-                     (-> (db/run db/get-thought-count params) first :count)
-                     (-> (db/run db/search-thought-count params) first :count))
+                     (:count (db/get-thought-count *db* params))
+                     (:count (db/search-thought-count *db* params)))
          results   (if (empty? query-str)
-                     (db/run db/get-thoughts params)
-                     (db/run db/search-thoughts params))
+                     (db/get-thoughts *db* params)
+                     (db/search-thoughts *db* params))
          ]
      {:total   total
       :pages   (int (Math/ceil (/ total result-limit)))
@@ -104,6 +105,6 @@
 (defn query-memory-thread
   "Returns a list with all the memories belonging to a root id"
   [id]
-  (->> (db/run db/get-thread-by-root-id {:id id})
+  (->> (db/get-thread-by-root-id *db* {:id id})
        (map set-memory-status)))
 

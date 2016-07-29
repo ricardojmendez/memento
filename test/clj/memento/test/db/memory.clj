@@ -4,7 +4,7 @@
             [clojure.test :refer :all]
             [clj-time.coerce :as c]
             [clj-time.core :as t]
-            [memento.db.core :as db]
+            [memento.db.core :refer [*db*] :as db]
             [memento.db.memory :as memory]
             [memento.db.user :as user]
             [memento.test.db.core :as tdb]
@@ -39,7 +39,11 @@
    (import-placeholder-memories! username "quotes.txt"))
   ([username filename]
    (let [memories (-> (slurp (str test-file-path filename)) (split-lines))]
-     (doseq [m memories] (memory/create-memory! {:username username :thought m})))))
+     (doseq [m memories]
+       (memory/create-memory! {:username username :thought m})
+       ; We have some tests which ensure thoughts are returned by creation date,
+       ; so let's give at least one millisecond in between thought timestamps
+       (Thread/sleep 1)))))
 
 
 (defn extract-thought-idx
@@ -135,10 +139,10 @@
   (import-placeholder-memories!)
   (import-placeholder-memories! "shortuser" "quotes2.txt")
   (testing "Getting an all-memory count returns the total memories"
-    (is (= {:count 22} (first (db/run db/get-thought-count {:username tdu/ph-username}))))
-    (is (= {:count 5} (first (db/run db/get-thought-count {:username "shortuser"})))))
+    (is (= {:count 22} (db/get-thought-count *db* {:username tdu/ph-username})))
+    (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser"}))))
   (testing "Getting an memory query count returns the count of matching memories"
-    (are [count q u] (= {:count count} (first (db/run db/search-thought-count {:username u :query q})))
+    (are [count q u] (= {:count count} (db/search-thought-count *db* {:username u :query q}))
                      3 "memory" tdu/ph-username
                      0 "memory" "shortuser"
                      4 "people" tdu/ph-username
@@ -359,7 +363,7 @@
     (let [_       (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
           m1      (first (:results (memory/query-memories tdu/ph-username)))
           ;; Force the date as if we created it a while ago
-          _       (db/run tdb/update-thought-created! (assoc m1 :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
+          _       (tdb/update-thought-created! *db* (assoc m1 :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
           updated (memory/update-memory! (assoc m1 :thought "Different text"))
           m2      (first (:results (memory/query-memories tdu/ph-username)))]
       (is (empty? updated))
