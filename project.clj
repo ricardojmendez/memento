@@ -2,10 +2,10 @@
   :description "Memento mori"
   :url "https://mementoapp.herokuapp.com/"
 
-  :dependencies [[org.clojure/clojure "1.7.0"]
+  :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.7.122" :scope "provided"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
-                 [org.clojure/java.jdbc "0.4.1"]
+                 [org.clojure/java.jdbc "0.6.1"]
                  [org.clojure/tools.nrepl "0.2.10"]
                  [org.clojure/tools.reader "0.9.2"]
                  [bidi "1.21.0" :exclusions [ring/ring-core]]
@@ -29,7 +29,7 @@
                  [metosin/ring-http-response "0.6.5"]
                  [migratus "0.8.4"]
                  [org.jsoup/jsoup "1.8.3"]
-                 [org.postgresql/postgresql "9.4-1201-jdbc41"]
+                 [org.postgresql/postgresql "9.4-1206-jdbc4"]
                  [prone "0.8.2"]
                  [reagent "0.5.0" :exclusions [cljsjs/react]]
                  [reagent-utils "0.1.5"]
@@ -39,7 +39,7 @@
                  [ring/ring-session-timeout "0.1.0"]
                  [selmer "0.9.1"]
                  [to-jdbc-uri "0.3.0"]
-                 [yesql "0.5.0"]
+                 [yesql "0.5.3"]
                  ]
 
   :min-lein-version "2.0.0"
