@@ -4,7 +4,7 @@
             [clj-time.core :as t]
             [clojure.java.io :as io]
             [clojure.string :as string]
-            [environ.core :refer [env]]
+            [memento.config :refer [env]]
             [memento.db.user :as user]))
 
 (defn- pkey [auth-conf]

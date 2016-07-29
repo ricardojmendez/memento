@@ -3,9 +3,9 @@
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
             [clojure.tools.nrepl.server :as nrepl]
             [bidi.ring :refer [make-handler]]
-            [environ.core :refer [env]]
+            [memento.config :refer [env]]
             [memento.auth :as auth]
-            [memento.db.migrations :as migrations]
+            [luminus-migrations.core :as migrations]
             [memento.middleware :as middleware]
             [memento.routes.api :refer [api-routes not-found-route]]
             [memento.routes.home :refer [home-routes]]
@@ -13,7 +13,7 @@
             [selmer.parser :as parser]
             [taoensso.timbre :as timbre]
             [taoensso.timbre.appenders.3rd-party.rotor :as rotor]
-            [memento.db.core :as db]))
+            [memento.db.core :refer [*db*] :as db]))
 
 (defonce nrepl-server (atom nil))
 
@@ -52,7 +52,6 @@
 
   (if (env :dev) (parser/cache-off!))
   (start-nrepl)
-  (db/connect!)
   ;;start the expired session cleanup job
   (session/start-cleanup-job!)
   (timbre/info (str
@@ -65,7 +64,6 @@
    shuts down, put any clean up code here"
   []
   (timbre/info "memento is shutting down...")
-  (db/disconnect!)
   (stop-nrepl)
   (timbre/info "shutdown complete!"))
 
@@ -81,7 +79,7 @@
   (token-backend {:authfn auth-token-decode}))
 
 
-(def app
+(defn app []
   (-> (make-handler ["" [api-routes home-routes not-found-route]])
       ; TODO Wrap-csrf only for the home-routes
       ; middleware/wrap-csrf

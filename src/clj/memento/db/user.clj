@@ -1,9 +1,9 @@
 (ns memento.db.user
   (:require [clojure.string :refer [lower-case]]
-            [environ.core :refer [env]]
+            [memento.config :refer [env]]
             [buddy.hashers :as hashers]
-            [memento.db.core :as db])
-  (:import (org.postgresql.util PSQLException)))
+            [memento.db.core :refer [*db*] :as db])
+  (:import (java.sql BatchUpdateException)))
 
 
 
@@ -12,16 +12,17 @@
   [^String username ^String password]
   ;; We could use bouncer for validation here if we get the params as a map
   ;; or just convert them ourselves for validation
+  ;; Another option for these assertions is Truss, I guess.
   (cond
     (empty? password) {:success? false :message "A non-empty password is required"}
     (empty? username) {:success? false :message "A non-empty username is required"}
     :else (try
             (let [encrypted (hashers/encrypt password)
                   record    {:username (lower-case username) :password encrypted}]
-              (db/run db/create-user! record)
+              (db/create-user! *db* record)
               (assoc record :success? true))
-            (catch PSQLException e
-              {:success? false :message (.getMessage e)}))))
+            (catch BatchUpdateException e
+              {:success? false :message (->> e .getNextException .getMessage)}))))
 
 
 (defn validate-user
@@ -30,5 +31,5 @@
   (if (or (empty? username)
           (empty? password))
     false
-    (let [record (first (db/run db/get-user {:username (lower-case username)}))]
+    (let [record (db/get-user *db* {:username (lower-case username)})]
       (hashers/check password (:password record)))))
