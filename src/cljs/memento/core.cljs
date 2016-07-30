@@ -622,7 +622,7 @@
         is-busy?    (subscribe [:ui-state :is-busy?])
         ;; On the next one, we can't use not-empty because (= nil (not-empty nil)), and :show expects true/false,
         ;; not a truth-ish value.
-        show?       (reaction (not (empty? @edit-memory)))]
+        show?       (reaction (seq @edit-memory))]
     (fn []
       [Modal {:show @show? :onHide #(dispatch [:memory-edit-set nil])}
        [ModalBody
@@ -773,10 +773,7 @@
   [id f]
   (let [e ($ id)]
     (.appear e)
-    (.on ($ js/document.body) "appear" id (fn [event elements]
-                                            (f event elements)
-                                            ))
-    ))
+    (.on ($ js/document.body) "appear" id f)))
 
 (defn mount-components []
   (reagent/render-component [navbar] (.getElementById js/document "navbar"))
