@@ -19,8 +19,13 @@ body{padding-top:50px}body>.navbar{-webkit-transition:background-color 300ms eas
     }
 }
 
-.fa-space {
-    margin-left: 5px;
+.icon-margin-both {
+    margin-left: 2px;
+    margin-right: 5px;
+}
+
+.icon-margin-left {
+    margin-left: 5px
 }
 
 

@@ -282,8 +282,7 @@
                 :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                 :handler       #(dispatch [:memory-edit-save-success note])
                 :error-handler #(dispatch [:memory-edit-save-error %])}))
-    (assoc-in app-state [:ui-state :is-busy?] true)
-    ))
+    (assoc-in app-state [:ui-state :is-busy?] true)))
 
 
 (register-handler
@@ -308,8 +307,7 @@
   (fn [app-state [_ result]]
     (dispatch [:state-message (str "Error editing note: " result) "alert-danger"])
     (clear-token-on-unauth result)
-    (assoc-in app-state [:ui-state :is-busy?] false)
-    ))
+    (assoc-in app-state [:ui-state :is-busy?] false)))
 
 (register-handler
   :memory-save
@@ -319,8 +317,7 @@
                            :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                            :handler       #(dispatch [:memory-save-success note])
                            :error-handler #(dispatch [:memory-save-error %])}))
-    (assoc-in app-state [:ui-state :is-busy?] true)
-    ))
+    (assoc-in app-state [:ui-state :is-busy?] true)))
 
 (register-handler
   :memory-save-success
@@ -498,7 +495,7 @@
     (if @focus
       [:div {:class "col-sm-10 col-sm-offset-1"}
        [:div {:class "panel panel-default"}
-        [:div {:class "panel-heading"} "Refining... " [:i [:small "(from " (:created @focus) ")"]]
+        [:div {:class "panel-heading"} "Elaborating... " [:i [:small "(from " (:created @focus) ")"]]
          [:button {:type "button" :class "close" :aria-hidden "true" :on-click #(dispatch [:refine nil])} "×"]]
         [:div {:class "panel-body"}
          [:p {:dangerouslySetInnerHTML {:__html (:html @focus)}}]
@@ -599,16 +596,16 @@
               :on-click #(do
                           (dispatch [:state-note :edit-note (:thought memory)])
                           (dispatch [:memory-edit-set memory]))}
-          "Edit" [:i {:class "fa fa-pencil fa-space"}]])
+          [:i {:class "fa fa-file-text icon-margin-both"}] "Edit"])
        [:a {:class    "btn btn-primary btn-xs"
             :on-click #(do
                         (.scrollIntoView top-div-target)
                         (dispatch [:refine memory]))}
-        "Refine" [:i {:class "fa fa-comment fa-space"}]]
+        [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]
        (if (and show-thread-btn? (:root_id memory))
          [:a {:class "btn btn-primary btn-xs"
               :href  (str "/thread/" (:root_id memory))}
-          "Thread" [:i {:class "fa fa-file-text fa-space"}]])
+          [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])
 
        ]
       [:div {:class "col-sm-4 col-sm-offset-2" :style {:text-align "right"}}
