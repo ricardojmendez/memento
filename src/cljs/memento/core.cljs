@@ -628,7 +628,7 @@
        [ModalFooter
         [:button {:type     "reset"
                   :class    "btn btn-default"
-                  :on-click #(dispatch [:memory-edit-set nil])} "Discard"]
+                  :on-click #(dispatch [:memory-edit-set nil])} "Cancel"]
         [:button {:type     "submit"
                   :class    "btn btn-primary"
                   :disabled (or @is-busy? (empty? @note))
