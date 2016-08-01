@@ -64,7 +64,9 @@
    transformers/superscript
    transformers/blockquote
    paragraph-on-single-line                                 ; Replaces transformers/paragraph
-   transformers/br])
+   transformers/br
+   mdcommon/thaw-strings
+   ])
 
 
 (adapt-bootstrap OverlayTrigger)
