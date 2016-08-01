@@ -7,10 +7,15 @@
             [memento.config :refer [env]]
             [memento.db.user :as user]))
 
-(defn- pkey [auth-conf]
-  (ks/private-key
-    (io/resource (:privkey auth-conf))
-    (:passphrase auth-conf)))
+(defn- pkey
+  "Receives a dictionary containing privkey and passphrase. If privkey
+  ends in .pem, it's assumed to be a key path. Otherwise, it's expected
+  to be the actual key string."
+  [{:keys [privkey passphrase]}]
+  (if (string/ends-with? privkey ".pem")
+    (ks/private-key (io/resource privkey) passphrase)
+    (ks/str->private-key privkey passphrase)))
+
 
 (defn pubkey [auth-conf]
   (ks/public-key
