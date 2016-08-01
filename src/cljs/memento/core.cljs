@@ -395,11 +395,11 @@
 
 (register-handler
   :thread-load-success
-  (fn [app-state [_ result]]
+  (fn [app-state [_ {:keys [results] :as result}]]
     (dispatch [:state-ui-section :remember])
     (-> app-state
-        (assoc-in [:ui-state :show-thread?] true)
-        (assoc-in [:note :thread] (add-html-to-thoughts (:results result))))
+        (assoc-in [:ui-state :show-thread?] (not (empty? results)))
+        (assoc-in [:note :thread] (add-html-to-thoughts results)))
     ))
 
 

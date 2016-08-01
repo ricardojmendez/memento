@@ -372,7 +372,7 @@
       (is (= :closed (:status m2)))))
   )
 
-(deftest test-can-update-memory
+(deftest test-can-delete-memory
   (testing "We can delete open thoughts"
     (tdu/init-placeholder-data!)
     (let [_         (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
@@ -409,4 +409,25 @@
       (is (= 0 (:total (memory/query-memories tdu/ph-username "text"))))
       (is (= 1 (:total (memory/query-memories tdu/ph-username "wondering"))))
       (is (= :closed (:status m2)))))
+  (testing "A memory's own root_id should be cleared if it has no more children"
+    (tdu/init-placeholder-data!)
+    (let [_      (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
+          m1     (first (:results (memory/query-memories tdu/ph-username)))
+          _      (memory/create-memory! {:username tdu/ph-username :thought "Second memory" :refine_id (:id m1)})
+          m2     (first (:results (memory/query-memories tdu/ph-username)))
+          _      (memory/create-memory! {:username tdu/ph-username :thought "Third memory" :refine_id (:id m2)})
+          m3     (first (:results (memory/query-memories tdu/ph-username)))
+          m1r    (last (:results (memory/query-memories tdu/ph-username))) ; Memories are returned in reverse date order on the default query
+          _      (memory/create-memory! {:username tdu/ph-username :thought "Unrelated memory, not for thread"})
+          thread (memory/query-memory-thread (:root_id m3))]
+      ; Thread includes the updated record for the first memory
+      (is (= [m1r m2 m3] thread))
+      ;; Deleting a memory does not clear the root_id from any of the other elements on the thread
+      (is (= 1 (memory/delete-memory! (:id m3))))
+      (is (every? #(= (:id m1) (:root_id %)) (memory/query-memory-thread (:root_id m3))))
+      ;; Deleting the last child from a memory thread clears that memory's own root_id
+      (is (= 1 (memory/delete-memory! (:id m2))))
+      (is (nil? (:root_id (memory/load-memory (:id m1)))))
+      )
+    )
   )
