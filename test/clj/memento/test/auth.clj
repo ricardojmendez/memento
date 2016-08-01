@@ -1,19 +1,25 @@
 (ns memento.test.auth
   (:require [clojure.test :refer :all]
+            [luminus-migrations.core :as migrations]
             [memento.auth :as auth]
+            [memento.config :refer [env]]
             [memento.test.db.core :as tdb]
             [memento.db.user :as user]
-            [memento.db.core :as db]))
+            [mount.core :as mount]
+            [memento.db.core :refer [*db*] :as db]))
 
 
 (use-fixtures
   :once
   (fn [f]
-    (db/connect!)
+    (mount/start
+      #'memento.config/env
+      #'memento.db.core/*db*)
+    (migrations/migrate ["migrate"] (select-keys env [:database-url]))
     (f)))
 
 (deftest test-create-auth-token
-  (db/run tdb/wipe-database!)
+  (tdb/wipe-database! *db*)
   (user/create-user! "user1" "password1")
   (let [token (auth/create-auth-token "user1" "password1")]
     (is token)
@@ -23,7 +29,7 @@
 
 
 (deftest test-decode-auth-token
-  (db/run tdb/wipe-database!)
+  (tdb/wipe-database! *db*)
   (user/create-user! "user1" "password1")
   (testing "Attempt to decode a good token"
     (let [token  (auth/create-auth-token "user1" "password1")
@@ -38,7 +44,7 @@
 
 
 (deftest test-username-lower-case
-  (db/run tdb/wipe-database!)
+  (tdb/wipe-database! *db*)
   (user/create-user! "User1" "password1")
   ;; Confirm we always get the username in lower case for the token
   (let [token (auth/create-auth-token "User1" "password1")

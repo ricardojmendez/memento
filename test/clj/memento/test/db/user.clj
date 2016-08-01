@@ -1,6 +1,6 @@
 (ns memento.test.db.user
   (:require [clojure.test :refer :all]
-            [memento.db.core :as db]
+            [memento.db.core :refer [*db*] :as db]
             [memento.db.user :as user]
             [memento.test.db.core :as tdb]
             [buddy.hashers :as hashers]))
@@ -19,12 +19,12 @@
   "Wipes the database and inserts a test user. We don't care about adding
   a hashed password since it's there only for foreign key purposes."
   []
-  (db/run tdb/wipe-database!)
+  (tdb/wipe-database! *db*)
   (user/create-user! ph-username ph-password))
 
 
 (deftest test-create-user
-  (db/run tdb/wipe-database!)
+  (tdb/wipe-database! *db*)
   (testing "We can create a new user successfully"
     (let [result (user/create-user! "user1" "password1")]
       (is (:success? result))
@@ -63,7 +63,7 @@
       (is (.contains (:message result) "username is required"))))
   (testing "User login is converted to lowercase before creation"
     (let [result  (user/create-user! "USER2" "password1")
-          get-res (first (db/run db/get-user {:username "user2"}))]
+          get-res (db/get-user *db* {:username "user2"})]
       (is (:success? result))
       (is (= "user2" (:username result)))
       (is (= "user2" (:username get-res)))
@@ -72,7 +72,7 @@
 
 
 (deftest test-validate-user
-  (db/run tdb/wipe-database!)
+  (tdb/wipe-database! *db*)
   (user/create-user! "user1" "password1")
   (user/create-user! "user2" "password2")
   (is (user/validate-user "user1" "password1"))

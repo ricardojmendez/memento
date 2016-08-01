@@ -45,8 +45,8 @@ While we could create the extensions on a migration, that would require the meme
 Then run the migrations on both dev and test with:
 
 ```shell
-lein run migrate
-lein with-profile test run migrate
+lein migratus migrate
+lein with-profile test migratus migrate
 ```
 
 
@@ -54,7 +54,7 @@ lein with-profile test run migrate
 
 To start a web server for the application, run:
 
-    lein ring server
+    lein run
 
 ## Testing
 

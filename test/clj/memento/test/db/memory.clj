@@ -4,7 +4,7 @@
             [clojure.test :refer :all]
             [clj-time.coerce :as c]
             [clj-time.core :as t]
-            [memento.db.core :as db]
+            [memento.db.core :refer [*db*] :as db]
             [memento.db.memory :as memory]
             [memento.db.user :as user]
             [memento.test.db.core :as tdb]
@@ -39,7 +39,11 @@
    (import-placeholder-memories! username "quotes.txt"))
   ([username filename]
    (let [memories (-> (slurp (str test-file-path filename)) (split-lines))]
-     (doseq [m memories] (memory/create-memory! {:username username :thought m})))))
+     (doseq [m memories]
+       (memory/create-memory! {:username username :thought m})
+       ; We have some tests which ensure thoughts are returned by creation date,
+       ; so let's give at least one millisecond in between thought timestamps
+       (Thread/sleep 1)))))
 
 
 (defn extract-thought-idx
@@ -135,10 +139,10 @@
   (import-placeholder-memories!)
   (import-placeholder-memories! "shortuser" "quotes2.txt")
   (testing "Getting an all-memory count returns the total memories"
-    (is (= {:count 22} (first (db/run db/get-thought-count {:username tdu/ph-username}))))
-    (is (= {:count 5} (first (db/run db/get-thought-count {:username "shortuser"})))))
+    (is (= {:count 22} (db/get-thought-count *db* {:username tdu/ph-username})))
+    (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser"}))))
   (testing "Getting an memory query count returns the count of matching memories"
-    (are [count q u] (= {:count count} (first (db/run db/search-thought-count {:username u :query q})))
+    (are [count q u] (= {:count count} (db/search-thought-count *db* {:username u :query q}))
                      3 "memory" tdu/ph-username
                      0 "memory" "shortuser"
                      4 "people" tdu/ph-username
@@ -326,7 +330,7 @@
 
 
 ;;;
-;;; Memory updates
+;;; Memory update and delete
 ;;;
 
 (deftest test-can-update-memory
@@ -359,11 +363,71 @@
     (let [_       (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
           m1      (first (:results (memory/query-memories tdu/ph-username)))
           ;; Force the date as if we created it a while ago
-          _       (db/run tdb/update-thought-created! (assoc m1 :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
+          _       (tdb/update-thought-created! *db* (assoc m1 :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
           updated (memory/update-memory! (assoc m1 :thought "Different text"))
           m2      (first (:results (memory/query-memories tdu/ph-username)))]
       (is (empty? updated))
       (is (= 0 (:total (memory/query-memories tdu/ph-username "text"))))
       (is (= 1 (:total (memory/query-memories tdu/ph-username "wondering"))))
       (is (= :closed (:status m2)))))
+  )
+
+(deftest test-can-delete-memory
+  (testing "We can delete open thoughts"
+    (tdu/init-placeholder-data!)
+    (let [_         (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
+          m1        (first (:results (memory/query-memories tdu/ph-username "wondering")))
+          result    (memory/delete-memory! (:id m1))
+          after-del (memory/load-memory (:id m1))
+          ;; Ensure that we didn't leave the lexeme table as it was by querying for the
+          ;; old search term and the new one
+          wondering (first (:results (memory/query-memories tdu/ph-username "wondering")))
+          all       (memory/query-memories tdu/ph-username)]
+      ;; Pre-update values
+      (is m1)
+      (is (= "Just wondering" (:thought m1)))
+      ;; Check that we did not get anything after removing it
+      (is (= 1 result))
+      (is (nil? after-del))
+      ;; Verify we can't re-delete
+      (is (= 0 (memory/delete-memory! (:id m1))))
+      ;; Check we updated the lexemes
+      (is (nil? wondering))
+      (is (= {:total 0 :pages 0 :results []} all))
+      ))
+  (testing "Cannot delete closed thoughts"
+    (tdu/init-placeholder-data!)
+    (let [_       (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
+          m1      (first (:results (memory/query-memories tdu/ph-username)))
+          ;; Force the date as if we created it a while ago
+          _       (tdb/update-thought-created! *db* (assoc m1 :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
+          deleted (memory/delete-memory! (:id m1))
+          m2      (memory/load-memory (:id m1))]
+      (is (= 0 deleted))
+      (is (= (select-keys m1 [:id :username :thought])
+             (select-keys m2 [:id :username :thought])))
+      (is (= 0 (:total (memory/query-memories tdu/ph-username "text"))))
+      (is (= 1 (:total (memory/query-memories tdu/ph-username "wondering"))))
+      (is (= :closed (:status m2)))))
+  (testing "A memory's own root_id should be cleared if it has no more children"
+    (tdu/init-placeholder-data!)
+    (let [_      (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
+          m1     (first (:results (memory/query-memories tdu/ph-username)))
+          _      (memory/create-memory! {:username tdu/ph-username :thought "Second memory" :refine_id (:id m1)})
+          m2     (first (:results (memory/query-memories tdu/ph-username)))
+          _      (memory/create-memory! {:username tdu/ph-username :thought "Third memory" :refine_id (:id m2)})
+          m3     (first (:results (memory/query-memories tdu/ph-username)))
+          m1r    (last (:results (memory/query-memories tdu/ph-username))) ; Memories are returned in reverse date order on the default query
+          _      (memory/create-memory! {:username tdu/ph-username :thought "Unrelated memory, not for thread"})
+          thread (memory/query-memory-thread (:root_id m3))]
+      ; Thread includes the updated record for the first memory
+      (is (= [m1r m2 m3] thread))
+      ;; Deleting a memory does not clear the root_id from any of the other elements on the thread
+      (is (= 1 (memory/delete-memory! (:id m3))))
+      (is (every? #(= (:id m1) (:root_id %)) (memory/query-memory-thread (:root_id m3))))
+      ;; Deleting the last child from a memory thread clears that memory's own root_id
+      (is (= 1 (memory/delete-memory! (:id m2))))
+      (is (nil? (:root_id (memory/load-memory (:id m1)))))
+      )
+    )
   )

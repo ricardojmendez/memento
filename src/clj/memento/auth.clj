@@ -1,10 +1,10 @@
 (ns memento.auth
-  (:require [buddy.sign.jws :as jws]
+  (:require [buddy.sign.jwt :as jwt]
             [buddy.core.keys :as ks]
             [clj-time.core :as t]
             [clojure.java.io :as io]
             [clojure.string :as string]
-            [environ.core :refer [env]]
+            [memento.config :refer [env]]
             [memento.db.user :as user]))
 
 (defn- pkey [auth-conf]
@@ -23,7 +23,7 @@
         valid?    (user/validate-user username password)
         exp       (t/plus (t/now) (t/days 1))]
     (if valid?
-      (jws/sign {:username (string/lower-case username)}
+      (jwt/sign {:username (string/lower-case username)}
                 (pkey auth-conf)
                 {:alg :rs256 :exp exp}))))
 
@@ -33,6 +33,6 @@
    invalid token will return nil."
   [token]
   (try
-    (jws/unsign token (pubkey (:auth-conf env)) {:alg :rs256})
+    (jwt/unsign token (pubkey (:auth-conf env)) {:alg :rs256})
     ;; We don't really care why decoding failed for now
     (catch clojure.lang.ExceptionInfo _ nil)))

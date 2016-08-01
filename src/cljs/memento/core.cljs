@@ -8,9 +8,12 @@
             [re-frame.core :refer [dispatch register-sub register-handler subscribe dispatch-sync]]
             [jayq.core :refer [$]]
             [markdown.core :refer [md->html]]
+            [markdown.common :as mdcommon]
+            [markdown.links :as mdlinks]
+            [markdown.lists :as mdlists]
             [markdown.transformers :as transformers]
             [pushy.core :as pushy]
-            [ajax.core :refer [GET POST PUT]]
+            [ajax.core :refer [GET POST PUT DELETE]]
             [clojure.string :as string])
   (:require-macros [reagent.ratom :refer [reaction]]
                    [memento.misc.cljs-macros :refer [adapt-bootstrap]])
@@ -46,34 +49,30 @@
   [transformers/empty-line
    transformers/codeblock
    transformers/code
-   transformers/escaped-chars
-   transformers/inline-code
+   mdcommon/escaped-chars
+   mdcommon/inline-code
    transformers/autoemail-transformer
    transformers/autourl-transformer
-   transformers/link
-   transformers/reference-link
-   transformers/li
-   transformers/italics
-   transformers/em
-   transformers/strong
-   transformers/bold
-   transformers/strikethrough
+   mdlinks/link
+   mdlinks/reference-link
+   mdlists/li
+   mdcommon/italics
+   mdcommon/em
+   mdcommon/strong
+   mdcommon/bold
+   mdcommon/strikethrough
    transformers/superscript
    transformers/blockquote
-   paragraph-on-single-line                                           ; Replaces transformers/paragraph
+   paragraph-on-single-line                                 ; Replaces transformers/paragraph
    transformers/br])
 
 
-#_(adapt-bootstrap Pagination)
 (adapt-bootstrap OverlayTrigger)
 (adapt-bootstrap Popover)
 (adapt-bootstrap Tooltip)
 (def Modal (reagent/adapt-react-class js/ReactBootstrap.Modal))
 (def ModalBody (reagent/adapt-react-class js/ReactBootstrap.ModalBody))
 (def ModalFooter (reagent/adapt-react-class js/ReactBootstrap.ModalFooter))
-(def ModalHeader (reagent/adapt-react-class js/ReactBootstrap.ModalHeader))
-(def ModalTitle (reagent/adapt-react-class js/ReactBootstrap.ModalTitle))
-(def ModalTrigger (reagent/adapt-react-class js/ReactBootstrap.ModalTrigger))
 
 
 (defn find-dom-elem
@@ -233,7 +232,10 @@
                                      })
           (-> app-state
               (assoc-in [:ui-state :is-searching?] true)
-              (assoc :search-state {:query q :page-index p :list list})
+              (assoc :search-state {:query       q
+                                    :page-index  p
+                                    :list        list
+                                    :last-result (get-in app-state [:search-state :last-result])})
               ))
         app-state
         ))))
@@ -280,8 +282,7 @@
                 :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                 :handler       #(dispatch [:memory-edit-save-success note])
                 :error-handler #(dispatch [:memory-edit-save-error %])}))
-    (assoc-in app-state [:ui-state :is-busy?] true)
-    ))
+    (assoc-in app-state [:ui-state :is-busy?] true)))
 
 
 (register-handler
@@ -289,10 +290,10 @@
   (fn [app-state [_ msg]]
     (let [thread (get-in app-state [:note :thread])]
       (dispatch [:state-message (str "Updated memory to: " msg) "alert-success"])
-      (if (= :remember (get-in app-state [:ui-state :section]))       ; Just in case we allow editing from elsewhere...
+      (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
         (dispatch [:memories-load]))
       (if thread
-        (dispatch [:thread-load (:root-id (first thread))]))
+        (dispatch [:thread-load (:id (first thread))]))
       (-> app-state
           (assoc-in [:ui-state :is-busy?] false)
           (assoc-in [:note :edit-memory] nil)
@@ -306,8 +307,44 @@
   (fn [app-state [_ result]]
     (dispatch [:state-message (str "Error editing note: " result) "alert-danger"])
     (clear-token-on-unauth result)
-    (assoc-in app-state [:ui-state :is-busy?] false)
-    ))
+    (assoc-in app-state [:ui-state :is-busy?] false)))
+
+(register-handler
+  :memory-forget
+  (fn [app-state [_ root-id]]
+    (let [url (str "/api/memory/" root-id "/thought")]
+      (DELETE url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                   :handler       #(dispatch [:memory-forget-success %])
+                   :error-handler #(dispatch [:memory-forget-error %])}))
+    app-state))
+
+(register-handler
+  :memory-forget-success
+  (fn [app-state [_ msg]]
+    (let [thread     (get-in app-state [:note :thread])
+          in-thread? (and thread
+                          (get-in app-state [:ui-state :show-thread?]))]
+      (dispatch [:state-message (str "Thought forgotten") "alert-success"])
+      (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
+        (dispatch [:memories-load]))
+      (if in-thread?
+        (dispatch [:thread-load (:id (first thread))]))
+      (-> app-state
+          (assoc-in [:ui-state :is-busy?] false)
+          (assoc-in [:note :edit-memory] nil)
+          (assoc-in [:note :edit-note] "")
+          (assoc-in [:note :focus] nil)
+          (assoc :search-state nil)
+          )))
+  )
+
+(register-handler
+  :memory-forget-error
+  (fn [app-state [_ result]]
+    (.log js/console "Forget error" result)
+    (dispatch [:state-message (str "Error forgetting: " result) "alert-danger"])
+    (clear-token-on-unauth result)
+    (assoc-in app-state [:ui-state :is-busy?] false)))
 
 (register-handler
   :memory-save
@@ -317,8 +354,7 @@
                            :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                            :handler       #(dispatch [:memory-save-success note])
                            :error-handler #(dispatch [:memory-save-error %])}))
-    (assoc-in app-state [:ui-state :is-busy?] true)
-    ))
+    (assoc-in app-state [:ui-state :is-busy?] true)))
 
 (register-handler
   :memory-save-success
@@ -330,8 +366,7 @@
         (assoc-in [:note :thread] nil)
         (assoc-in [:ui-state :show-thread?] false)
         (assoc-in [:note :focus] nil)
-        (assoc :search-state nil)
-        )))
+        (assoc :search-state nil))))
 
 (register-handler
   :memory-save-error
@@ -360,11 +395,11 @@
 
 (register-handler
   :thread-load-success
-  (fn [app-state [_ result]]
+  (fn [app-state [_ {:keys [results] :as result}]]
     (dispatch [:state-ui-section :remember])
     (-> app-state
-        (assoc-in [:ui-state :show-thread?] true)
-        (assoc-in [:note :thread] (add-html-to-thoughts (:results result))))
+        (assoc-in [:ui-state :show-thread?] (not (empty? results)))
+        (assoc-in [:note :thread] (add-html-to-thoughts results)))
     ))
 
 
@@ -429,7 +464,6 @@
 (register-handler
   :state-show-thread
   (fn [app-state [_ show?]]
-    (if (not show?) (dispatch [:state-browser-token :remember]))
     (assoc-in app-state [:ui-state :show-thread?] show?)))
 
 
@@ -496,7 +530,7 @@
     (if @focus
       [:div {:class "col-sm-10 col-sm-offset-1"}
        [:div {:class "panel panel-default"}
-        [:div {:class "panel-heading"} "Refining... " [:i [:small "(from " (:created @focus) ")"]]
+        [:div {:class "panel-heading"} "Elaborating... " [:i [:small "(from " (:created @focus) ")"]]
          [:button {:type "button" :class "close" :aria-hidden "true" :on-click #(dispatch [:refine nil])} "×"]]
         [:div {:class "panel-body"}
          [:p {:dangerouslySetInnerHTML {:__html (:html @focus)}}]
@@ -537,7 +571,7 @@
           [:button {:type     "submit"
                     :disabled (or @is-busy? (empty? @note))
                     :class    "btn btn-primary"
-                    :on-click #(dispatch [:memory-save])} "Submit"]
+                    :on-click #(dispatch [:memory-save])} "Remember"]
           ]]
         ]]
       )))
@@ -583,35 +617,44 @@
            [:i {:class "fa fa-spinner fa-spin"}]
            [:i {:class "fa fa-ellipsis-h" :id "load-trigger"}])]))))
 
+
 (defn list-memories [results show-thread-btn?]
-  (for [memory results]
-    ^{:key (:id memory)}
-    [:div {:class "col-sm-12 thought"}
-     [:div {:class "memory col-sm-12"}
-      [:span {:dangerouslySetInnerHTML {:__html (:html memory)}}]
-      ]
-     [:div
-      [:div {:class "col-sm-6"}
-       (if (= :open (:status memory))
+  (let [tooltip (reagent/as-element [Tooltip {:id :forget-thought} [:strong "Forget thought"]])]
+    (for [memory results]
+      ^{:key (:id memory)}
+      [:div {:class "col-sm-12 thought hover-wrapper"}
+       [:div {:class "memory col-sm-12"}
+        [:span {:dangerouslySetInnerHTML {:__html (:html memory)}}]
+        ]
+       [:div
+        [:div {:class "col-sm-6"}
+         (when (= :open (:status memory))
+           [:a {:class    "btn btn-primary btn-xs"
+                :on-click #(do
+                            (dispatch [:state-note :edit-note (:thought memory)])
+                            (dispatch [:memory-edit-set memory]))}
+            [:i {:class "fa fa-file-text icon-margin-both"}] "Edit"])
          [:a {:class    "btn btn-primary btn-xs"
               :on-click #(do
-                          (dispatch [:state-note :edit-note (:thought memory)])
-                          (dispatch [:memory-edit-set memory]))}
-          "Edit" [:i {:class "fa fa-pencil fa-space"}]])
-       [:a {:class    "btn btn-primary btn-xs"
-            :on-click #(do
-                        (.scrollIntoView top-div-target)
-                        (dispatch [:refine memory]))}
-        "Refine" [:i {:class "fa fa-comment fa-space"}]]
-       (if (and show-thread-btn? (:root_id memory))
-         [:a {:class "btn btn-primary btn-xs"
-              :href  (str "/thread/" (:root_id memory))}
-          "Thread" [:i {:class "fa fa-file-text fa-space"}]])
+                          (.scrollIntoView top-div-target)
+                          (dispatch [:refine memory]))}
+          [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]
+         (if (and show-thread-btn? (:root_id memory))
+           [:a {:class "btn btn-primary btn-xs"
+                :href  (str "/thread/" (:root_id memory))}
+            [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])]
+        [:div {:class "col-sm-4 col-sm-offset-2" :style {:text-align "right"}}
+         [:i [:small (:created memory)]]
+         (when (= :open (:status memory))
+           [OverlayTrigger
+            {:placement :top
+             :overlay   tooltip}
+            [:span {:class    "btn btn-danger btn-xs icon-margin-left show-on-hover"
+                    :on-click #(dispatch [:memory-forget (:id memory)])}
+             [:i {:class "fa fa-remove"}]]
+            ])
 
-       ]
-      [:div {:class "col-sm-4 col-sm-offset-2" :style {:text-align "right"}}
-       [:i [:small (:created memory)]]
-       ]]]))
+         ]]])))
 
 
 (defn edit-memory []
@@ -620,7 +663,7 @@
         is-busy?    (subscribe [:ui-state :is-busy?])
         ;; On the next one, we can't use not-empty because (= nil (not-empty nil)), and :show expects true/false,
         ;; not a truth-ish value.
-        show?       (reaction (not (empty? @edit-memory)))]
+        show?       (reaction (seq @edit-memory))]
     (fn []
       [Modal {:show @show? :onHide #(dispatch [:memory-edit-set nil])}
        [ModalBody
@@ -629,7 +672,7 @@
        [ModalFooter
         [:button {:type     "reset"
                   :class    "btn btn-default"
-                  :on-click #(dispatch [:memory-edit-set nil])} "Discard"]
+                  :on-click #(dispatch [:memory-edit-set nil])} "Cancel"]
         [:button {:type     "submit"
                   :class    "btn btn-primary"
                   :disabled (or @is-busy? (empty? @note))
@@ -752,7 +795,7 @@
 (defn header []
   (let [state  (subscribe [:ui-state :section])
         header (condp = @state
-                 :record "Make a new memory"
+                 :record "Record a new thought"
                  :remember "Remember"
                  "")]
     (if (not-empty header)
@@ -771,10 +814,7 @@
   [id f]
   (let [e ($ id)]
     (.appear e)
-    (.on ($ js/document.body) "appear" id (fn [event elements]
-                                            (f event elements)
-                                            ))
-    ))
+    (.on ($ js/document.body) "appear" id f)))
 
 (defn mount-components []
   (reagent/render-component [navbar] (.getElementById js/document "navbar"))

@@ -26,4 +26,4 @@
   "Removes the HTML from a memory's thought.
   Probably best suited for a memento.utils, but we don't have one of those yet"
   [memory]
-  (assoc memory :thought (remove-html (:thought memory))))
+  (update-in memory [:thought] remove-html))

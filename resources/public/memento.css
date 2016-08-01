@@ -1,0 +1,36 @@
+.btn {
+    margin-right: 5px
+}
+
+.thought {
+    margin-bottom: 40px;
+}
+
+.thought .memory {
+    font-size: 16px;
+    font-weight: 300;
+    line-height: 1.4;
+}
+@media (min-width: 768px) {
+    .memory {
+        font-size: 14.5px;
+    }
+}
+
+.icon-margin-both {
+    margin-left: 2px;
+    margin-right: 5px;
+}
+
+.icon-margin-left {
+    margin-left: 5px
+}
+
+
+.hover-wrapper span.show-on-hover {
+    visibility: hidden;
+}
+
+.hover-wrapper:hover span.show-on-hover {
+    visibility: visible;
+}

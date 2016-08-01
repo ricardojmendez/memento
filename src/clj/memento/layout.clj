@@ -5,7 +5,7 @@
             [ring.util.response :refer [content-type response]]
             [ring.util.anti-forgery :refer [anti-forgery-field]]
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
-            [environ.core :refer [env]]))
+            [memento.config :refer [env]]))
 
 
 (declare ^:dynamic *servlet-context*)

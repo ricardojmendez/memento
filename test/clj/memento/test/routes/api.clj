@@ -9,9 +9,10 @@
             [memento.test.db.core :as tdb]
             [memento.test.db.memory :as tdm]
             [memento.test.db.user :as tdu]
-            [memento.db.core :as db]
+            [memento.db.core :refer [*db*] :as db]
             [memento.db.memory :as memory]
-            [ring.mock.request :refer [request header body]])
+            [ring.mock.request :refer [request header body]]
+            [clojure.string :as string])
   (:import java.io.ByteArrayOutputStream))
 
 
@@ -39,8 +40,7 @@
   [request auth-token]
   (if (empty? auth-token)
     request
-    (header request "Authorization" (str "Token " auth-token))
-    ))
+    (header request "Authorization" (str "Token " auth-token))))
 
 (defn get-request
   "Executes a GET request with an optional set of parameters. Returns
@@ -48,35 +48,45 @@
   ([url]
    (get-request url nil nil))
   ([url params auth-token]
-   (let [response (app (-> (request :get url params)
-                           (header "Accept" "application/transit+json")
-                           (add-auth-token auth-token)))]
+   (let [response ((app) (-> (request :get url params)
+                             (header "Accept" "application/transit+json")
+                             (add-auth-token auth-token)))]
      [response (transit->clj (:body response))])))
+
+(defn req-with-body
+  [req-type ^String url id path req-body auth-token]
+  (let [response ((app) (-> (request req-type
+                                     (->
+                                       [url
+                                        (when id ["/" id])
+                                        (when path ["/" path])]
+                                       flatten
+                                       string/join))
+                            (body (clj->transit req-body))
+                            (header "Content-Type" "application/transit+json; charset=UTF-8")
+                            (header "Accept" "application/transit+json, text/plain, */*")
+                            (add-auth-token auth-token)))
+        data     (transit->clj (:body response))]
+    [response data]))
 
 
 (defn post-request
   "Makes a post request to a URL with a body. Returns a vector with the
   response and the translated body."
   [^String url req-body auth-token]
-  (let [response (app (-> (request :post url)
-                          (body (clj->transit req-body))
-                          (header "Content-Type" "application/transit+json; charset=UTF-8")
-                          (header "Accept" "application/transit+json, text/plain, */*")
-                          (add-auth-token auth-token)))
-        data     (transit->clj (:body response))]
-    [response data]))
+  (req-with-body :post url nil nil req-body auth-token))
 
 (defn put-request
   "Makes a put request to a URL with a body, under a specific path. Returns
   a vector with the response and the translated body."
   [^String url id path req-body auth-token]
-  (let [response (app (-> (request :put (str url "/" id "/" path))
-                          (body (clj->transit req-body))
-                          (header "Content-Type" "application/transit+json; charset=UTF-8")
-                          (header "Accept" "application/transit+json, text/plain, */*")
-                          (add-auth-token auth-token)))
-        data     (transit->clj (:body response))]
-    [response data]))
+  (req-with-body :put url id path req-body auth-token))
+
+(defn del-request
+  "Makes a delete request to a URL with a body, under a specific path. Returns
+  a vector with the response and the translated body."
+  [^String url id path auth-token]
+  (req-with-body :delete url id path nil auth-token))
 
 
 (defn invoke-login
@@ -97,7 +107,7 @@
 ;;;
 
 (deftest test-login
-  (db/run tdb/wipe-database!)
+  (tdb/wipe-database! *db*)
   (user/create-user! "user1" "password1")
   (testing "We get a login token when authenticating with a valid username/password"
     (let [[response data] (post-request "/api/auth/login" {:username "user1" :password "password1"} nil)]
@@ -121,7 +131,7 @@
 
 
 (deftest test-signup
-  (db/run tdb/wipe-database!)
+  (tdb/wipe-database! *db*)
   (let [username "newuser"
         password "password"]
     (testing "Attempting to log in with the credentials initially results on a 401"
@@ -377,7 +387,7 @@
         (is (map? record))
         (is (:id record))
         (is (= "Just a thought" (:thought record)))
-        (is (= (str "/api/memory/" (:id record)) (get-in response [:headers "Location"])))
+        (is (= (str "http://localhost/api/memory/" (:id record)) (get-in response [:headers "Location"])))
         ))
     (testing "After adding a memoy, we can query for it"
       (let [[_ {:keys [total results]}] (get-request "/api/memory" nil token)
@@ -450,6 +460,12 @@
         (is (:id item))))
     ))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Memory update and delete
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 (deftest test-update-memory
   (tdu/init-placeholder-data!)
   (user/create-user! "user1" "password1")
@@ -480,7 +496,7 @@
     (testing "Attempting to update a closed memory returns an empty dataset"
       (let [[_ memory] (post-request "/api/memory" {:thought "Memora"} token-u1)
             ;; Force the date as if we created it a while ago
-            _ (db/run tdb/update-thought-created! (assoc memory :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
+            _ (tdb/update-thought-created! *db* (assoc memory :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
             ;; Try to update
             [_ updated] (put-request "/api/memory" (:id memory) "thought" {:thought "Memory"} token-u1)
             ]
@@ -491,5 +507,27 @@
     ))
 
 
-
-
+(deftest test-delete-memory
+  (tdu/init-placeholder-data!)
+  (user/create-user! "user1" "password1")
+  (user/create-user! "user2" "password2")
+  (let [token-u1 (invoke-login {:username "user1" :password "password1"})
+        token-u2 (invoke-login {:username "user2" :password "password2"})]
+    (testing "We can update a memory by posting to an ID"
+      (let [[_ memory] (post-request "/api/memory" {:thought "Memora"} token-u1)
+            ; Attempt deleting by an invalid auth token
+            [invalid _] (del-request "/api/memory" (:id memory) "thought" token-u2)
+            ; Query before valid delete
+            [_ query1] (get-request "/api/memory" nil token-u1)
+            ; Delete
+            [deleted _] (del-request "/api/memory" (:id memory) "thought" token-u1)
+            ; Query post-delete
+            [_ query2] (get-request "/api/memory" nil token-u1)
+            ]
+        (is memory)
+        (is (= 1 (:total query1)))
+        (is (= 401 (:status invalid)))
+        (is (= 204 (:status deleted)))
+        (is (= 0 (:total query2)))
+        ))
+    ))
