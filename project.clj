@@ -75,22 +75,17 @@
 
 
   :profiles
-  {:uberjar      {:omit-source true
-                  :env         {:production   true
-                                :cluster-name "memento"
-                                :index-name   "memento"
-                                :host-name    "localhost"
-                                :auth-conf    {:passphrase "testpassword"
-                                               :pubkey     "keys/dev_auth_pubkey.pem"
-                                               :privkey    "keys/dev_auth_privkey.pem"}}
-                  :hooks       [leiningen.cljsbuild]
-                  :cljsbuild
-                               {:jar true
-                                :builds
-                                     {:app
-                                      {:source-paths ["env/prod/clj" "env/prod/cljs"]
-                                       :compiler     {:optimizations :advanced :pretty-print false}}}}
-                  :aot         :all}
+  {:uberjar      {:omit-source    true
+                  :aot            :all
+                  :source-paths   ["env/prod/clj"]
+                  :resource-paths ["env/prod/resources"]
+                  :hooks          [leiningen.cljsbuild]
+                  :cljsbuild      {:jar true
+                                   :builds
+                                        {:app
+                                         {:source-paths ["env/prod/clj" "env/prod/cljs"]
+                                          :compiler     {:optimizations :advanced :pretty-print false}}}}
+                  }
 
    :dev          [:project/dev :profiles/dev]
    :test         [:project/test :profiles/test]
