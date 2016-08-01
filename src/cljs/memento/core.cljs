@@ -13,7 +13,7 @@
             [markdown.lists :as mdlists]
             [markdown.transformers :as transformers]
             [pushy.core :as pushy]
-            [ajax.core :refer [GET POST PUT]]
+            [ajax.core :refer [GET POST PUT DELETE]]
             [clojure.string :as string])
   (:require-macros [reagent.ratom :refer [reaction]]
                    [memento.misc.cljs-macros :refer [adapt-bootstrap]])
@@ -310,6 +310,39 @@
     (assoc-in app-state [:ui-state :is-busy?] false)))
 
 (register-handler
+  :memory-forget
+  (fn [app-state [_ root-id]]
+    (let [url (str "/api/memory/" root-id "/thought")]
+      (.log js/console url)
+      (DELETE url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                   :handler       #(dispatch [:memory-forget-success %])
+                   :error-handler #(dispatch [:memory-forget-error %])}))
+    app-state))
+
+(register-handler
+  :memory-forget-success
+  (fn [app-state [_ msg]]
+    (.log js/console (get-in app-state [:ui-state :section]))
+    (dispatch [:state-message (str "Thought forgotten") "alert-success"])
+    (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
+      (dispatch [:memories-load]))
+    (-> app-state
+        (assoc-in [:ui-state :is-busy?] false)
+        (assoc-in [:note :edit-memory] nil)
+        (assoc-in [:note :edit-note] "")
+        (assoc-in [:note :focus] nil)
+        (assoc :search-state nil)
+        )))
+
+(register-handler
+  :memory-forget-error
+  (fn [app-state [_ result]]
+    (.log js/console "Forget error" result)
+    (dispatch [:state-message (str "Error forgetting: " result) "alert-danger"])
+    (clear-token-on-unauth result)
+    (assoc-in app-state [:ui-state :is-busy?] false)))
+
+(register-handler
   :memory-save
   (fn [app-state _]
     (let [note (get-in app-state [:note :current-note])]
@@ -329,8 +362,7 @@
         (assoc-in [:note :thread] nil)
         (assoc-in [:ui-state :show-thread?] false)
         (assoc-in [:note :focus] nil)
-        (assoc :search-state nil)
-        )))
+        (assoc :search-state nil))))
 
 (register-handler
   :memory-save-error
@@ -536,7 +568,7 @@
           [:button {:type     "submit"
                     :disabled (or @is-busy? (empty? @note))
                     :class    "btn btn-primary"
-                    :on-click #(dispatch [:memory-save])} "Submit"]
+                    :on-click #(dispatch [:memory-save])} "Remember"]
           ]]
         ]]
       )))
@@ -582,35 +614,44 @@
            [:i {:class "fa fa-spinner fa-spin"}]
            [:i {:class "fa fa-ellipsis-h" :id "load-trigger"}])]))))
 
+
 (defn list-memories [results show-thread-btn?]
-  (for [memory results]
-    ^{:key (:id memory)}
-    [:div {:class "col-sm-12 thought"}
-     [:div {:class "memory col-sm-12"}
-      [:span {:dangerouslySetInnerHTML {:__html (:html memory)}}]
-      ]
-     [:div
-      [:div {:class "col-sm-6"}
-       (if (= :open (:status memory))
+  (let [tooltip (reagent/as-element [Tooltip {:id :forget-thought} [:strong "Forget thought"]])]
+    (for [memory results]
+      ^{:key (:id memory)}
+      [:div {:class "col-sm-12 thought hover-wrapper"}
+       [:div {:class "memory col-sm-12"}
+        [:span {:dangerouslySetInnerHTML {:__html (:html memory)}}]
+        ]
+       [:div
+        [:div {:class "col-sm-6"}
+         (when (= :open (:status memory))
+           [:a {:class    "btn btn-primary btn-xs"
+                :on-click #(do
+                            (dispatch [:state-note :edit-note (:thought memory)])
+                            (dispatch [:memory-edit-set memory]))}
+            [:i {:class "fa fa-file-text icon-margin-both"}] "Edit"])
          [:a {:class    "btn btn-primary btn-xs"
               :on-click #(do
-                          (dispatch [:state-note :edit-note (:thought memory)])
-                          (dispatch [:memory-edit-set memory]))}
-          [:i {:class "fa fa-file-text icon-margin-both"}] "Edit"])
-       [:a {:class    "btn btn-primary btn-xs"
-            :on-click #(do
-                        (.scrollIntoView top-div-target)
-                        (dispatch [:refine memory]))}
-        [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]
-       (if (and show-thread-btn? (:root_id memory))
-         [:a {:class "btn btn-primary btn-xs"
-              :href  (str "/thread/" (:root_id memory))}
-          [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])
+                          (.scrollIntoView top-div-target)
+                          (dispatch [:refine memory]))}
+          [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]
+         (if (and show-thread-btn? (:root_id memory))
+           [:a {:class "btn btn-primary btn-xs"
+                :href  (str "/thread/" (:root_id memory))}
+            [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])]
+        [:div {:class "col-sm-4 col-sm-offset-2" :style {:text-align "right"}}
+         [:i [:small (:created memory)]]
+         (when (= :open (:status memory))
+           [OverlayTrigger
+            {:placement :top
+             :overlay   tooltip}
+            [:span {:class    "btn btn-danger btn-xs icon-margin-left show-on-hover"
+                    :on-click #(dispatch [:memory-forget (:id memory)])}
+             [:i {:class "fa fa-remove"}]]
+            ])
 
-       ]
-      [:div {:class "col-sm-4 col-sm-offset-2" :style {:text-align "right"}}
-       [:i [:small (:created memory)]]
-       ]]]))
+         ]]])))
 
 
 (defn edit-memory []
@@ -751,7 +792,7 @@
 (defn header []
   (let [state  (subscribe [:ui-state :section])
         header (condp = @state
-                 :record "Make a new memory"
+                 :record "Record a new thought"
                  :remember "Remember"
                  "")]
     (if (not-empty header)

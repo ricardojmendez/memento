@@ -29,17 +29,19 @@
                                      "application/json"])
 
 (defresource memory
-             :allowed-methods [:post :get :put]
+             :allowed-methods [:post :get :put :delete]
              :authorized? (fn [{request :request}]
                             (let [{:keys [identity request-method params]} request
                                   id            (:id params)
-                                  has-identity? (not-empty identity)]
+                                  has-identity? (not-empty identity)
+                                  is-owner?     #(and has-identity?
+                                                      id
+                                                      (= identity (:username (memory/load-memory (UUID/fromString id)))))]
                               (condp = request-method
                                 :get has-identity?
                                 :post has-identity?
-                                :put (and has-identity?
-                                          id
-                                          (= identity (:username (memory/load-memory (UUID/fromString id)))))
+                                :put (is-owner?)
+                                :delete (is-owner?)
                                 false)
                               ))
              :handle-ok (fn [{request :request}]
@@ -59,6 +61,8 @@
                             username (get-in ctx [:request :identity])]
                         (when (not-empty content)
                           {:save-result (memory/create-memory! (assoc content :username username))})))
+             :delete! (fn [{{{:keys [id]} :params} :request}]
+                        (memory/delete-memory! (UUID/fromString id)))
              :handle-created (fn [{record :save-result}]
                                (ring-response {:status  201
                                                :headers {"Location" (str "/api/memory/" (:id record))}
@@ -107,7 +111,7 @@
                                   token   (auth/create-auth-token (:username content) (:password content))]
                               (if (not-empty token)
                                 {:token token})))
-             :post! true                                              ; All the work is done on authorized?
+             :post! true                                    ; All the work is done on authorized?
              :handle-created (fn [ctx]
                                {:token (:token ctx)})
              :available-media-types ["application/transit+json"

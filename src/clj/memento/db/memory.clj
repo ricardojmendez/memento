@@ -29,15 +29,16 @@
 (defn set-memory-status
   "Associates a :status with a memory depending on if it's still considered open."
   [memory]
-  (let [millis (t/in-millis (t/interval (c/from-date (:created memory)) (t/now)))]
-    (assoc memory :status (if (< millis open-duration) :open :closed))
-    ))
+  (when memory
+    (let [millis (t/in-millis (t/interval (c/from-date (:created memory)) (t/now)))]
+      (assoc memory :status (if (< millis open-duration) :open :closed)))))
 
 
 (defn load-memory
-  "Loads a memory by its id"
+  "Loads a memory by its id and adds a status"
   [^UUID id]
-  (db/get-thought-by-id *db* {:id id}))
+  (set-memory-status
+    (db/get-thought-by-id *db* {:id id})))
 
 (defn create-memory!
   "Saves a new memory, after removing HTML tags from the thought."
@@ -68,6 +69,16 @@
       (db/update-thought! *db* (clean-memory-text memory))
       {}
       )))
+
+
+(defn delete-memory!
+  "Deletes a memory from the database, only if it's still considered open.
+  Will return 1 if the memory was deleted, 0 otherwise."
+  [^UUID id]
+  (let [current (set-memory-status (db/get-thought-by-id *db* {:id id}))]
+    (if (= :open (:status current))
+      (db/delete-thought! *db* {:id id})
+      0)))
 
 
 (defn query-memories

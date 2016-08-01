@@ -46,6 +46,13 @@ UPDATE thoughts
 SET root_id = id
 WHERE id = :id AND root_id IS NULL;
 
+
+-- :name delete-thought! :! :n
+-- :doc  Deletes a thought from the database
+--  Ensures that the thought isn't refining any other thought before doing so.
+DELETE FROM thoughts WHERE id = :id;
+
+
 -- :name search-thoughts :? :*
 -- :doc Returns all thoughts for a username which match a search string
 SELECT t.*, ts_rank_cd(tl.lexemes, query) AS rank

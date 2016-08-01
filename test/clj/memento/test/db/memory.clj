@@ -330,7 +330,7 @@
 
 
 ;;;
-;;; Memory updates
+;;; Memory update and delete
 ;;;
 
 (deftest test-can-update-memory
@@ -367,6 +367,45 @@
           updated (memory/update-memory! (assoc m1 :thought "Different text"))
           m2      (first (:results (memory/query-memories tdu/ph-username)))]
       (is (empty? updated))
+      (is (= 0 (:total (memory/query-memories tdu/ph-username "text"))))
+      (is (= 1 (:total (memory/query-memories tdu/ph-username "wondering"))))
+      (is (= :closed (:status m2)))))
+  )
+
+(deftest test-can-update-memory
+  (testing "We can delete open thoughts"
+    (tdu/init-placeholder-data!)
+    (let [_         (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
+          m1        (first (:results (memory/query-memories tdu/ph-username "wondering")))
+          result    (memory/delete-memory! (:id m1))
+          after-del (memory/load-memory (:id m1))
+          ;; Ensure that we didn't leave the lexeme table as it was by querying for the
+          ;; old search term and the new one
+          wondering (first (:results (memory/query-memories tdu/ph-username "wondering")))
+          all       (memory/query-memories tdu/ph-username)]
+      ;; Pre-update values
+      (is m1)
+      (is (= "Just wondering" (:thought m1)))
+      ;; Check that we did not get anything after removing it
+      (is (= 1 result))
+      (is (nil? after-del))
+      ;; Verify we can't re-delete
+      (is (= 0 (memory/delete-memory! (:id m1))))
+      ;; Check we updated the lexemes
+      (is (nil? wondering))
+      (is (= {:total 0 :pages 0 :results []} all))
+      ))
+  (testing "Cannot delete closed thoughts"
+    (tdu/init-placeholder-data!)
+    (let [_       (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
+          m1      (first (:results (memory/query-memories tdu/ph-username)))
+          ;; Force the date as if we created it a while ago
+          _       (tdb/update-thought-created! *db* (assoc m1 :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
+          deleted (memory/delete-memory! (:id m1))
+          m2      (memory/load-memory (:id m1))]
+      (is (= 0 deleted))
+      (is (= (select-keys m1 [:id :username :thought])
+             (select-keys m2 [:id :username :thought])))
       (is (= 0 (:total (memory/query-memories tdu/ph-username "text"))))
       (is (= 1 (:total (memory/query-memories tdu/ph-username "wondering"))))
       (is (= :closed (:status m2)))))
