@@ -293,7 +293,7 @@
       (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
         (dispatch [:memories-load]))
       (if thread
-        (dispatch [:thread-load (:root-id (first thread))]))
+        (dispatch [:thread-load (:id (first thread))]))
       (-> app-state
           (assoc-in [:ui-state :is-busy?] false)
           (assoc-in [:note :edit-memory] nil)
@@ -313,7 +313,6 @@
   :memory-forget
   (fn [app-state [_ root-id]]
     (let [url (str "/api/memory/" root-id "/thought")]
-      (.log js/console url)
       (DELETE url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                    :handler       #(dispatch [:memory-forget-success %])
                    :error-handler #(dispatch [:memory-forget-error %])}))
@@ -322,17 +321,22 @@
 (register-handler
   :memory-forget-success
   (fn [app-state [_ msg]]
-    (.log js/console (get-in app-state [:ui-state :section]))
-    (dispatch [:state-message (str "Thought forgotten") "alert-success"])
-    (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
-      (dispatch [:memories-load]))
-    (-> app-state
-        (assoc-in [:ui-state :is-busy?] false)
-        (assoc-in [:note :edit-memory] nil)
-        (assoc-in [:note :edit-note] "")
-        (assoc-in [:note :focus] nil)
-        (assoc :search-state nil)
-        )))
+    (let [thread     (get-in app-state [:note :thread])
+          in-thread? (and thread
+                          (get-in app-state [:ui-state :show-thread?]))]
+      (dispatch [:state-message (str "Thought forgotten") "alert-success"])
+      (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
+        (dispatch [:memories-load]))
+      (if in-thread?
+        (dispatch [:thread-load (:id (first thread))]))
+      (-> app-state
+          (assoc-in [:ui-state :is-busy?] false)
+          (assoc-in [:note :edit-memory] nil)
+          (assoc-in [:note :edit-note] "")
+          (assoc-in [:note :focus] nil)
+          (assoc :search-state nil)
+          )))
+  )
 
 (register-handler
   :memory-forget-error
@@ -460,7 +464,6 @@
 (register-handler
   :state-show-thread
   (fn [app-state [_ show?]]
-    (if (not show?) (dispatch [:state-browser-token :remember]))
     (assoc-in app-state [:ui-state :show-thread?] show?)))
 
 
