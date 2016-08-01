@@ -6,7 +6,9 @@
             [memento.test.db.core :as tdb]
             [memento.db.user :as user]
             [mount.core :as mount]
-            [memento.db.core :refer [*db*] :as db]))
+            [memento.db.core :refer [*db*] :as db]
+            [clojure.java.io :as io])
+  (:import (org.bouncycastle.jcajce.provider.asymmetric.rsa BCRSAPrivateCrtKey)))
 
 
 (use-fixtures
@@ -18,14 +20,26 @@
     (migrations/migrate ["migrate"] (select-keys env [:database-url]))
     (f)))
 
+
+(def pkey #'auth/pkey)
+
+(deftest test-pkey
+  (let [auth-conf       (:auth-conf env)
+        key-string      (slurp (io/resource (:privkey auth-conf)))
+        key-from-file   (pkey auth-conf)
+        key-from-string (pkey (assoc auth-conf :privkey key-string))]
+    (is key-from-file)
+    (is (instance? BCRSAPrivateCrtKey key-from-file))
+    (is (= key-from-file key-from-string))))
+
+
 (deftest test-create-auth-token
   (tdb/wipe-database! *db*)
   (user/create-user! "user1" "password1")
   (let [token (auth/create-auth-token "user1" "password1")]
     (is token)
     (is (< 0 (count token))))
-  (is (nil? (auth/create-auth-token "user1" "invalid")))
-  )
+  (is (nil? (auth/create-auth-token "user1" "invalid"))))
 
 
 (deftest test-decode-auth-token
@@ -47,7 +61,7 @@
   (tdb/wipe-database! *db*)
   (user/create-user! "User1" "password1")
   ;; Confirm we always get the username in lower case for the token
-  (let [token (auth/create-auth-token "User1" "password1")
+  (let [token  (auth/create-auth-token "User1" "password1")
         result (auth/decode-token token)]
     (is token)
     (is (< 0 (count token)))

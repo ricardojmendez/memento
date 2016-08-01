@@ -1,7 +1,4 @@
 {:production true
  :port       3000
- ; Temporary for testing. Need to figure out how to set those parameters on Heroku
- :auth-conf  {:passphrase "testpassword"
-              :pubkey     "keys/dev_auth_pubkey.pem"
-              :privkey    "keys/dev_auth_privkey.pem"}
+ :auth-conf  {:pubkey "keys/prod_auth_pubkey.pem"}
  }
