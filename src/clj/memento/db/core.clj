@@ -7,7 +7,7 @@
     [memento.config :refer [env]]
     [mount.core :refer [defstate]])
   (:import org.postgresql.util.PGobject
-           org.postgresql.jdbc4.Jdbc4Array
+           java.sql.Array
            clojure.lang.IPersistentMap
            clojure.lang.IPersistentVector
            [java.sql BatchUpdateException
@@ -32,7 +32,7 @@
   Timestamp
   (result-set-read-column [v _ _] (to-date v))
 
-  Jdbc4Array
+  Array
   (result-set-read-column [v _ _] (vec (.getArray v)))
 
   PGobject

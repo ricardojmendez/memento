@@ -28,7 +28,7 @@
                  [metosin/ring-http-response "0.8.0"]
                  [mount "0.1.10"]
                  [org.jsoup/jsoup "1.9.2"]
-                 [org.postgresql/postgresql "9.4-1206-jdbc4"]
+                 [org.postgresql/postgresql "9.4.1209"]
                  [reagent "0.6.0-rc" :exclusions [cljsjs/react]]
                  [ring/ring-defaults "0.2.1"]               ; Used for anti-forgery
                  [reagent-utils "0.1.9"]
