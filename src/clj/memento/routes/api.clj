@@ -65,7 +65,7 @@
                         (memory/delete-memory! (UUID/fromString id)))
              :handle-created (fn [{record :save-result}]
                                (ring-response {:status  201
-                                               :headers {"Location" (str "/api/memory/" (:id record))}
+                                               :headers {"Location" (str "/api/thoughts/" (:id record))}
                                                :body    record}))
              :available-media-types ["application/transit+json"
                                      "application/transit+msgpack"
@@ -89,7 +89,7 @@
                                      "application/transit+msgpack"
                                      "application/json"])
 
-(defresource memory-thread
+(defresource thought-thread
              :allowed-methods [:get]
              :authorized? (fn [ctx]
                             (some? (get-in ctx [:request :identity])))
@@ -151,10 +151,10 @@
   ["/api/" {"echo/"       {[:val] echo}
             "auth/login"  login
             "auth/signup" signup
-            "memory"      memory
-            "memory/"     {"search"         memory-search
-                           [:id "/thread"]  memory-thread
-                           [:id "/thought"] memory}}])
+            "thoughts"    memory
+            "thoughts/"   {[:id] memory}
+            "threads/"    {[:id] thought-thread}
+            "search"      memory-search}])
 
 (def not-found-route
   ["/" [[true not-found]]])
