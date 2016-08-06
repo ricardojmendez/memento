@@ -227,7 +227,7 @@
       (if (or (not= q last-q)
               (> p (or (get-in app-state [:search-state :page-index]) -1)))
         (do
-          (GET "/api/memory/search" {:params        {:q q :page p}
+          (GET "/api/search" {:params        {:q q :page p}
                                      :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                                      :handler       #(dispatch [:memories-load-success %])
                                      :error-handler #(dispatch [:memories-load-error %])
@@ -279,7 +279,7 @@
   (fn [app-state _]
     (let [note   (get-in app-state [:note :edit-note])
           memory (get-in app-state [:note :edit-memory])
-          url    (str "/api/memory/" (:id memory) "/thought")]
+          url    (str "/api/thoughts/" (:id memory))]
       (PUT url {:params        {:thought note}
                 :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                 :handler       #(dispatch [:memory-edit-save-success note])
@@ -314,7 +314,7 @@
 (register-handler
   :memory-forget
   (fn [app-state [_ root-id]]
-    (let [url (str "/api/memory/" root-id "/thought")]
+    (let [url (str "/api/thoughts/" root-id)]
       (DELETE url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                    :handler       #(dispatch [:memory-forget-success %])
                    :error-handler #(dispatch [:memory-forget-error %])}))
@@ -352,7 +352,7 @@
   :memory-save
   (fn [app-state _]
     (let [note (get-in app-state [:note :current-note])]
-      (POST "/api/memory" {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
+      (POST "/api/thoughts" {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
                            :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                            :handler       #(dispatch [:memory-save-success note])
                            :error-handler #(dispatch [:memory-save-error %])}))
@@ -382,7 +382,7 @@
 (register-handler
   :thread-load
   (fn [app-state [_ root-id]]
-    (let [url (str "/api/memory/" root-id "/thread")]
+    (let [url (str "/api/threads/" root-id)]
       (GET url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                 :handler       #(dispatch [:thread-load-success %])
                 :error-handler #(dispatch [:thread-load-error %])}
