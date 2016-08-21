@@ -4,7 +4,7 @@
             [clj-time.coerce :as tc]
             [clojure.string :as s]
             [memento.db.core :refer [*db*] :as db]
-            [numergent.utils :refer [remove-html clean-memory-text]]
+            [memento.misc.html :refer [remove-html clean-memory-text]]
             [clojure.java.jdbc :as jdbc]
             [clj-time.coerce :as c]
             [clj-time.core :as t])
