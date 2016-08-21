@@ -97,6 +97,7 @@
   (reaction (get-in @db [sid element-id])))
 
 (register-sub :note general-query)
+(register-sub :threads general-query)
 (register-sub :ui-state general-query)
 (register-sub :search-state general-query)
 (register-sub :credentials general-query)
@@ -162,6 +163,7 @@
                                  :results-page  0
                                  :memories      {:pages 0}
                                  :is-searching? false}
+                      :threads  {}
                       :note     {:edit-memory nil}
                       })))
 
@@ -228,10 +230,10 @@
               (> p (or (get-in app-state [:search-state :page-index]) -1)))
         (do
           (GET "/api/search" {:params        {:q q :page p}
-                                     :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                                     :handler       #(dispatch [:memories-load-success %])
-                                     :error-handler #(dispatch [:memories-load-error %])
-                                     })
+                              :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                              :handler       #(dispatch [:memories-load-success %])
+                              :error-handler #(dispatch [:memories-load-error %])
+                              })
           (-> app-state
               (assoc-in [:ui-state :is-searching?] true)
               (assoc :search-state {:query       q
@@ -290,12 +292,12 @@
 (register-handler
   :memory-edit-save-success
   (fn [app-state [_ msg]]
-    (let [thread (get-in app-state [:note :thread])]
+    (let [thread-id (get-in app-state [:ui-state :show-thread-id])]
       (dispatch [:state-message (str "Updated memory to: " msg) "alert-success"])
       (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
         (dispatch [:memories-load]))
-      (if thread
-        (dispatch [:thread-load (:id (first thread))]))
+      (if thread-id
+        (dispatch [:thread-load thread-id]))
       (-> app-state
           (assoc-in [:ui-state :is-busy?] false)
           (assoc-in [:note :edit-memory] nil)
@@ -323,14 +325,14 @@
 (register-handler
   :memory-forget-success
   (fn [app-state [_ msg]]
-    (let [thread     (get-in app-state [:note :thread])
-          in-thread? (and thread
+    (let [thread-id  (get-in app-state [:ui-state :show-thread-id])
+          in-thread? (and thread-id
                           (get-in app-state [:ui-state :show-thread?]))]
       (dispatch [:state-message (str "Thought forgotten") "alert-success"])
       (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
         (dispatch [:memories-load]))
       (if in-thread?
-        (dispatch [:thread-load (:id (first thread))]))
+        (dispatch [:thread-load thread-id]))
       (-> app-state
           (assoc-in [:ui-state :is-busy?] false)
           (assoc-in [:note :edit-memory] nil)
@@ -353,9 +355,9 @@
   (fn [app-state _]
     (let [note (get-in app-state [:note :current-note])]
       (POST "/api/thoughts" {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
-                           :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                           :handler       #(dispatch [:memory-save-success note])
-                           :error-handler #(dispatch [:memory-save-error %])}))
+                             :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                             :handler       #(dispatch [:memory-save-success note])
+                             :error-handler #(dispatch [:memory-save-error %])}))
     (assoc-in app-state [:ui-state :is-busy?] true)))
 
 (register-handler
@@ -365,7 +367,7 @@
     (-> app-state
         (assoc-in [:ui-state :is-busy?] false)
         (assoc-in [:note :current-note] "")
-        (assoc-in [:note :thread] nil)
+        (assoc-in [:ui-state :show-thread-id] nil)
         (assoc-in [:ui-state :show-thread?] false)
         (assoc-in [:note :focus] nil)
         (assoc :search-state nil))))
@@ -392,16 +394,19 @@
 (register-handler
   :thread-load-error
   (fn [app-state [_ result]]
+    ; Not sure if we actually know which thread failed loading. Probably not if the call failed altogether.
+    ; If we did, we could just assoc the thread to nil.
     (dispatch [:state-message (str "Error loading thread: " result) "alert-danger"])
     app-state))
 
 (register-handler
   :thread-load-success
-  (fn [app-state [_ {:keys [results] :as result}]]
+  (fn [app-state [_ {:keys [id results] :as result}]]
     (dispatch [:state-ui-section :remember])
     (-> app-state
         (assoc-in [:ui-state :show-thread?] (not (empty? results)))
-        (assoc-in [:note :thread] (add-html-to-thoughts results)))
+        (assoc-in [:threads id] (add-html-to-thoughts results))
+        (assoc-in [:ui-state :show-thread-id] id))
     ))
 
 
@@ -511,9 +516,7 @@
             [:ul {:class "nav navbar-nav"}
              [navbar-item "Record" :record]
              [navbar-item "Remember" :remember]])
-          ]]
-        ]]
-      )))
+          ]]]])))
 
 
 (defn alert []
@@ -683,8 +686,9 @@
 
 
 (defn memory-thread []
-  (let [show?  (subscribe [:ui-state :show-thread?])
-        thread (subscribe [:note :thread])]
+  (let [show?     (subscribe [:ui-state :show-thread?])
+        thread-id (subscribe [:ui-state :show-thread-id])
+        thread    (subscribe [:threads @thread-id])]
     (fn []
       [Modal {:show @show? :onHide #(dispatch [:state-show-thread false])}
        [ModalBody
