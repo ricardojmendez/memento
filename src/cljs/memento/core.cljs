@@ -97,7 +97,7 @@
   (reaction (get-in @db [sid element-id])))
 
 (register-sub :note general-query)
-(register-sub :threads general-query)
+(register-sub :cache general-query)
 (register-sub :ui-state general-query)
 (register-sub :search-state general-query)
 (register-sub :credentials general-query)
@@ -111,7 +111,7 @@
                   "remember" :remember
                   "signup"   :signup
                   "login"    :login
-                  "thread/"  {[:id] #(dispatch [:thread-load (:id %)])}
+                  "thread/"  {[:id] #(dispatch [:thread-display (:id %)])}
                   ""         :record}])
 
 (defn set-page! [match]
@@ -163,7 +163,7 @@
                                  :results-page  0
                                  :memories      {:pages 0}
                                  :is-searching? false}
-                      :threads  {}
+                      :cache    {}
                       :note     {:edit-memory nil}
                       })))
 
@@ -380,6 +380,15 @@
     (assoc-in app-state [:ui-state :is-busy?] false)
     ))
 
+(register-handler
+  ; Separate handler from :thread-load so that we can choose when to display a thread and when to load it.
+  :thread-display
+  (fn [app-state [_ root-id]]
+    (when (empty? (get-in app-state [:cache :threads root-id]))
+      (dispatch [:thread-load root-id]))
+    (-> app-state
+        (assoc-in [:ui-state :show-thread?] true)
+        (assoc-in [:ui-state :show-thread-id] root-id))))
 
 (register-handler
   :thread-load
@@ -403,19 +412,14 @@
   :thread-load-success
   (fn [app-state [_ {:keys [id results] :as result}]]
     (dispatch [:state-ui-section :remember])
-    (-> app-state
-        (assoc-in [:ui-state :show-thread?] (not (empty? results)))
-        (assoc-in [:threads id] (add-html-to-thoughts results))
-        (assoc-in [:ui-state :show-thread-id] id))
-    ))
+    (assoc-in app-state [:cache :threads id] (add-html-to-thoughts results))))
 
 
 (register-handler
   :refine
   (fn [app-state [_ thought]]
     (dispatch [:state-browser-token :record])
-    (assoc-in app-state [:note :focus] thought)
-    ))
+    (assoc-in app-state [:note :focus] thought)))
 
 
 ;; Handler for changing the browser token from a keyword, so that
@@ -688,9 +692,14 @@
 (defn memory-thread []
   (let [show?     (subscribe [:ui-state :show-thread?])
         thread-id (subscribe [:ui-state :show-thread-id])
-        thread    (subscribe [:threads @thread-id])]
+        ; I subscribe to the whole thread cache because I can't just subscribe to [:threads @thread-id],
+        ; as it'd only be evaluated once. I tried to do a reaction with the path, then subscribe
+        ; to the @path... but the subscription is not refreshed when the @path changes.
+        threads   (subscribe [:cache :threads])
+        thread    (reaction (get @threads @thread-id))
+        ready?    (reaction (and @show? (some? @thread)))]
     (fn []
-      [Modal {:show @show? :onHide #(dispatch [:state-show-thread false])}
+      [Modal {:show @ready? :onHide #(dispatch [:state-show-thread false])}
        [ModalBody
         (list-memories @thread false)]
        [ModalFooter
@@ -701,8 +710,7 @@
 
 (defn memory-results []
   (let [busy?   (subscribe [:ui-state :is-searching?])
-        results (subscribe [:search-state :list])
-        ]
+        results (subscribe [:search-state :list])]
     (fn []
       [panel (if @busy?
                [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]]

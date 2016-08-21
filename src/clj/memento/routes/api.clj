@@ -94,11 +94,14 @@
              :authorized? (fn [ctx]
                             (some? (get-in ctx [:request :identity])))
              :handle-ok (fn [{request :request}]
-                          (let [id (UUID/fromString (get-in request [:route-params :id]))]
+                          (let [id-str (get-in request [:route-params :id])
+                                id     (UUID/fromString id-str)]
                             (->> id
                                  memory/query-memory-thread
                                  (filter #(= (:username %) (:identity request)))
-                                 (hash-map :id id :results)
+                                 ; I'll return the id as a string so that the frontend doesn't
+                                 ; have to do any parsing guesswork.
+                                 (hash-map :id id-str :results)
                                  memory/format-created)))
              :available-media-types ["application/transit+json"
                                      "application/transit+msgpack"
