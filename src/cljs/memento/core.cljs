@@ -359,14 +359,17 @@
     (let [note (get-in app-state [:note :current-note])]
       (POST "/api/thoughts" {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
                              :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                             :handler       #(dispatch [:memory-save-success note])
+                             :handler       #(dispatch [:memory-save-success % note])
                              :error-handler #(dispatch [:memory-save-error %])}))
     (assoc-in app-state [:ui-state :is-busy?] true)))
 
 (register-handler
   :memory-save-success
-  (fn [app-state [_ msg]]
+  (fn [app-state [_ result msg]]
     (dispatch [:state-message (str "Saved: " msg) "alert-success"])
+    (let [thread-id (str (:root_id result))]
+      (when (thread-in-cache? app-state thread-id)
+        (dispatch [:thread-load thread-id])))
     (-> app-state
         (assoc-in [:ui-state :is-busy?] false)
         (assoc-in [:note :current-note] "")
