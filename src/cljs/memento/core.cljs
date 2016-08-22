@@ -475,6 +475,7 @@
 (register-handler
   :state-show-thread
   (fn [app-state [_ show?]]
+    (when-not show? (dispatch [:state-browser-token :remember]))
     (assoc-in app-state [:ui-state :show-thread?] show?)))
 
 
