@@ -414,12 +414,12 @@
         (is (nil? (:root_id m1)))
         (is (= (:id m1) (:refine_id m2)))
         (is (= (:id m1) (:root_id m2)))
-        (is (= data {:results [m1r m2]}))
+        (is (= data {:results [m1r m2] :id (str (:id m1))}))
         ;; Test that we get an empty list if querying for a thread that does not belong to the user
         (let [new-token (invoke-login {:username tdu/ph-username :password tdu/ph-password})
               [_ data] (get-request (str "/api/threads/" (:id m1)) nil new-token)]
           (is new-token)
-          (is (= {:results []} data)))
+          (is (= {:results [] :id (str (:id m1))} data)))
         ))
     )
   (let [token (invoke-login {:username "User1" :password "password1"})]
