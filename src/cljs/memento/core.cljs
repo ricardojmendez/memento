@@ -315,23 +315,21 @@
 
 (register-handler
   :memory-forget
-  (fn [app-state [_ root-id]]
-    (let [url (str "/api/thoughts/" root-id)]
+  (fn [app-state [_ memory]]
+    (let [url (str "/api/thoughts/" (:id memory))]
       (DELETE url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                   :handler       #(dispatch [:memory-forget-success %])
+                   :handler       #(dispatch [:memory-forget-success memory %])
                    :error-handler #(dispatch [:memory-forget-error %])}))
     app-state))
 
 (register-handler
   :memory-forget-success
-  (fn [app-state [_ msg]]
-    (let [thread-id  (get-in app-state [:ui-state :show-thread-id])
-          in-thread? (and thread-id
-                          (get-in app-state [:ui-state :show-thread?]))]
+  (fn [app-state [_ memory msg]]
+    (let [thread-id (:root_id memory)]
       (dispatch [:state-message (str "Thought forgotten") "alert-success"])
       (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
         (dispatch [:memories-load]))
-      (if in-thread?
+      (when thread-id
         (dispatch [:thread-load thread-id]))
       (-> app-state
           (assoc-in [:ui-state :is-busy?] false)
@@ -660,7 +658,7 @@
             {:placement :top
              :overlay   tooltip}
             [:span {:class    "btn btn-danger btn-xs icon-margin-left show-on-hover"
-                    :on-click #(dispatch [:memory-forget (:id memory)])}
+                    :on-click #(dispatch [:memory-forget memory])}
              [:i {:class "fa fa-remove"}]]
             ])
 
@@ -698,7 +696,7 @@
         ; to the @path... but the subscription is not refreshed when the @path changes.
         threads   (subscribe [:cache :threads])
         thread    (reaction (get @threads @thread-id))
-        ready?    (reaction (and @show? (some? @thread)))]
+        ready?    (reaction (and @show? (not (empty? @thread))))]
     (fn []
       [Modal {:show @ready? :onHide #(dispatch [:state-show-thread false])}
        [ModalBody
