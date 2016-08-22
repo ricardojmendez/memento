@@ -139,6 +139,11 @@
        thoughts))
 
 
+(defn thread-in-cache?
+  "Receives an application state and a thread-id, and returns true if the
+  application cache currently contains that thread."
+  [app-state thread-id]
+  (contains? (get-in app-state [:cache :threads]) (str thread-id)))
 
 ;;;;------------------------------
 ;;;; Handlers
@@ -284,19 +289,19 @@
           url    (str "/api/thoughts/" (:id memory))]
       (PUT url {:params        {:thought note}
                 :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                :handler       #(dispatch [:memory-edit-save-success note])
-                :error-handler #(dispatch [:memory-edit-save-error %])}))
+                :handler       #(dispatch [:memory-edit-save-success memory note])
+                :error-handler #(dispatch [:memory-edit-save-error memory %])}))
     (assoc-in app-state [:ui-state :is-busy?] true)))
 
 
 (register-handler
   :memory-edit-save-success
-  (fn [app-state [_ msg]]
-    (let [thread-id (get-in app-state [:ui-state :show-thread-id])]
+  (fn [app-state [_ memory msg]]
+    (let [thread-id (:root_id memory)]
       (dispatch [:state-message (str "Updated memory to: " msg) "alert-success"])
       (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
         (dispatch [:memories-load]))
-      (if thread-id
+      (when (thread-in-cache? app-state thread-id)
         (dispatch [:thread-load thread-id]))
       (-> app-state
           (assoc-in [:ui-state :is-busy?] false)
@@ -308,8 +313,8 @@
 
 (register-handler
   :memory-edit-save-error
-  (fn [app-state [_ result]]
-    (dispatch [:state-message (str "Error editing note: " result) "alert-danger"])
+  (fn [app-state [_ memory result]]
+    (dispatch [:state-message (str "Error editing memory: " result) "alert-danger"])
     (clear-token-on-unauth result)
     (assoc-in app-state [:ui-state :is-busy?] false)))
 
@@ -329,7 +334,7 @@
       (dispatch [:state-message (str "Thought forgotten") "alert-success"])
       (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
         (dispatch [:memories-load]))
-      (when thread-id
+      (when (thread-in-cache? app-state thread-id)
         (dispatch [:thread-load thread-id]))
       (-> app-state
           (assoc-in [:ui-state :is-busy?] false)
@@ -671,7 +676,7 @@
         is-busy?    (subscribe [:ui-state :is-busy?])
         ;; On the next one, we can't use not-empty because (= nil (not-empty nil)), and :show expects true/false,
         ;; not a truth-ish value.
-        show?       (reaction (seq @edit-memory))]
+        show?       (reaction (not (empty? @edit-memory)))]
     (fn []
       [Modal {:show @show? :onHide #(dispatch [:memory-edit-set nil])}
        [ModalBody
@@ -696,7 +701,7 @@
         ; to the @path... but the subscription is not refreshed when the @path changes.
         threads   (subscribe [:cache :threads])
         thread    (reaction (get @threads @thread-id))
-        ready?    (reaction (and @show? (not (empty? @thread))))]
+        ready?    (reaction (and (not-empty @thread) @show?))]
     (fn []
       [Modal {:show @ready? :onHide #(dispatch [:state-show-thread false])}
        [ModalBody
