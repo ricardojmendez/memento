@@ -1,6 +1,7 @@
 (ns numergent.test.utils
   #?(:clj
      (:require [numergent.utils :refer :all]
+               [memento.misc.html :refer :all]
                [clojure.test :refer :all])
      :cljs
      (:require [numergent.utils :refer [in-seq?]]
