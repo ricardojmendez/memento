@@ -643,34 +643,33 @@
         [:span {:dangerouslySetInnerHTML {:__html (:html memory)}}]
         ]
        [:div
-        [:div {:class "col-sm-6"}
+        [:div {:class "col-sm-4 show-on-hover"}
+         [:i [:small (:created memory)]]
+         (when (= :open (:status memory))
+           [OverlayTrigger
+            {:placement :top
+             :overlay   tooltip}
+            [:span {:class    "btn btn-danger btn-xs icon-margin-left"
+                    :on-click #(dispatch [:memory-forget memory])}
+             [:i {:class "fa fa-remove"}]]
+            ])]
+        [:div {:class "col-sm-6 col-sm-offset-2" :style {:text-align "right"}}
          (when (= :open (:status memory))
            [:a {:class    "btn btn-primary btn-xs"
                 :on-click #(do
                             (dispatch [:state-note :edit-note (:thought memory)])
                             (dispatch [:memory-edit-set memory]))}
             [:i {:class "fa fa-file-text icon-margin-both"}] "Edit"])
+         (if (and show-thread-btn? (:root_id memory))
+           [:a {:class "btn btn-primary btn-xs"
+                :href  (str "/thread/" (:root_id memory))}
+            [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])
          [:a {:class    "btn btn-primary btn-xs"
               :on-click #(do
                           (.scrollIntoView top-div-target)
                           (dispatch [:refine memory]))}
-          [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]
-         (if (and show-thread-btn? (:root_id memory))
-           [:a {:class "btn btn-primary btn-xs"
-                :href  (str "/thread/" (:root_id memory))}
-            [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])]
-        [:div {:class "col-sm-4 col-sm-offset-2" :style {:text-align "right"}}
-         [:i [:small (:created memory)]]
-         (when (= :open (:status memory))
-           [OverlayTrigger
-            {:placement :top
-             :overlay   tooltip}
-            [:span {:class    "btn btn-danger btn-xs icon-margin-left show-on-hover"
-                    :on-click #(dispatch [:memory-forget memory])}
-             [:i {:class "fa fa-remove"}]]
-            ])
-
-         ]]])))
+          [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]]
+        ]])))
 
 
 (defn edit-memory []

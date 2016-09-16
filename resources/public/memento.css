@@ -27,10 +27,10 @@
 }
 
 
-.hover-wrapper span.show-on-hover {
+.hover-wrapper .show-on-hover {
     visibility: hidden;
 }
 
-.hover-wrapper:hover span.show-on-hover {
+.hover-wrapper:hover .show-on-hover {
     visibility: visible;
 }
