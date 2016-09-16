@@ -5,7 +5,7 @@
             [cljsjs.react-bootstrap]
             [reagent.cookies :as cookies]
             [reagent.core :as reagent :refer [atom]]
-            [re-frame.core :refer [dispatch register-sub register-handler subscribe dispatch-sync]]
+            [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
             [jayq.core :refer [$]]
             [markdown.core :refer [md->html]]
             [markdown.common :as mdcommon]
@@ -94,13 +94,13 @@
 
 (defn general-query
   [db [sid element-id]]
-  (reaction (get-in @db [sid element-id])))
+  (get-in db [sid element-id]))
 
-(register-sub :note general-query)
-(register-sub :cache general-query)
-(register-sub :ui-state general-query)
-(register-sub :search-state general-query)
-(register-sub :credentials general-query)
+(reg-sub :note general-query)
+(reg-sub :cache general-query)
+(reg-sub :ui-state general-query)
+(reg-sub :search-state general-query)
+(reg-sub :credentials general-query)
 
 
 ;;;;-------------------------
@@ -157,7 +157,7 @@
     (dispatch [:auth-set-token nil])))
 
 
-(register-handler
+(reg-event-db
   :initialize
   (fn [app-state _]
     (merge app-state {:ui-state {:is-busy?      false
@@ -173,7 +173,7 @@
                       })))
 
 
-(register-handler
+(reg-event-db
   :auth-request
   (fn [app-state [_ signup?]]
     (let [url       (if signup? "signup" "login")
@@ -190,7 +190,7 @@
     (assoc-in app-state [:ui-state :wip-login?] true)
     ))
 
-(register-handler
+(reg-event-db
   :auth-set-token
   (fn [app-state [_ token]]
     (if (not-empty token)
@@ -205,7 +205,7 @@
         (assoc-in [:credentials :password] nil)
         (assoc-in [:credentials :password2] nil))))
 
-(register-handler
+(reg-event-db
   :auth-request-error
   (fn [app-state [_ result]]
     (.log js/console (str result))
@@ -222,7 +222,7 @@
     ))
 
 
-(register-handler
+(reg-event-db
   :memories-load
   (fn [app-state [_ page-index]]
     (let [q      (get-in app-state [:ui-state :current-query])
@@ -249,13 +249,13 @@
         app-state
         ))))
 
-(register-handler
+(reg-event-db
   :memories-load-next
   (fn [app-state [_]]
     (dispatch [:memories-load (inc (get-in app-state [:search-state :page-index]))])
     app-state))
 
-(register-handler
+(reg-event-db
   :memories-load-success
   (fn [app-state [_ memories]]
     (-> app-state
@@ -264,7 +264,7 @@
         (assoc-in [:ui-state :is-searching?] false))
     ))
 
-(register-handler
+(reg-event-db
   :memories-load-error
   (fn [app-state [_ result]]
     (dispatch [:state-message (str "Error remembering: " result) "alert-danger"])
@@ -273,7 +273,7 @@
     ))
 
 
-(register-handler
+(reg-event-db
   :memory-edit-set
   (fn [app-state [_ thought]]
     (if (empty? thought)
@@ -281,7 +281,7 @@
     (assoc-in app-state [:note :edit-memory] thought)
     ))
 
-(register-handler
+(reg-event-db
   :memory-edit-save
   (fn [app-state _]
     (let [note   (get-in app-state [:note :edit-note])
@@ -294,7 +294,7 @@
     (assoc-in app-state [:ui-state :is-busy?] true)))
 
 
-(register-handler
+(reg-event-db
   :memory-edit-save-success
   (fn [app-state [_ memory msg]]
     (let [thread-id (:root_id memory)]
@@ -311,14 +311,14 @@
           (assoc :search-state nil)
           ))))
 
-(register-handler
+(reg-event-db
   :memory-edit-save-error
   (fn [app-state [_ memory result]]
     (dispatch [:state-message (str "Error editing memory: " result) "alert-danger"])
     (clear-token-on-unauth result)
     (assoc-in app-state [:ui-state :is-busy?] false)))
 
-(register-handler
+(reg-event-db
   :memory-forget
   (fn [app-state [_ memory]]
     (let [url (str "/api/thoughts/" (:id memory))]
@@ -327,7 +327,7 @@
                    :error-handler #(dispatch [:memory-forget-error %])}))
     app-state))
 
-(register-handler
+(reg-event-db
   :memory-forget-success
   (fn [app-state [_ memory msg]]
     (let [thread-id (:root_id memory)]
@@ -345,7 +345,7 @@
           )))
   )
 
-(register-handler
+(reg-event-db
   :memory-forget-error
   (fn [app-state [_ result]]
     (.log js/console "Forget error" result)
@@ -353,7 +353,7 @@
     (clear-token-on-unauth result)
     (assoc-in app-state [:ui-state :is-busy?] false)))
 
-(register-handler
+(reg-event-db
   :memory-save
   (fn [app-state _]
     (let [note (get-in app-state [:note :current-note])]
@@ -363,7 +363,7 @@
                              :error-handler #(dispatch [:memory-save-error %])}))
     (assoc-in app-state [:ui-state :is-busy?] true)))
 
-(register-handler
+(reg-event-db
   :memory-save-success
   (fn [app-state [_ result msg]]
     (dispatch [:state-message (str "Saved: " msg) "alert-success"])
@@ -378,7 +378,7 @@
         (assoc-in [:note :focus] nil)
         (assoc :search-state nil))))
 
-(register-handler
+(reg-event-db
   :memory-save-error
   (fn [app-state [_ result]]
     (dispatch [:state-message (str "Error saving note: " result) "alert-danger"])
@@ -386,7 +386,7 @@
     (assoc-in app-state [:ui-state :is-busy?] false)
     ))
 
-(register-handler
+(reg-event-db
   ; Separate handler from :thread-load so that we can choose when to display a thread and when to load it.
   :thread-display
   (fn [app-state [_ root-id]]
@@ -396,7 +396,7 @@
         (assoc-in [:ui-state :show-thread?] true)
         (assoc-in [:ui-state :show-thread-id] root-id))))
 
-(register-handler
+(reg-event-db
   :thread-load
   (fn [app-state [_ root-id]]
     (let [url (str "/api/threads/" root-id)]
@@ -406,7 +406,7 @@
            ))
     app-state))
 
-(register-handler
+(reg-event-db
   :thread-load-error
   (fn [app-state [_ result]]
     ; Not sure if we actually know which thread failed loading. Probably not if the call failed altogether.
@@ -414,14 +414,14 @@
     (dispatch [:state-message (str "Error loading thread: " result) "alert-danger"])
     app-state))
 
-(register-handler
+(reg-event-db
   :thread-load-success
   (fn [app-state [_ {:keys [id results] :as result}]]
     (dispatch [:state-ui-section :remember])
     (assoc-in app-state [:cache :threads id] (add-html-to-thoughts results))))
 
 
-(register-handler
+(reg-event-db
   :refine
   (fn [app-state [_ thought]]
     (dispatch [:state-browser-token :record])
@@ -432,25 +432,25 @@
 ;; :record leads to /record. The handler is expected to apply any
 ;; necessary changes to the ui state, or dispatch the relevant
 ;; events.
-(register-handler
+(reg-event-db
   :state-browser-token
   (fn [app-state [_ token-key]]
     (pushy/set-token! history (bidi/path-for routes token-key))
     app-state))
 
-(register-handler
+(reg-event-db
   :state-credentials
   (fn [app-state [_ k v]]
     (assoc-in app-state [:credentials k] v)))
 
-(register-handler
+(reg-event-db
   :state-ui-section
   (fn [app-state [_ section]]
     (if (= :remember section)
       (dispatch [:memories-load]))
     (assoc-in app-state [:ui-state :section] section)))
 
-(register-handler
+(reg-event-db
   :state-message
   (fn [app-state [_ msg class]]
     (let [message {:text msg :class class}]
@@ -459,7 +459,7 @@
         (js/setTimeout #(dispatch [:state-message-if-same message nil]) 3000))
       (assoc-in app-state [:ui-state :last-message] message))))
 
-(register-handler
+(reg-event-db
   :state-message-if-same
   (fn [app-state [_ compare-msg new-msg]]
     (if (= compare-msg (get-in app-state [:ui-state :last-message]))
@@ -467,18 +467,18 @@
       app-state
       )))
 
-(register-handler
+(reg-event-db
   :state-note
   (fn [app-state [_ note-id note]]
     (assoc-in app-state [:note note-id] note)))
 
-(register-handler
+(reg-event-db
   :state-current-query
   (fn [app-state [_ q]]
     (dispatch [:memories-load 0])
     (assoc-in app-state [:ui-state :current-query] q)))
 
-(register-handler
+(reg-event-db
   :state-show-thread
   (fn [app-state [_ show?]]
     (when-not show? (dispatch [:state-browser-token :remember]))
@@ -573,21 +573,21 @@
   )
 
 (defn write-section []
-  (let [note     (subscribe [:note :current-note])
-        is-busy? (subscribe [:ui-state :is-busy?])]
+  (let [note        (subscribe [:note :current-note])
+        is-busy?    (subscribe [:ui-state :is-busy?])
+        focus       (subscribe [:note :focus])
+        is-focused? (reaction (not-empty @focus))]
     (fn []
       [:fielset
        [:div {:class "form-horizontal"}
         [thought-edit-box :current-note]
         [:div {:class "form-group"}
-         [:div {:class "col-sm-12"}
-          [:button {:type     "reset"
-                    :class    "btn btn-default"
-                    :on-click #(dispatch [:state-note :current-note ""])} "Clear"]
+         [:div {:class "col-sm-12" :style {:text-align "right"}}
           [:button {:type     "submit"
                     :disabled (or @is-busy? (empty? @note))
                     :class    "btn btn-primary"
-                    :on-click #(dispatch [:memory-save])} "Remember"]
+                    :on-click #(dispatch [:memory-save])}
+           (if @is-focused? "Elaborate" "Record")]
           ]]
         ]]
       )))
@@ -643,34 +643,33 @@
         [:span {:dangerouslySetInnerHTML {:__html (:html memory)}}]
         ]
        [:div
-        [:div {:class "col-sm-6"}
+        [:div {:class "col-sm-4 show-on-hover"}
+         [:i [:small (:created memory)]]
+         (when (= :open (:status memory))
+           [OverlayTrigger
+            {:placement :top
+             :overlay   tooltip}
+            [:span {:class    "btn btn-danger btn-xs icon-margin-left"
+                    :on-click #(dispatch [:memory-forget memory])}
+             [:i {:class "fa fa-remove"}]]
+            ])]
+        [:div {:class "col-sm-6 col-sm-offset-2" :style {:text-align "right"}}
          (when (= :open (:status memory))
            [:a {:class    "btn btn-primary btn-xs"
                 :on-click #(do
                             (dispatch [:state-note :edit-note (:thought memory)])
                             (dispatch [:memory-edit-set memory]))}
             [:i {:class "fa fa-file-text icon-margin-both"}] "Edit"])
+         (if (and show-thread-btn? (:root_id memory))
+           [:a {:class "btn btn-primary btn-xs"
+                :href  (str "/thread/" (:root_id memory))}
+            [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])
          [:a {:class    "btn btn-primary btn-xs"
               :on-click #(do
                           (.scrollIntoView top-div-target)
                           (dispatch [:refine memory]))}
-          [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]
-         (if (and show-thread-btn? (:root_id memory))
-           [:a {:class "btn btn-primary btn-xs"
-                :href  (str "/thread/" (:root_id memory))}
-            [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])]
-        [:div {:class "col-sm-4 col-sm-offset-2" :style {:text-align "right"}}
-         [:i [:small (:created memory)]]
-         (when (= :open (:status memory))
-           [OverlayTrigger
-            {:placement :top
-             :overlay   tooltip}
-            [:span {:class    "btn btn-danger btn-xs icon-margin-left show-on-hover"
-                    :on-click #(dispatch [:memory-forget memory])}
-             [:i {:class "fa fa-remove"}]]
-            ])
-
-         ]]])))
+          [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]]
+        ]])))
 
 
 (defn edit-memory []
@@ -686,13 +685,15 @@
         [:div {:class "col-sm-12 thought"}
          [thought-edit-box :edit-note]]]
        [ModalFooter
-        [:button {:type     "reset"
-                  :class    "btn btn-default"
-                  :on-click #(dispatch [:memory-edit-set nil])} "Cancel"]
         [:button {:type     "submit"
                   :class    "btn btn-primary"
                   :disabled (or @is-busy? (empty? @note))
                   :on-click #(dispatch [:memory-edit-save])} "Save"]
+        ; May want to add a style to show the Cancel button only on mobile, as the same functionality can
+        ; easily be triggered on desktop by pressing Esc
+        [:button {:type     "reset"
+                  :class    "btn btn-default"
+                  :on-click #(dispatch [:memory-edit-set nil])} "Cancel"]
         ]])))
 
 
