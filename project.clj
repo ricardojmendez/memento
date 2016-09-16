@@ -113,6 +113,5 @@
    :project/test {:hooks          [leiningen.cljsbuild]
                   :source-paths   ["env/test/clj" "test/clj" "test/cljc" "test/cljs"]
                   :resource-paths ["env/dev/resources" "env/test/resources"]
-                  :cljsbuild      {:builds {:app {:source-paths ["env/dev/cljs"]}}}
                   }
    })
