@@ -580,10 +580,7 @@
        [:div {:class "form-horizontal"}
         [thought-edit-box :current-note]
         [:div {:class "form-group"}
-         [:div {:class "col-sm-12"}
-          [:button {:type     "reset"
-                    :class    "btn btn-default"
-                    :on-click #(dispatch [:state-note :current-note ""])} "Clear"]
+         [:div {:class "col-sm-12" :style {:text-align "right"}}
           [:button {:type     "submit"
                     :disabled (or @is-busy? (empty? @note))
                     :class    "btn btn-primary"
@@ -685,13 +682,15 @@
         [:div {:class "col-sm-12 thought"}
          [thought-edit-box :edit-note]]]
        [ModalFooter
-        [:button {:type     "reset"
-                  :class    "btn btn-default"
-                  :on-click #(dispatch [:memory-edit-set nil])} "Cancel"]
         [:button {:type     "submit"
                   :class    "btn btn-primary"
                   :disabled (or @is-busy? (empty? @note))
                   :on-click #(dispatch [:memory-edit-save])} "Save"]
+        ; May want to add a style to show the Cancel button only on mobile, as the same functionality can
+        ; easily be triggered on desktop by pressing Esc
+        [:button {:type     "reset"
+                  :class    "btn btn-default"
+                  :on-click #(dispatch [:memory-edit-set nil])} "Cancel"]
         ]])))
 
 
