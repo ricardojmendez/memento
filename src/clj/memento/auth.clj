@@ -22,15 +22,17 @@
     (io/resource (:pubkey auth-conf))))
 
 (defn create-auth-token
-  "Attempts to create an authorization token based on a username and password"
-  [username password]
-  (let [auth-conf (:auth-conf env)
-        valid?    (user/validate-user username password)
-        exp       (t/plus (t/now) (t/days 1))]
-    (if valid?
-      (jwt/sign {:username (string/lower-case username)}
-                (pkey auth-conf)
-                {:alg :rs256 :exp exp}))))
+  "Attempts to create an authorization token based on a username and password.
+  By default, the token has a validity of one day."
+  ([username password]
+   (create-auth-token username password (t/plus (t/now) (t/days 1))))
+  ([username password expiration]
+   (let [auth-conf (:auth-conf env)
+         valid?    (user/validate-user username password)]
+     (if valid?
+       (jwt/sign {:username (string/lower-case username)}
+                 (pkey auth-conf)
+                 {:alg :rs256 :exp expiration})))))
 
 
 (defn decode-token

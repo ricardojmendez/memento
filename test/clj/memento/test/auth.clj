@@ -1,5 +1,6 @@
 (ns memento.test.auth
   (:require [clojure.test :refer :all]
+            [clj-time.core :as t]
             [luminus-migrations.core :as migrations]
             [memento.auth :as auth]
             [memento.config :refer [env]]
@@ -39,6 +40,9 @@
   (let [token (auth/create-auth-token "user1" "password1")]
     (is token)
     (is (< 0 (count token))))
+  (let [expiry (t/plus (t/now) (t/minutes 1))
+        token (auth/create-auth-token "user1" "password1" expiry)]
+    (is token))
   (is (nil? (auth/create-auth-token "user1" "invalid"))))
 
 
@@ -50,8 +54,18 @@
           result (auth/decode-token token)]
       (is result)
       (is (= "user1" (:username result)))
-      (is (< 0 (:exp result)))
+      (is (pos? (:exp result)))
       ))
+  (testing "Attempt to decode a token created with a specific validity"
+    (let [expiry (t/plus (t/now) (t/minutes 2))
+          token  (auth/create-auth-token "user1" "password1" expiry)
+          result (auth/decode-token token)]
+      (is result)
+      (is (= "user1" (:username result)))))
+  (testing "Attempt to decode a token an already expired token should fail"
+    (let [token  (auth/create-auth-token "user1" "password1" (t/minus (t/now) (t/seconds 1)))
+          result (auth/decode-token token)]
+      (nil? result)))
   (testing "Attempt to decode an invalid token"
     (is (nil? (auth/decode-token "invalid"))))
   )
@@ -65,6 +79,5 @@
         result (auth/decode-token token)]
     (is token)
     (is (< 0 (count token)))
-    (is (= "user1" (:username result))))
-  )
+    (is (= "user1" (:username result)))))
 
