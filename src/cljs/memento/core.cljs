@@ -573,8 +573,10 @@
   )
 
 (defn write-section []
-  (let [note     (subscribe [:note :current-note])
-        is-busy? (subscribe [:ui-state :is-busy?])]
+  (let [note        (subscribe [:note :current-note])
+        is-busy?    (subscribe [:ui-state :is-busy?])
+        focus       (subscribe [:note :focus])
+        is-focused? (reaction (not-empty @focus))]
     (fn []
       [:fielset
        [:div {:class "form-horizontal"}
@@ -584,7 +586,8 @@
           [:button {:type     "submit"
                     :disabled (or @is-busy? (empty? @note))
                     :class    "btn btn-primary"
-                    :on-click #(dispatch [:memory-save])} "Remember"]
+                    :on-click #(dispatch [:memory-save])}
+           (if @is-focused? "Elaborate" "Record")]
           ]]
         ]]
       )))
