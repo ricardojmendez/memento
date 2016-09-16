@@ -45,8 +45,8 @@ While we could create the extensions on a migration, that would require the meme
 Then run the migrations on both dev and test with:
 
 ```shell
-lein migratus migrate
-lein with-profile test migratus migrate
+lein run migrate
+lein with-profile test run migrate
 ```
 
 
