@@ -2,6 +2,8 @@
 
 Work in progress, pre-alpha experimental project.
 
+[![build status](https://gitlab.com/ricardojmendez/memento/badges/develop/build.svg)](https://gitlab.com/ricardojmendez/memento/commits/develop)
+
 ## Prerequisites
 
 You will need [Leiningen][1] 2.0 or above installed.
