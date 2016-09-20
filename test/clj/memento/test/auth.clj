@@ -62,13 +62,35 @@
           result (auth/decode-token token)]
       (is result)
       (is (= "user1" (:username result)))))
-  (testing "Attempt to decode a token an already expired token should fail"
+  (testing "Attempt to decode an already expired token should fail"
     (let [token  (auth/create-auth-token "user1" "password1" (t/minus (t/now) (t/seconds 1)))
           result (auth/decode-token token)]
-      (nil? result)))
+      (is (nil? result))))
   (testing "Attempt to decode an invalid token"
-    (is (nil? (auth/decode-token "invalid"))))
-  )
+    (is (nil? (auth/decode-token "invalid")))))
+
+(deftest test-decode-for-buddy
+  (testing "Attempt to decode a good token"
+    (let [token  (auth/create-auth-token "user1" "password1")
+          result (auth/decode-for-buddy nil token)]
+      (is result)
+      (is (= "user1" (:username result)))
+      (is (= token (:token result)))
+      (is (some? (:exp result)))))
+  (testing "Decode function does not care about the first parameter"
+    (let [token  (auth/create-auth-token "user1" "password1")
+          result (auth/decode-for-buddy "gibberish" token)]
+      (is result)
+      (is (= "user1" (:username result)))
+      (is (= token (:token result)))
+      (is (some? (:exp result)))))
+  (testing "Attempt to decode a bad token"
+    (let [result (auth/decode-for-buddy nil "gibberish")]
+      (is (nil? result))))
+  (testing "Attempt to decode an already expired token should fail"
+    (let [token  (auth/create-auth-token "user1" "password1" (t/minus (t/now) (t/seconds 1)))
+          result (auth/decode-for-buddy nil token)]
+      (is (nil? result)))))
 
 
 (deftest test-username-lower-case

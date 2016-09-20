@@ -12,7 +12,8 @@
             [memento.db.core :refer [*db*] :as db]
             [memento.db.memory :as memory]
             [ring.mock.request :refer [request header body]]
-            [clojure.string :as string])
+            [clojure.string :as string]
+            [memento.auth :as auth])
   (:import java.io.ByteArrayOutputStream))
 
 
@@ -127,6 +128,35 @@
     (let [[response data] (post-request "/api/auth/login" {:username "user1" :password "Password1"} nil)]
       (is (= 401 (:status response)))
       (is (nil? data))))
+  )
+
+(deftest test-auth-validate
+  (tdb/wipe-database! *db*)
+  (user/create-user! "user1" "password1")
+  (testing "We can validate a token we just created through login"
+    (let [[_ data] (post-request "/api/auth/login" {:username "user1" :password "password1"} nil)
+          token (:token data)
+          [response body] (get-request "/api/auth/validate" nil token)]
+      (is (some? token))
+      (is (= 200 (:status response)))
+      (is (= token (:token body)))))
+  (testing "We  can validate a token we created directly"
+    (let [token (auth/create-auth-token "user1" "password1")
+          [response body] (get-request "/api/auth/validate" nil token)]
+      (is (some? token))
+      (is (= 200 (:status response)))
+      (is (= token (:token body)))))
+  (testing "We cannot validate an expired token"
+    (let [token (auth/create-auth-token "user1" "password1" (t/minus (t/now) (t/minutes 1)))
+          [response _] (get-request "/api/auth/validate" nil token)]
+      (is (some? token))
+      (is (= 401 (:status response)))))
+  (testing "We cannot validate a nil token"
+    (let [[response _] (get-request "/api/auth/validate" nil nil)]
+      (is (= 401 (:status response)))))
+  (testing "We cannot validate gibberish"
+    (let [[response _] (get-request "/api/auth/validate" nil "I'MFORREAL")]
+      (is (= 401 (:status response)))))
   )
 
 

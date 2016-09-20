@@ -43,3 +43,12 @@
     (jwt/unsign token (pubkey (:auth-conf env)) {:alg :rs256})
     ;; We don't really care why decoding failed for now
     (catch clojure.lang.ExceptionInfo _ nil)))
+
+
+(defn decode-for-buddy
+  "Function to be used for buddy's wrap-authentication. It'll decode
+  a token, return the associated username, expiration and the token
+  itself."
+  [_ token]
+  (when-let [result (decode-token token)]
+    (assoc result :token token)))
