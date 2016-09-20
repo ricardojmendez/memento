@@ -124,7 +124,7 @@
   (bidi/match-route routes s))
 
 (def history
-  (pushy/pushy set-page! bidi-matcher #_(partial bidi/match-route routes)))
+  (pushy/pushy set-page! bidi-matcher))
 
 
 ;;;;-------------------------
@@ -163,7 +163,7 @@
     (merge app-state {:ui-state {:is-busy?      false
                                  :wip-login?    false
                                  :show-thread?  false
-                                 :section       :login
+                                 :section       :record
                                  :current-query ""
                                  :results-page  0
                                  :memories      {:pages 0}
@@ -458,7 +458,10 @@
   (fn [app-state [_ section]]
     (if (= :remember section)
       (dispatch [:memories-load]))
-    (assoc-in app-state [:ui-state :section] section)))
+    ; Do not associate nil sections
+    (if (some? section)
+      (assoc-in app-state [:ui-state :section] section)
+      app-state)))
 
 (reg-event-db
   :state-message
@@ -739,8 +742,7 @@
           (list-memories @results true))
         [memory-load-trigger]
         ]
-       "panel-primary"]
-      )))
+       "panel-primary"])))
 
 (defn memory-list []
   (fn []
@@ -749,7 +751,6 @@
      [memory-thread]
      [memory-query]
      [memory-results]]))
-
 
 (defn login-form []
   (let [username  (subscribe [:credentials :username])
@@ -808,6 +809,7 @@
           [:button {:type "button" :class "btn btn-primary" :disabled @wip? :on-click #(dispatch [:auth-request @signup?])} "Submit"]]
          ]]]
       )))
+
 
 
 (defn content-section []
