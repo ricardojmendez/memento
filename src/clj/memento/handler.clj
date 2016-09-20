@@ -14,15 +14,10 @@
                 :stop ((or (:stop defaults) identity)))
 
 
-(defn auth-token-decode
-  [_ token]
-  (when-let [result (auth/decode-token token)]
-    (:username result)))
-
 ;; Create an instance of auth backend.
 
 (def auth-backend
-  (token-backend {:authfn auth-token-decode}))
+  (token-backend {:authfn auth/decode-for-buddy}))
 
 
 (defn app []
