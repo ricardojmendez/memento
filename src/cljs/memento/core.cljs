@@ -205,6 +205,7 @@
         (assoc-in [:credentials :password] nil)
         (assoc-in [:credentials :password2] nil))))
 
+
 (reg-event-db
   :auth-request-error
   (fn [app-state [_ result]]
@@ -221,6 +222,15 @@
           (assoc-in [:credentials :password2] nil)))
     ))
 
+(reg-event-db
+  :auth-validate
+  (fn [app-state _]
+    (when-let [token (get-in app-state [:credentials :token])]
+      (GET "/api/auth/validate" {:headers       {:authorization (str "Token " token)}
+                                 :handler       #(dispatch [:auth-set-token (:token %)])
+                                 :error-handler #(dispatch [:auth-request-error %])}))
+    app-state
+    ))
 
 (reg-event-db
   :memories-load
@@ -848,5 +858,6 @@
   (pushy/start! history)
   (dispatch-sync [:initialize])
   (dispatch-sync [:auth-set-token (cookies/get :token nil)])
+  (dispatch-sync [:auth-validate])
   (add-on-appear-handler "#load-trigger" #(dispatch [:memories-load-next]))
   (mount-components))
