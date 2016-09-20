@@ -1,0 +1,19 @@
+image: clojure:lein-2.7.0
+services:
+  - postgres:latest
+
+variables:
+  POSTGRES_DB: memento-test
+  DATABASE_URL: "postgresql://memento:testdb@postgres:5432/memento_test"
+
+before_script:
+  - apt-get update -y
+  - apt-get install postgresql-client -y
+  - psql -h postgres -U postgres < db-setup.sql
+  - lein deps
+  - echo $DATABASE_URL
+  - lein with-profile test run migrate
+
+test: 
+  script: 
+    - lein test

@@ -33,10 +33,11 @@
              :authorized? (fn [{request :request}]
                             (let [{:keys [identity request-method params]} request
                                   id            (:id params)
-                                  has-identity? (not-empty identity)
+                                  username      (:username identity)
+                                  has-identity? (not-empty username)
                                   is-owner?     #(and has-identity?
                                                       id
-                                                      (= identity (:username (memory/load-memory (UUID/fromString id)))))]
+                                                      (= username (:username (memory/load-memory (UUID/fromString id)))))]
                               (condp = request-method
                                 :get has-identity?
                                 :post has-identity?
@@ -46,7 +47,7 @@
                               ))
              :handle-ok (fn [{request :request}]
                           (let [query    (:query-params request)
-                                username (:identity request)
+                                username (get-in request [:identity :username])
                                 page     (utils/parse-string-number (query "page"))
                                 offset   (* page memory/result-limit)]
                             (-> (memory/query-memories username nil offset)
@@ -58,7 +59,7 @@
                      {:save-result (memory/update-memory! {:id (UUID/fromString id) :thought thought})})
              :post! (fn [ctx]
                       (let [content  (read-content ctx)
-                            username (get-in ctx [:request :identity])]
+                            username (get-in ctx [:request :identity :username])]
                         (when (not-empty content)
                           {:save-result (memory/create-memory! (assoc content :username username))})))
              :delete! (fn [{{{:keys [id]} :params} :request}]
@@ -78,7 +79,7 @@
                             (some? (get-in ctx [:request :identity])))
              :handle-ok (fn [{request :request}]
                           (let [query    (:query-params request)
-                                username (:identity request)
+                                username (get-in request [:identity :username])
                                 page     (utils/parse-string-number (query "page"))
                                 offset   (* page memory/result-limit)]
                             (-> (memory/query-memories username (query "q") offset)
@@ -98,7 +99,7 @@
                                 id     (UUID/fromString id-str)]
                             (->> id
                                  memory/query-memory-thread
-                                 (filter #(= (:username %) (:identity request)))
+                                 (filter #(= (:username %) (get-in request [:identity :username])))
                                  ; I'll return the id as a string so that the frontend doesn't
                                  ; have to do any parsing guesswork.
                                  (hash-map :id id-str :results)
@@ -117,6 +118,16 @@
              :post! true                                    ; All the work is done on authorized?
              :handle-created (fn [ctx]
                                {:token (:token ctx)})
+             :available-media-types ["application/transit+json"
+                                     "application/transit+msgpack"
+                                     "application/json"])
+
+(defresource validate
+             :allowed-methods [:get]
+             :authorized? (fn [ctx]
+                            (some? (get-in ctx [:request :identity])))
+             :handle-ok (fn [ctx]
+                          {:token (get-in ctx [:request :identity :token])})
              :available-media-types ["application/transit+json"
                                      "application/transit+msgpack"
                                      "application/json"])
@@ -151,13 +162,14 @@
 
 
 (def api-routes
-  ["/api/" {"echo/"       {[:val] echo}
-            "auth/login"  login
-            "auth/signup" signup
-            "thoughts"    memory
-            "thoughts/"   {[:id] memory}
-            "threads/"    {[:id] thought-thread}
-            "search"      memory-search}])
+  ["/api/" {"echo/"         {[:val] echo}
+            "auth/login"    login
+            "auth/signup"   signup
+            "auth/validate" validate
+            "thoughts"      memory
+            "thoughts/"     {[:id] memory}
+            "threads/"      {[:id] thought-thread}
+            "search"        memory-search}])
 
 (def not-found-route
   ["/" [[true not-found]]])
