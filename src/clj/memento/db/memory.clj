@@ -115,6 +115,5 @@
 (defn query-memory-thread
   "Returns a list with all the memories belonging to a root id"
   [id]
-  (->> (db/get-thread-by-root-id *db* {:id id})
-       (map set-memory-status)))
+  (map set-memory-status (db/get-thread-by-root-id *db* {:id id})))
 
