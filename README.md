@@ -41,7 +41,7 @@ To start a web server for the application, run:
 
 ## Testing
 
-Running `lein test` will run the tests against an index `memento-test` on the local host.  
+Running `lein test` will run the tests against the `memento_test` database on the local host.  
 
 If you're using Cursive Clojure, bear in mind it does not yet support a way to launch a REPL with specific environment profile. Since the application reads its database connection parameters from the environment configuration, if you start a REPL from Cursive and run the tests against it, you'll be running them against the development database and not the test one.
 
@@ -49,4 +49,4 @@ Make sure you either create a REPL profile specifically for the test settings, o
 
 ## License
 
-Copyright © 2015 Numergent Limited.
+Copyright © 2015-2017 Numergent Limited.
