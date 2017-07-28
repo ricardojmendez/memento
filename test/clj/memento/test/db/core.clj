@@ -4,8 +4,7 @@
             [memento.db.core :refer [*db*] :as db]
             [memento.config :refer [env]]
             [mount.core :as mount]
-            [luminus-migrations.core :as migrations])
-  (:import (java.sql BatchUpdateException)))
+            [luminus-migrations.core :as migrations]))
 
 
 ;;;;
@@ -30,7 +29,7 @@
 
 (deftest test-create-user
   (wipe-database! *db*)
-  (let [result (db/create-user!  *db* {:username "testuser" :password "unencrypted"})]
+  (let [result (db/create-user! *db* {:username "testuser" :password "unencrypted"})]
     (is (= 1 result))))
 
 
@@ -49,4 +48,5 @@
 (deftest create-user-twice-fails
   (wipe-database! *db*)
   (db/create-user! *db* {:username "testuser" :password "nothere"})
-  (is (thrown? BatchUpdateException (db/create-user! *db* {:username "testuser" :password "notagain"}))))
+  (is (thrown? java.lang.Exception
+               (db/create-user! *db* {:username "testuser" :password "notagain"}))))

@@ -670,8 +670,8 @@
          (when (= :open (:status memory))
            [:a {:class    "btn btn-primary btn-xs"
                 :on-click #(do
-                            (dispatch [:state-note :edit-note (:thought memory)])
-                            (dispatch [:memory-edit-set memory]))}
+                             (dispatch [:state-note :edit-note (:thought memory)])
+                             (dispatch [:memory-edit-set memory]))}
             [:i {:class "fa fa-file-text icon-margin-both"}] "Edit"])
          (if (and show-thread-btn? (:root_id memory))
            [:a {:class "btn btn-primary btn-xs"
@@ -679,8 +679,8 @@
             [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])
          [:a {:class    "btn btn-primary btn-xs"
               :on-click #(do
-                          (.scrollIntoView top-div-target)
-                          (dispatch [:refine memory]))}
+                           (.scrollIntoView top-div-target)
+                           (dispatch [:refine memory]))}
           [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]]
         ]])))
 
