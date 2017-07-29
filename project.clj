@@ -39,10 +39,15 @@
   :uberjar-name "memento.jar"
   :jvm-opts ["-server" "-Dconf=.lein-env"]
 
+  :heroku {:app-name      "mementoapp"
+           :include-files ["target/uberjar/memento.jar"]}
+
+
   :main memento.core
 
   :plugins [[lein-cprop "1.0.3"]
             [lein-cljsbuild "1.1.7"]
+            [lein-heroku "0.5.3"]
             [migratus-lein "0.5.0"]]
 
 
@@ -53,6 +58,7 @@
 
   :source-paths ["src/clj" "src/cljs" "src/cljc"]
   :resource-paths ["resources"]
+  :target-path "target/%s/"
   :test-paths ["test/clj" "test/cljs" "test/cljc"]
 
   :cljsbuild
