@@ -2,8 +2,7 @@
   (:require [clojure.string :refer [lower-case]]
             [memento.config :refer [env]]
             [buddy.hashers :as hashers]
-            [memento.db.core :refer [*db*] :as db])
-  (:import (java.sql BatchUpdateException)))
+            [memento.db.core :refer [*db*] :as db]))
 
 
 
@@ -21,8 +20,8 @@
                   record    {:username (lower-case username) :password encrypted}]
               (db/create-user! *db* record)
               (assoc record :success? true))
-            (catch BatchUpdateException e
-              {:success? false :message (->> e .getNextException .getMessage)}))))
+            (catch Exception e
+              {:success? false :message (-> e .getCause .getMessage)}))))
 
 
 (defn validate-user

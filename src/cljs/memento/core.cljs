@@ -14,7 +14,11 @@
             [markdown.transformers :as transformers]
             [pushy.core :as pushy]
             [ajax.core :refer [GET POST PUT DELETE]]
-            [clojure.string :as string])
+            [clojure.string :as string]
+            [taoensso.timbre :as timbre
+             :refer-macros [log trace debug info warn error fatal report
+                            logf tracef debugf infof warnf errorf fatalf reportf
+                            spy get-env]])
   (:require-macros [reagent.ratom :refer [reaction]]
                    [memento.misc.cljs-macros :refer [adapt-bootstrap]])
   (:import goog.History))
@@ -116,11 +120,13 @@
 
 (defn set-page! [match]
   (let [{:keys [handler route-params]} match]
+    (trace "Setting" match)
     (if (fn? handler)
       (handler route-params)
       (dispatch [:state-ui-section handler]))))
 
 (defn bidi-matcher [s]
+  (trace "Matching" s (bidi/match-route routes s))
   (bidi/match-route routes s))
 
 (def history
@@ -176,13 +182,13 @@
 (reg-event-db
   :auth-request
   (fn [app-state [_ signup?]]
-    (let [url       (if signup? "signup" "login")
-          ;; Should probalby centralize password validation, so we can use the same function
+    (let [url    (if signup? "signup" "login")
+          ;; Should probably centralize password validation, so we can use the same function
           ;; both here and when the UI is being updated
-          is-valid? (or (not signup?)
-                        (= (get-in app-state [:credentials :password])
-                           (get-in app-state [:credentials :password2])))]
-      (if is-valid?
+          valid? (or (not signup?)
+                     (= (get-in app-state [:credentials :password])
+                        (get-in app-state [:credentials :password2])))]
+      (if valid?
         (POST (str "/api/auth/" url) {:params        (:credentials app-state)
                                       :handler       #(dispatch [:auth-set-token (:token %)])
                                       :error-handler #(dispatch [:auth-request-error %])}))
@@ -196,9 +202,12 @@
     (if (not-empty token)
       (dispatch [:state-message ""]))
     (cookies/set! :token token)
-    (if (empty? token)
-      (set-page! "/login")
-      (set-page! (bidi-matcher (-> js/window .-location .-pathname))))
+    (trace "Got token" token app-state)
+    (trace "Current state" (bidi-matcher (-> js/window .-location .-pathname)))
+    (cond
+      (empty? token) (dispatch [:state-ui-section :login])
+      (= :signup (get-in app-state [:ui-state :section])) (dispatch [:state-ui-section :record])
+      :else (set-page! (bidi-matcher (-> js/window .-location .-pathname))))
     (-> app-state
         (assoc-in [:credentials :token] token)
         (assoc-in [:ui-state :wip-login?] false)
@@ -456,6 +465,7 @@
 (reg-event-db
   :state-ui-section
   (fn [app-state [_ section]]
+    (trace :state-ui-section section)
     (if (= :remember section)
       (dispatch [:memories-load]))
     ; Do not associate nil sections
@@ -670,8 +680,8 @@
          (when (= :open (:status memory))
            [:a {:class    "btn btn-primary btn-xs"
                 :on-click #(do
-                            (dispatch [:state-note :edit-note (:thought memory)])
-                            (dispatch [:memory-edit-set memory]))}
+                             (dispatch [:state-note :edit-note (:thought memory)])
+                             (dispatch [:memory-edit-set memory]))}
             [:i {:class "fa fa-file-text icon-margin-both"}] "Edit"])
          (if (and show-thread-btn? (:root_id memory))
            [:a {:class "btn btn-primary btn-xs"
@@ -679,8 +689,8 @@
             [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])
          [:a {:class    "btn btn-primary btn-xs"
               :on-click #(do
-                          (.scrollIntoView top-div-target)
-                          (dispatch [:refine memory]))}
+                           (.scrollIntoView top-div-target)
+                           (dispatch [:refine memory]))}
           [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]]
         ]])))
 
@@ -762,8 +772,7 @@
         signup?   (reaction (= :signup @section))
         u-class   (reaction (if (and @signup? (empty? @username)) " has-error"))
         pw-class  (reaction (if (and @signup? (> 5 (count @password))) " has-error"))
-        pw2-class (reaction (if (not= @password @confirm) " has-error"))
-        ]
+        pw2-class (reaction (if (not= @password @confirm) " has-error"))]
     (fn []
       [:div {:class "modal"}
        [:div {:class "modal-dialog"}
