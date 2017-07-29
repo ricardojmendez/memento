@@ -29,10 +29,9 @@
                  [mount "0.1.11"]
                  [org.jsoup/jsoup "1.10.3"]
                  [org.postgresql/postgresql "42.1.3"]
-                 [reagent "0.6.0" :exclusions [cljsjs/react]]
                  [ring/ring-defaults "0.3.1"]               ; Used for anti-forgery
                  [reagent-utils "0.2.1"]                    ; Used for reagent.cookies
-                 [re-frame "0.8.0"]
+                 [re-frame "0.9.4"]
                  [ring/ring-session-timeout "0.2.0"]
                  [selmer "1.11.0"]]
 
