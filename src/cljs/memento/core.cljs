@@ -66,7 +66,8 @@
    mdcommon/bold
    mdcommon/strikethrough
    transformers/superscript
-   transformers/blockquote
+   transformers/blockquote-1
+   transformers/blockquote-2
    paragraph-on-single-line                                 ; Replaces transformers/paragraph
    transformers/br
    mdcommon/thaw-strings

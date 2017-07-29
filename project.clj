@@ -23,7 +23,7 @@
                  [luminus-immutant "0.2.3"]
                  [luminus-migrations "0.3.9"]
                  [luminus-nrepl "0.1.4"]
-                 [markdown-clj "0.9.89"]
+                 [markdown-clj "0.9.99"]
                  [metosin/ring-middleware-format "0.6.0"]
                  [metosin/ring-http-response "0.9.0"]
                  [mount "0.1.11"]
