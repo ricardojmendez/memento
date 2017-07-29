@@ -7,12 +7,25 @@ variables:
 
 before_script:
   - apt-get update -y
-  - apt-get install postgresql-client -y
-  - psql -h postgres -U postgres < db-setup.sql
   - lein deps
-  - echo $DATABASE_URL
-  - lein with-profile test run migrate
+
 
 test: 
   script: 
-    - lein test
+  - apt-get install postgresql-client -y
+  - psql -h postgres -U postgres < db-setup.sql
+  - echo $DATABASE_URL
+  - lein with-profile test run migrate
+  - lein test
+
+production:
+  type: deploy
+  script:
+  - export LEIN_SNAPSHOTS_IN_RELEASE=true
+  - lein uberjar
+  - HEROKU_API_KEY=$HEROKU_PRODUCTION_API_KEY lein heroku deploy
+  artifacts:
+    paths:
+    - target/uberjar/memento.jar
+  only:
+  - master
