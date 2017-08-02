@@ -28,4 +28,4 @@ production:
     paths:
     - target/uberjar/memento.jar
   only:
-  - master
+  - tags
