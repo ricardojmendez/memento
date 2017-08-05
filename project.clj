@@ -62,19 +62,12 @@
   :test-paths ["test/clj" "test/cljs" "test/cljc"]
 
   :cljsbuild
-  {:builds        {:app  {:source-paths ["src/cljs"]
-                          :compiler     {:output-dir    "resources/public/js/"
-                                         :externs       ["react/externs/react.js" "externs/jquery-1.9.js" "externs/misc-externs.js"]
-                                         :optimizations :none
-                                         :output-to     "resources/public/js/memento.js"
-                                         :pretty-print  true}}
-                   :test {:source-paths ["src/cljs"]
-                          :compiler
-                                        {:output-dir    "target/test/"
-                                         :externs       ["react/externs/react.js" "externs/jquery-1.9.js" "externs/misc-externs.js"]
-                                         :optimizations :whitespace
-                                         :pretty-print  true
-                                         :output-to     "target/test/memento-tests.js"}}
+  {:builds        {:app {:source-paths ["src/cljs"]
+                         :compiler     {:output-dir    "resources/public/js/"
+                                        :externs       ["react/externs/react.js" "externs/jquery-1.9.js" "externs/misc-externs.js"]
+                                        :optimizations :none
+                                        :output-to     "resources/public/js/memento.js"
+                                        :pretty-print  true}}
                    }
    :test-commands {"test" ["phantomjs" "phantom/unit-test.js" "phantom/unit-test.html"]}}
 
@@ -118,5 +111,12 @@
    :project/test {:hooks          [leiningen.cljsbuild]
                   :source-paths   ["env/test/clj" "test/clj" "test/cljc" "test/cljs"]
                   :resource-paths ["env/dev/resources" "env/test/resources"]
+                  :cljsbuild      {:builds {:test {:source-paths ["src/cljs"]
+                                                   :compiler
+                                                                 {:output-dir    "target/test/"
+                                                                  :externs       ["react/externs/react.js" "externs/jquery-1.9.js" "externs/misc-externs.js"]
+                                                                  :optimizations :whitespace
+                                                                  :pretty-print  true
+                                                                  :output-to     "target/test/memento-tests.js"}}}}
                   }
    })

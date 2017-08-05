@@ -1,6 +1,4 @@
 image: clojure:lein-2.7.0
-services:
-  - postgres:latest
 
 variables:
   DATABASE_URL: "postgresql://memento:testdb@postgres:5432/memento_test"
@@ -11,7 +9,9 @@ before_script:
 
 
 test: 
-  script: 
+  services:
+    - postgres:latest
+  script:
   - apt-get install postgresql-client -y
   - psql -h postgres -U postgres < db-setup.sql
   - echo $DATABASE_URL
