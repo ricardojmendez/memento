@@ -1,19 +1,22 @@
 (ns memento.db.reminder
-  (:require [memento.config :refer [env]]
-            [clj-time.format :as tf]
+  (:require [clj-time.format :as tf]
             [clj-time.coerce :as tc]
             [clj-time.core :as tm]
-            [clojure.string :as s]
-            [memento.db.core :refer [*db*] :as db]
             [clojure.java.jdbc :as jdbc]
-            [clj-time.coerce :as c]
-            [clj-time.core :as t]))
+            [clojure.string :as s]
+            [memento.config :refer [env]]
+            [memento.db.core :refer [*db*] :as db]
+            ))
 
 ;; TODO
-;; - create
 ;; - query
 ;; - mark as done
-;; -
+
+(defn get-by-id
+  [id]
+  (jdbc/with-db-transaction
+    [trans-conn *db*]
+    (db/get-reminder trans-conn {:id id})))
 
 (defn create!
   "Saves a new reminder associated with a memory."

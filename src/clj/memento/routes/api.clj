@@ -8,6 +8,7 @@
             [memento.routes.api.auth :as auth]
             [memento.routes.api.common :refer [read-content]]
             [memento.routes.api.memory :as memory]
+            [memento.routes.api.reminder :as reminder]
             [numergent.utils :as utils])
   (:import (java.util UUID)))
 
@@ -34,6 +35,7 @@
             "auth/login"    auth/login
             "auth/signup"   auth/signup
             "auth/validate" auth/validate
+            "reminders"     reminder/reminder
             "thoughts"      memory/memory
             "thoughts/"     {[:id] memory/memory}
             "threads/"      {[:id] memory/thought-thread}
