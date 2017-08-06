@@ -36,7 +36,7 @@
 
 (deftest test-create-auth-token
   (tdb/wipe-database! *db*)
-  (user/create-user! "user1" "password1")
+  (user/create! "user1" "password1")
   (let [token (auth/create-auth-token "user1" "password1")]
     (is token)
     (is (< 0 (count token))))
@@ -48,7 +48,7 @@
 
 (deftest test-decode-auth-token
   (tdb/wipe-database! *db*)
-  (user/create-user! "user1" "password1")
+  (user/create! "user1" "password1")
   (testing "Attempt to decode a good token"
     (let [token  (auth/create-auth-token "user1" "password1")
           result (auth/decode-token token)]
@@ -95,7 +95,7 @@
 
 (deftest test-username-lower-case
   (tdb/wipe-database! *db*)
-  (user/create-user! "User1" "password1")
+  (user/create! "User1" "password1")
   ;; Confirm we always get the username in lower case for the token
   (let [token  (auth/create-auth-token "User1" "password1")
         result (auth/decode-token token)]

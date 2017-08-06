@@ -28,7 +28,7 @@
    (create-auth-token username password (t/plus (t/now) (t/days 1))))
   ([username password expiration]
    (let [auth-conf (:auth-conf env)
-         valid?    (user/validate-user username password)]
+         valid?    (user/validate username password)]
      (if valid?
        (jwt/sign {:username (string/lower-case username)}
                  (pkey auth-conf)

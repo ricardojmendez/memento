@@ -16,7 +16,7 @@
 
 (deftest test-save-reminder
   (tdu/init-placeholder-data!)
-  (let [memory (memory/create-memory! {:username tdu/ph-username :thought "Just wondering"})
+  (let [memory (memory/create! {:username tdu/ph-username :thought "Just wondering"})
         result (reminder/create! {:thought_id (:id memory) :type_id "spaced"})]
     (is (map? result))
     (is (:id result))

@@ -37,7 +37,7 @@
                  (nil? (get-in ctx [:request :identity])))
   :post! (fn [ctx]
            (let [content (read-content ctx)
-                 created (user/create-user! (:username content) (:password content))]
+                 created (user/create! (:username content) (:password content))]
              (if (:success? created)
                {::token (auth/create-auth-token (:username content) (:password content))})))
   :handle-created (fn [{token ::token}]

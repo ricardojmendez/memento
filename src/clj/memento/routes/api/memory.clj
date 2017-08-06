@@ -17,7 +17,7 @@
                        has-identity? (not-empty username)
                        is-owner?     #(and has-identity?
                                            id
-                                           (= username (:username (memory/load-memory (UUID/fromString id)))))]
+                                           (= username (:username (memory/get-by-id (UUID/fromString id)))))]
                    (condp = request-method
                      :get has-identity?
                      :post has-identity?
@@ -30,20 +30,20 @@
                      username (get-in request [:identity :username])
                      page     (utils/parse-string-number (query "page"))
                      offset   (* page memory/result-limit)]
-                 (-> (memory/query-memories username nil offset)
+                 (-> (memory/query username nil offset)
                      (assoc :current-page page)
                      memory/format-created)
                  ))
   :can-put-to-missing? false
   :put! (fn [{{{:keys [id thought]} :params} :request}]
-          {:save-result (memory/update-memory! {:id (UUID/fromString id) :thought thought})})
+          {:save-result (memory/update! {:id (UUID/fromString id) :thought thought})})
   :post! (fn [ctx]
            (let [content  (read-content ctx)
                  username (get-in ctx [:request :identity :username])]
              (when (not-empty content)
-               {:save-result (memory/create-memory! (assoc content :username username))})))
+               {:save-result (memory/create! (assoc content :username username))})))
   :delete! (fn [{{{:keys [id]} :params} :request}]
-             (memory/delete-memory! (UUID/fromString id)))
+             (memory/delete! (UUID/fromString id)))
   :handle-created (fn [{record :save-result}]
                     (ring-response {:status  201
                                     :headers {"Location" (str "/api/thoughts/" (:id record))}
@@ -61,7 +61,7 @@
                      username (get-in request [:identity :username])
                      page     (utils/parse-string-number (query "page"))
                      offset   (* page memory/result-limit)]
-                 (-> (memory/query-memories username (query "q") offset)
+                 (-> (memory/query username (query "q") offset)
                      (assoc :current-page page)
                      memory/format-created)
                  ))
@@ -77,7 +77,7 @@
                (let [id-str (get-in request [:route-params :id])
                      id     (UUID/fromString id-str)]
                  (->> id
-                      memory/query-memory-thread
+                      memory/query-thread
                       (filter #(= (:username %) (get-in request [:identity :username])))
                       ;; I'll return the id as a string so that the frontend doesn't
                       ;; have to do any parsing guesswork.

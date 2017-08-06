@@ -27,7 +27,7 @@
 
 (deftest test-login
   (tdb/wipe-database! *db*)
-  (user/create-user! "user1" "password1")
+  (user/create! "user1" "password1")
   (testing "We get a login token when authenticating with a valid username/password"
     (let [[response data] (post-request "/api/auth/login" {:username "user1" :password "password1"} nil)]
       (is (= 201 (:status response)))
@@ -50,7 +50,7 @@
 
 (deftest test-auth-validate
   (tdb/wipe-database! *db*)
-  (user/create-user! "user1" "password1")
+  (user/create! "user1" "password1")
   (testing "We can validate a token we just created through login"
     (let [[_ data] (post-request "/api/auth/login" {:username "user1" :password "password1"} nil)
           token (:token data)
@@ -225,7 +225,7 @@
                   )))))
     )
   ;; Create a new user and confirm we only get his memories when querying
-  (user/create-user! "user1" "ssh!")
+  (user/create! "user1" "ssh!")
   (let [token (invoke-login {:username "user1" :password "ssh!"})]
     ;; Add a memory
     (post-request "/api/thoughts" {:thought "user1 - No thoughts in common with the previous ideas"} token)
@@ -324,7 +324,7 @@
 
 (deftest test-add-memory
   (tdu/init-placeholder-data!)
-  (user/create-user! "user1" "password1")
+  (user/create! "user1" "password1")
   (let [token (invoke-login {:username "user1" :password "password1"})]
     (testing "Attempting to add a memory without a token results in a 401"
       (testing "We can add a new memory"
@@ -387,7 +387,7 @@
 
 (deftest test-add-memory-clean-up
   (tdu/init-placeholder-data!)
-  (user/create-user! "user1" "password1")
+  (user/create! "user1" "password1")
   (let [token (invoke-login {:username "user1" :password "password1"})]
     (testing "HTML is cleaned up from the saved string"
       (let [[response record] (post-request "/api/thoughts"
@@ -419,8 +419,8 @@
 
 (deftest test-update-memory
   (tdu/init-placeholder-data!)
-  (user/create-user! "user1" "password1")
-  (user/create-user! "user2" "password2")
+  (user/create! "user1" "password1")
+  (user/create! "user2" "password2")
   (let [token-u1 (invoke-login {:username "user1" :password "password1"})
         token-u2 (invoke-login {:username "user2" :password "password2"})]
     (testing "We can update a memory by posting to an ID"
@@ -460,8 +460,8 @@
 
 (deftest test-delete-memory
   (tdu/init-placeholder-data!)
-  (user/create-user! "user1" "password1")
-  (user/create-user! "user2" "password2")
+  (user/create! "user1" "password1")
+  (user/create! "user2" "password2")
   (let [token-u1 (invoke-login {:username "user1" :password "password1"})
         token-u2 (invoke-login {:username "user2" :password "password2"})]
     (testing "We can update a memory by posting to an ID"
