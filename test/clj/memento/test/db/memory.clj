@@ -32,7 +32,7 @@
 
 
 (defn import-placeholder-memories!
-  "Imports a series of placehoder memories from a file of quotes"
+  "Imports a series of placeholder memories from a file of quotes"
   ([]
    (import-placeholder-memories! tdu/ph-username "quotes.txt"))
   ([username]
