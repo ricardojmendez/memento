@@ -1,10 +1,10 @@
 (ns memento.test.routes.api
-  ;; Let's NOT require memento.auth here, all calls should go through the API
   (:require [clojure.test :refer :all]
             [clj-time.coerce :as c]
             [clj-time.core :as t]
             [cognitect.transit :as transit]
             [memento.handler :refer [app]]
+            [memento.config :refer [env]]
             [memento.db.user :as user]
             [memento.test.db.core :as tdb]
             [memento.test.db.memory :as tdm]
@@ -14,7 +14,9 @@
             [memento.db.memory :as memory]
             [ring.mock.request :refer [request header body]]
             [clojure.string :as string]
-            [memento.auth :as auth]))
+            [numergent.auth :refer [create-auth-token decode-token]] ; Only for validation, all other calls should go through the API
+            [taoensso.timbre :as timbre])
+  (:import (java.util Date)))
 
 ;;;;
 ;;;; Tests
@@ -30,42 +32,42 @@
   (user/create! "user1" "password1")
   (testing "We get a login token when authenticating with a valid username/password"
     (let [[response data] (post-request "/api/auth/login" {:username "user1" :password "password1"} nil)]
-      (is (= 201 (:status response)))
-      (is (map? data))
-      (is (:token data))))
+      (is (= 200 (:status response)))
+      (is (string? data))
+      (decode-token (:auth-conf env) data)))
   (testing "Auth is not case-sensitive on the username"
     (let [[response data] (post-request "/api/auth/login" {:username "User1" :password "password1"} nil)]
-      (is (= 201 (:status response)))
-      (is (map? data))
-      (is (:token data))))
+      (is (= 200 (:status response)))
+      (is (string? data))
+      (decode-token (:auth-conf env) data)))
   (testing "We get a 401 when authenticating with an invalid username/password"
     (let [[response data] (post-request "/api/auth/login" {:username "user2" :password "password1"} nil)]
       (is (= 401 (:status response)))
-      (is (nil? data))))
+      (is (= "Authentication error" data))))
   (testing "Auth is case-sensitive on the password"
     (let [[response data] (post-request "/api/auth/login" {:username "user1" :password "Password1"} nil)]
       (is (= 401 (:status response)))
-      (is (nil? data))))
+      (is (= "Authentication error" data))))
   )
 
 (deftest test-auth-validate
   (tdb/wipe-database! *db*)
   (user/create! "user1" "password1")
   (testing "We can validate a token we just created through login"
-    (let [[_ data] (post-request "/api/auth/login" {:username "user1" :password "password1"} nil)
-          token (:token data)
+    (let [[_ token] (post-request "/api/auth/login" {:username "user1" :password "password1"} nil)
           [response body] (get-request "/api/auth/validate" nil token)]
       (is (some? token))
       (is (= 200 (:status response)))
-      (is (= token (:token body)))))
+      (is (= token body))))
   (testing "We  can validate a token we created directly"
-    (let [token (auth/create-auth-token "user1" "password1")
+    (let [token (create-auth-token (:auth-conf env) "user1")
           [response body] (get-request "/api/auth/validate" nil token)]
       (is (some? token))
       (is (= 200 (:status response)))
-      (is (= token (:token body)))))
+      (is (decode-token (:auth-conf env) body))
+      (is (= token body))))
   (testing "We cannot validate an expired token"
-    (let [token (auth/create-auth-token "user1" "password1" (t/minus (t/now) (t/minutes 1)))
+    (let [token (create-auth-token (:auth-conf env) "user1" (t/minus (t/now) (t/minutes 1)))
           [response _] (get-request "/api/auth/validate" nil token)]
       (is (some? token))
       (is (= 401 (:status response)))))
@@ -85,37 +87,37 @@
     (testing "Attempting to log in with the credentials initially results on a 401"
       (let [[response data] (post-request "/api/auth/login" {:username username :password password} nil)]
         (is (= 401 (:status response)))
-        (is (nil? data))))
+        (is (= "Authentication error" data))))
     (testing "We get a login token when signing up with a valid username/password"
       (let [[response data] (post-request "/api/auth/signup" {:username username :password password} nil)]
         (is (= 201 (:status response)))
-        (is (map? data))
-        (is (:token data))))
+        (is data)
+        (is (decode-token (:auth-conf env) data))
+        ))
     (testing "Attempting to log in with the credentials after creating it results on a token"
       (let [[response data] (post-request "/api/auth/login" {:username username :password password} nil)]
-        (is (= 201 (:status response)))
-        (is (:token data))))
+        (is (= 200 (:status response)))
+        (is (decode-token (:auth-conf env) data))))
     (testing "Attempting to sign up with the same username/password results on an error"
       (let [[response data] (post-request "/api/auth/signup" {:username username :password password} nil)]
         (is (= 409 (:status response)))
-        (is (:error data))))
+        (is (= "Invalid username/password combination" data))))
     (testing "Attempting to sign up with the same username results on an error"
       (let [[response data] (post-request "/api/auth/signup" {:username username :password "password2"} nil)]
         (is (= 409 (:status response)))
-        (is (:error data))))
+        (is (= "Invalid username/password combination" data))))
     (testing "Attempting to sign up with empty username fails"
       (let [[response data] (post-request "/api/auth/signup" {:username "" :password password} nil)]
         (is (= 409 (:status response)))
-        (is (:error data))))
+        (is (= "Invalid username/password combination" data))))
     (testing "Attempting to sign up with empty password fails"
       (let [[response data] (post-request "/api/auth/signup" {:username username :password ""} nil)]
         (is (= 409 (:status response)))
-        (is (:error data))))
+        (is (= "Invalid username/password combination" data))))
     (testing "We get a login token when signing up with a new username/password"
       (let [[response data] (post-request "/api/auth/signup" {:username "u1" :password "p1"} nil)]
         (is (= 201 (:status response)))
-        (is (map? data))
-        (is (:token data))))
+        (is (decode-token (:auth-conf env) data))))
     ))
 
 
@@ -123,8 +125,99 @@
 ;;; Memory search and creation
 ;;;
 
+
+;; Start by testing addition
+(deftest test-add-memory
+  (tdu/init-placeholder-data!)
+  (user/create! "user1" "password1")
+  (let [token (invoke-login {:username "user1" :password "password1"})]
+    (testing "Attempting to add a memory without a token results in a 401"
+      (testing "We can add a new memory"
+        (let [[response _] (post-request "/api/thoughts" {:thought "Just a new idea"} nil)]
+          (is (= 400 (:status response)))
+          )))
+    (testing "We can add a new memory"
+      (let [[response record] (post-request "/api/thoughts" {:thought "Just a thought"} token)]
+        (is (= 201 (:status response)))
+        (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
+        (is (map? record))
+        (is (:id record))
+        (is (= "Just a thought" (:thought record)))
+        (is (= (str "http://localhost/api/thoughts/" (:id record)) (get-in response [:headers "Location"])))
+        ))
+    (testing "After adding a memory, we can query for it"
+      (let [[_ {:keys [total results]}] (get-request "/api/thoughts" nil token)
+            item (first results)]
+        (is (= 1 (count results)))
+        (is (= 1 total))
+        (is (= "user1" (:username item)))
+        (is (= "Just a thought" (:thought item)))
+        (is (:created item))
+        (is (:id item))))
+    (testing "We can refine a memory through the API"
+      (let [[_ {:keys [results]}] (get-request "/api/thoughts" nil token)
+            m1  (first results)
+            _   (post-request "/api/thoughts" {:thought "Refining an idea" :refine_id (:id m1)} token)
+            [_ {:keys [results]}] (get-request "/api/thoughts" nil token)
+            m2  (first results)
+            [_ data] (get-request (str "/api/threads/" (:id m1)) nil token)
+            ; m1 became a root after m2 was created, so we will expect it to have a root_id when returned
+            m1r (assoc m1 :root_id (:id m1))
+            ]
+        (is m1)
+        (is (nil? (:refine_id m1)))
+        (is (nil? (:root_id m1)))
+        (is (= (:id m1) (:refine_id m2)))
+        (is (= (:id m1) (:root_id m2)))
+        (is (= {:id      (:id m1)
+                :results [m1r m2]}
+               data))
+        ;; Test that we get an empty list if querying for a thread that does not belong to the user
+        (let [new-token (invoke-login {:username tdu/ph-username :password tdu/ph-password})
+              [_ data] (get-request (str "/api/threads/" (:id m1)) nil new-token)]
+          (is new-token)
+          (is (= {:results [] :id (:id m1)} data)))
+        ))
+    )
+  (let [token (invoke-login {:username "User1" :password "password1"})]
+    (testing "Username on memory addition is not case sensitive"
+      (let [[response record] (post-request "/api/thoughts" {:thought "Just a new idea"} token)]
+        (is (= 201 (:status response)))
+        (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
+        (is (map? record))
+        (is (:id record))
+        (is (= "Just a new idea" (:thought record)))
+        ))))
+
+(deftest test-add-memory-clean-up
+  (tdu/init-placeholder-data!)
+  (user/create! "user1" "password1")
+  (let [token (invoke-login {:username "user1" :password "password1"})]
+    (testing "HTML is cleaned up from the saved string"
+      (let [[response record] (post-request "/api/thoughts"
+                                            {:thought "Just a <b>brilliant!</b> new <i>idea</i><script>and some scripting!</script>\n
+
+                                              **BRILLIANT!**"}
+                                            token)]
+        (is (= 201 (:status response)))
+        (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
+        (is (= "Just a brilliant! new idea \n\n\n **BRILLIANT!**" (:thought record)))
+        ))
+    (testing "After adding a memoy, we can query for it"
+      (let [[_ {:keys [total results]}] (get-request "/api/thoughts" nil token)
+            item (first results)]
+        (is (= 1 (count results)))
+        (is (= 1 total))
+        (is (= "user1" (:username item)))
+        (is (= "Just a brilliant! new idea \n\n\n **BRILLIANT!**" (:thought item)))
+        (is (:created item))
+        (is (:id item))))
+    ))
+
+
+
 ;; For some reason this test is sometimes outputing the result of the search call,
-;; but I haven' been able to find where I'm doing it. I don't see any log or
+;; but I haven't been able to find where I'm doing it. I don't see any log or
 ;; println. Even a single call to search, or get on thoughts, does it.
 (deftest test-search-memory
   (tdu/init-placeholder-data!)
@@ -133,7 +226,7 @@
     (testing "Search request should not include a trailing slash"
       (let [[response _] (get-request "/api/search/?q=")]
         (is response)
-        (is (= 404 (:status response)))))
+        (is (= 400 (:status response)))))
     (testing "GETting just 'memory' returns all thoughts"
       (let [[response clj-data] (get-request "/api/thoughts" nil token)
             {:keys [total results]} clj-data]
@@ -144,7 +237,7 @@
         (is (= 22 total))
         (doseq [e results]
           (is (= tdu/ph-username (:username e)))
-          (is (= String (type (:created e)))))
+          (is (= Date (type (:created e)))))
         ))
     (testing "Searching without a query returns all elements"
       (let [[response clj-data] (get-request "/api/search" nil token)
@@ -240,7 +333,7 @@
         (is (= 2 total))
         (doseq [e results]
           (is (= "user1" (:username e)))
-          (is (= String (type (:created e))))
+          (is (= Date (type (:created e))))
           (is (re-seq #"user1" (:thought e))))
         ))
     (testing "Querying for 'always money' returns no values, even though we know there are records in the database"
@@ -321,97 +414,6 @@
   )
 
 
-
-(deftest test-add-memory
-  (tdu/init-placeholder-data!)
-  (user/create! "user1" "password1")
-  (let [token (invoke-login {:username "user1" :password "password1"})]
-    (testing "Attempting to add a memory without a token results in a 401"
-      (testing "We can add a new memory"
-        (let [[response _] (post-request "/api/thoughts" {:thought "Just a new idea"} nil)]
-          (is (= 401 (:status response)))
-          )))
-    (testing "We can add a new memory"
-      (let [[response record] (post-request "/api/thoughts" {:thought "Just a thought"} token)]
-        (is (= 201 (:status response)))
-        (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
-        (is (map? record))
-        (is (:id record))
-        (is (= "Just a thought" (:thought record)))
-        (is (= (str "http://localhost/api/thoughts/" (:id record)) (get-in response [:headers "Location"])))
-        ))
-    (testing "After adding a memoy, we can query for it"
-      (let [[_ {:keys [total results]}] (get-request "/api/thoughts" nil token)
-            item (first results)]
-        (is (seq? results))
-        (is (= 1 (count results)))
-        (is (= 1 total))
-        (is (= "user1" (:username item)))
-        (is (= "Just a thought" (:thought item)))
-        (is (:created item))
-        (is (:id item))))
-    (testing "We can refine a memory through the API"
-      (let [[_ {:keys [results]}] (get-request "/api/thoughts" nil token)
-            m1  (first results)
-            _   (post-request "/api/thoughts" {:thought "Refining an idea" :refine_id (:id m1)} token)
-            [_ {:keys [results]}] (get-request "/api/thoughts" nil token)
-            m2  (first results)
-            [_ data] (get-request (str "/api/threads/" (:id m1)) nil token)
-            ; m1 became a root after m2 was created, so we will expect it to have a root_id when returned
-            m1r (assoc m1 :root_id (:id m1))
-            ]
-        (is m1)
-        (is (nil? (:refine_id m1)))
-        (is (nil? (:root_id m1)))
-        (is (= (:id m1) (:refine_id m2)))
-        (is (= (:id m1) (:root_id m2)))
-        (is (= data {:results [m1r m2] :id (str (:id m1))}))
-        ;; Test that we get an empty list if querying for a thread that does not belong to the user
-        (let [new-token (invoke-login {:username tdu/ph-username :password tdu/ph-password})
-              [_ data] (get-request (str "/api/threads/" (:id m1)) nil new-token)]
-          (is new-token)
-          (is (= {:results [] :id (str (:id m1))} data)))
-        ))
-    )
-  (let [token (invoke-login {:username "User1" :password "password1"})]
-    (testing "Username on memory addition is not case sensitive"
-      (let [[response record] (post-request "/api/thoughts" {:thought "Just a new idea"} token)]
-        (is (= 201 (:status response)))
-        (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
-        (is (map? record))
-        (is (:id record))
-        (is (= "Just a new idea" (:thought record)))
-        )))
-  )
-
-
-(deftest test-add-memory-clean-up
-  (tdu/init-placeholder-data!)
-  (user/create! "user1" "password1")
-  (let [token (invoke-login {:username "user1" :password "password1"})]
-    (testing "HTML is cleaned up from the saved string"
-      (let [[response record] (post-request "/api/thoughts"
-                                            {:thought "Just a <b>brilliant!</b> new <i>idea</i><script>and some scripting!</script>\n
-
-                                              **BRILLIANT!**"}
-                                            token)]
-        (is (= 201 (:status response)))
-        (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
-        (is (= "Just a brilliant! new idea \n\n\n **BRILLIANT!**" (:thought record)))
-        ))
-    (testing "After adding a memoy, we can query for it"
-      (let [[_ {:keys [total results]}] (get-request "/api/thoughts" nil token)
-            item (first results)]
-        (is (seq? results))
-        (is (= 1 (count results)))
-        (is (= 1 total))
-        (is (= "user1" (:username item)))
-        (is (= "Just a brilliant! new idea \n\n\n **BRILLIANT!**" (:thought item)))
-        (is (:created item))
-        (is (:id item))))
-    ))
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Memory update and delete
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -440,7 +442,7 @@
         ;; We still have only one record
         (is (= 1 (:total query2)))
         ;; Verify that we couldn't update it with token-u2
-        (is (= 401 (:status ru2)))
+        (is (= 403 (:status ru2)))
         (is (nil? data-ru2))
         (is (= "Memory" (:thought (first (:results query3)))))
         ))
@@ -449,11 +451,12 @@
             ;; Force the date as if we created it a while ago
             _ (tdb/update-thought-created! *db* (assoc memory :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
             ;; Try to update
-            [_ updated] (put-request "/api/thoughts" (:id memory) {:thought "Memory"} token-u1)
+            [response updated] (put-request "/api/thoughts" (:id memory) {:thought "Memory"} token-u1)
             ]
         (is memory)
         (is (= "Memora" (:thought memory)))
-        (is (empty? updated))
+        (is (= 403 (:status response)))
+        (is (= "Cannot update closed thoughts" updated))
         ))
     ))
 
@@ -477,7 +480,7 @@
             ]
         (is memory)
         (is (= 1 (:total query1)))
-        (is (= 401 (:status invalid)))
+        (is (= 403 (:status invalid)))
         (is (= 204 (:status deleted)))
         (is (= 0 (:total query2)))
         ))

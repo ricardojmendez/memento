@@ -3,8 +3,9 @@
             [clojure.string :as string]
             [cognitect.transit :as transit]
             [memento.handler :refer [app]]
-            [ring.mock.request :refer [request header body]])
-  (:import (java.io ByteArrayOutputStream)))
+            [ring.mock.request :refer [request header body]]
+            [taoensso.timbre :as timbre])
+  (:import (java.io ByteArrayOutputStream InputStream)))
 
 ;;;;
 ;;;; Helpers
@@ -14,10 +15,14 @@
   "Receives a byte array expected to contain transit+json, and coverts it
   to a clojure data structure"
   [arr]
-  (try
-    (let [reader (transit/reader arr :json)]
-      (transit/read reader))
-    (catch Exception _ nil)))
+  (if (isa? (class arr) InputStream)                        ; We need isa? because we may get any of InputStream's descendants
+    (try
+      (let [reader (transit/reader arr :json)]
+        (transit/read reader))
+      (catch Exception e
+        (timbre/error e)
+        nil))
+    arr))
 
 (defn clj->transit
   [data]
@@ -83,6 +88,5 @@
   "Invokes the login function and returns a token"
   [items]
   (let [[_ data] (post-request "/api/auth/login" items nil)]
-    (:token data)
-    ))
+    data))
 

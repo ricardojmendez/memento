@@ -1,88 +1,77 @@
 (ns memento.routes.api.memory
-  (:require [liberator.core :refer [defresource resource request-method-in]]
-            [liberator.representation :refer [ring-response]]
-            [memento.auth :as auth]
-            [memento.db.user :as user]
+  (:require [memento.db.user :as user]
             [memento.routes.api.common :refer [read-content]]
             [memento.db.memory :as memory]
-            [numergent.utils :as utils])
+            [numergent.auth :as auth]
+            [numergent.utils :as utils]
+            [ring.util.http-response :refer [ok unauthorized conflict created
+                                             bad-request! not-found forbidden
+                                             no-content]]
+            [clojure.string :as string])
   (:import (java.util UUID)))
 
-(defresource memory
-  :allowed-methods [:post :get :put :delete]
-  :authorized? (fn [{request :request}]
-                 (let [{:keys [identity request-method params]} request
-                       id            (:id params)
-                       username      (:username identity)
-                       has-identity? (not-empty username)
-                       is-owner?     #(and has-identity?
-                                           id
-                                           (= username (:username (memory/get-by-id (UUID/fromString id)))))]
-                   (condp = request-method
-                     :get has-identity?
-                     :post has-identity?
-                     :put (is-owner?)
-                     :delete (is-owner?)
-                     false)
-                   ))
-  :handle-ok (fn [{request :request}]
-               (let [query    (:query-params request)
-                     username (get-in request [:identity :username])
-                     page     (utils/parse-string-number (query "page"))
-                     offset   (* page memory/result-limit)]
-                 (-> (memory/query username nil offset)
-                     (assoc :current-page page)
-                     memory/format-created)
-                 ))
-  :can-put-to-missing? false
-  :put! (fn [{{{:keys [id thought]} :params} :request}]
-          {:save-result (memory/update! {:id (UUID/fromString id) :thought thought})})
-  :post! (fn [ctx]
-           (let [content  (read-content ctx)
-                 username (get-in ctx [:request :identity :username])]
-             (when (not-empty content)
-               {:save-result (memory/create! (assoc content :username username))})))
-  :delete! (fn [{{{:keys [id]} :params} :request}]
-             (memory/delete! (UUID/fromString id)))
-  :handle-created (fn [{record :save-result}]
-                    (ring-response {:status  201
-                                    :headers {"Location" (str "/api/thoughts/" (:id record))}
-                                    :body    record}))
-  :available-media-types ["application/transit+json"
-                          "application/transit+msgpack"
-                          "application/json"])
 
-(defresource memory-search
-  :allowed-methods [:get]
-  :authorized? (fn [ctx]
-                 (some? (get-in ctx [:request :identity])))
-  :handle-ok (fn [{request :request}]
-               (let [query    (:query-params request)
-                     username (get-in request [:identity :username])
-                     page     (utils/parse-string-number (query "page"))
-                     offset   (* page memory/result-limit)]
-                 (-> (memory/query username (query "q") offset)
-                     (assoc :current-page page)
-                     memory/format-created)
-                 ))
-  :available-media-types ["application/transit+json"
-                          "application/transit+msgpack"
-                          "application/json"])
+(defn get-thoughts
+  "Gets the next set of memories for a username"
+  [username page]
+  (ok (let [offset (* page memory/result-limit)]
+        (-> (memory/query username nil offset)
+            (assoc :current-page page)
+            memory/format-created)
+        )))
 
-(defresource thought-thread
-  :allowed-methods [:get]
-  :authorized? (fn [ctx]
-                 (some? (get-in ctx [:request :identity])))
-  :handle-ok (fn [{request :request}]
-               (let [id-str (get-in request [:route-params :id])
-                     id     (UUID/fromString id-str)]
-                 (->> id
-                      memory/query-thread
-                      (filter #(= (:username %) (get-in request [:identity :username])))
-                      ;; I'll return the id as a string so that the frontend doesn't
-                      ;; have to do any parsing guesswork.
-                      (hash-map :id id-str :results)
-                      memory/format-created)))
-  :available-media-types ["application/transit+json"
-                          "application/transit+msgpack"
-                          "application/json"])
+(defn search-thoughts
+  "Searches the thought database"
+  [username query page]
+  (let [offset (* page memory/result-limit)]
+    (ok (-> (memory/query username query offset)
+            (assoc :current-page page)
+            memory/format-created))
+    ))
+
+(defn save-thought
+  "Saves a new thought"
+  [username thought refine-id]
+  (let [trimmed (string/trim thought)]
+    (if (not-empty trimmed)
+      (let [record (memory/create! {:username  username
+                                    :thought   trimmed
+                                    :refine_id refine-id})]
+        (created (str "/api/thoughts/" (:id record))
+                 record))
+      (bad-request! "Cannot add empty thoughts"))))
+
+(defn update-thought
+  "Updates an existing thought"
+  [username id thought]
+  (let [trimmed  (string/trim thought)
+        existing (memory/get-by-id id)]
+    (cond
+      (not existing) (not-found)
+      (not= username (:username existing)) (forbidden)
+      (= :closed (:status existing)) (forbidden "Cannot update closed thoughts")
+      :else (ok (memory/update! {:id id :thought trimmed}))
+      )))
+
+(defn delete-thought
+  "Deletes an existing thought"
+  [username id]
+  (let [existing (memory/get-by-id id)]
+    (cond
+      (not existing) (not-found)
+      (not= username (:username existing)) (forbidden)
+      (= :closed (:status existing)) (forbidden "Cannot update closed thoughts")
+      :else (do
+              (memory/delete! id)
+              (no-content)))))
+
+(defn get-thread
+  "Returns a thread by id"
+  [username id]
+  (ok (->> id
+           memory/query-thread
+           (filter #(= (:username %) username))
+           ;; I'll return the id as a string so that the frontend doesn't
+           ;; have to do any parsing guesswork.
+           (hash-map :id (str id) :results)
+           memory/format-created)))
