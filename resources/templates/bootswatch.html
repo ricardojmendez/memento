@@ -65,13 +65,7 @@
 
 <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 <script src="/assets/jquery.appear.js"></script>
-{% if dev %}
-{% script "/js/goog/base.js" %}
 {% script "/js/memento.js" %}
-<script type="text/javascript">goog.require("memento.app");</script>
-{% else %}
-{% script "/js/memento.js" %}
-{% endif %}
 
 </body>
 </html>

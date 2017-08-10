@@ -14,15 +14,6 @@
 (def result-limit 10)
 
 
-(defn format-created
-  "Receives a collection of memories and formats the create date to a string"
-  [memories]
-  (assoc memories :results
-                  (map #(assoc % :created (tf/unparse (tf/formatters :date-hour-minute)
-                                                      (tc/from-date (:created %))))
-                       (:results memories))))
-
-
 (def open-duration (* 24 60 60 1000))
 
 
@@ -105,8 +96,7 @@
                      (:count (db/search-thought-count *db* params)))
          results   (if (empty? query-str)
                      (db/get-thoughts *db* params)
-                     (db/search-thoughts *db* params))
-         ]
+                     (db/search-thoughts *db* params))]
      {:total   total
       :pages   (int (Math/ceil (/ total result-limit)))
       :results (map set-status results)}

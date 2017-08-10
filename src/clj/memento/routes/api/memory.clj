@@ -16,8 +16,7 @@
   [username page]
   (ok (let [offset (* page memory/result-limit)]
         (-> (memory/query username nil offset)
-            (assoc :current-page page)
-            memory/format-created)
+            (assoc :current-page page))
         )))
 
 (defn search-thoughts
@@ -25,8 +24,7 @@
   [username query page]
   (let [offset (* page memory/result-limit)]
     (ok (-> (memory/query username query offset)
-            (assoc :current-page page)
-            memory/format-created))
+            (assoc :current-page page)))
     ))
 
 (defn save-thought
@@ -73,5 +71,4 @@
            (filter #(= (:username %) username))
            ;; I'll return the id as a string so that the frontend doesn't
            ;; have to do any parsing guesswork.
-           (hash-map :id (str id) :results)
-           memory/format-created)))
+           (hash-map :id (str id) :results))))

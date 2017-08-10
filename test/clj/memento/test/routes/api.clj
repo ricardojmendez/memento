@@ -249,7 +249,7 @@
         (is (= 22 total))
         (doseq [e results]
           (is (= tdu/ph-username (:username e)))
-          (is (= String (type (:created e)))))
+          (is (= Date (type (:created e)))))
         ))
     (testing "Searching with a query filters the items"
       (let [[response clj-data] (get-request "/api/search?q=always" nil token)

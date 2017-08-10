@@ -48,7 +48,7 @@
   {:id                         s/Uuid
    :username                   s/Str
    :thought                    s/Str
-   :created                    Date
+   :created                    s/Inst
    (s/optional-key :root_id)   (s/maybe s/Uuid)
    (s/optional-key :refine_id) (s/maybe s/Uuid)
    (s/optional-key :status)    s/Keyword})
