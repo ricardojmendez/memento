@@ -69,8 +69,7 @@
 
   :cljsbuild
   {:builds        {:app {:source-paths ["src/cljs"]
-                         :compiler     {:main          "memento.app"
-                                        :asset-path    "/js/out"
+                         :compiler     {:asset-path    "/js/out"
                                         :externs       ["react/externs/react.js" "externs/jquery-1.9.js" "externs/misc-externs.js"]
                                         :optimizations :none
                                         :output-to     "target/cljsbuild/public/js/memento.js"
@@ -89,8 +88,11 @@
                   :cljsbuild      {:jar true
                                    :builds
                                         {:app
-                                         {:source-paths ["env/prod/clj" "env/prod/cljs"]
-                                          :compiler     {:optimizations :advanced :pretty-print false}}}}
+                                         {:source-paths ["env/prod/cljs"]
+                                          :compiler     {:optimizations    :advanced
+                                                         :pretty-print     false
+                                                         :closure-warnings {:externs-validation :off
+                                                                            :non-standard-jsdoc :off}}}}}
                   }
 
    :dev          [:project/dev :profiles/dev]
@@ -106,7 +108,8 @@
                   :source-paths   ["env/dev/clj"]
                   :resource-paths ["env/dev/resources"]
                   :plugins        [[lein-figwheel "0.5.12" :exclusions [org.clojure/clojure]]]
-                  :cljsbuild      {:builds {:app {:source-paths ["env/dev/cljs"]}}}
+                  :cljsbuild      {:builds {:app {:source-paths ["env/dev/cljs"]
+                                                  :compiler     {:main "memento.app"}}}}
                   :figwheel       {:http-server-root "public"
                                    :nrepl-port       7002
                                    :css-dirs         ["resources/public/css"]

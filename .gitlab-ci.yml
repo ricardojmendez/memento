@@ -8,7 +8,8 @@ before_script:
   - lein deps
 
 
-test: 
+test:
+  stage: test
   services:
     - postgres:latest
   script:
@@ -18,8 +19,19 @@ test:
   - lein with-profile test run migrate
   - lein test
 
+uberjar:
+  stage: build
+  script:
+  - export LEIN_SNAPSHOTS_IN_RELEASE=true
+  - lein uberjar
+  artifacts:
+    paths:
+    - target/uberjar/memento.jar
+  only:
+  - master
+
 production:
-  type: deploy
+  stage: deploy
   script:
   - export LEIN_SNAPSHOTS_IN_RELEASE=true
   - lein uberjar
