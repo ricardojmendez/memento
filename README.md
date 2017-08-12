@@ -1,8 +1,8 @@
 # memento
 
-Work in progress, pre-alpha experimental project.
+Work in progress, alpha experimental project.
 
-[![build status](https://gitlab.com/ricardojmendez/memento/badges/develop/build.svg)](https://gitlab.com/ricardojmendez/memento/commits/develop)
+[![build status](https://gitlab.com/Numergent/memento/badges/master/build.svg)](https://gitlab.com/Numergent/memento/commits/master)
 
 ## Prerequisites
 

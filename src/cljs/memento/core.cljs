@@ -3,6 +3,8 @@
             [bidi.bidi :as bidi]
             [clojure.string :refer [trim split]]
             [cljsjs.react-bootstrap]
+            [cljs-time.format :as tf]
+            [cljs-time.coerce :as tc]
             [reagent.cookies :as cookies]
             [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
@@ -145,12 +147,18 @@
   (map #(assoc % :html (md->html (:thought %) :replacement-transformers md-transformers))
        thoughts))
 
+(defn format-date
+  "Formats a date for displaying"
+  [d]
+  (tf/unparse (tf/formatters :date-hour-minute)
+              (tc/from-date d)))
+
 
 (defn thread-in-cache?
   "Receives an application state and a thread-id, and returns true if the
   application cache currently contains that thread."
   [app-state thread-id]
-  (contains? (get-in app-state [:cache :threads]) (str thread-id)))
+  (contains? (get-in app-state [:cache :threads]) thread-id))
 
 ;;;;------------------------------
 ;;;; Handlers
@@ -183,15 +191,19 @@
 (reg-event-db
   :auth-request
   (fn [app-state [_ signup?]]
-    (let [url    (if signup? "signup" "login")
+    (let [url     (if signup? "signup" "login")
+          to-send (if signup? [:username :password :password2] [:username :password])
           ;; Should probably centralize password validation, so we can use the same function
           ;; both here and when the UI is being updated
-          valid? (or (not signup?)
-                     (= (get-in app-state [:credentials :password])
-                        (get-in app-state [:credentials :password2])))]
-      (if valid?
-        (POST (str "/api/auth/" url) {:params        (:credentials app-state)
-                                      :handler       #(dispatch [:auth-set-token (:token %)])
+          valid?  (or (not signup?)
+                      (= (get-in app-state [:credentials :password])
+                         (get-in app-state [:credentials :password2])))]
+      (when valid?
+        (POST (str "/api/auth/" url) {:params        (->> (select-keys (:credentials app-state) to-send)
+                                                          ;; Get only the non-null values
+                                                          (filter (comp some? val))
+                                                          (into {}))
+                                      :handler       #(dispatch [:auth-set-token %])
                                       :error-handler #(dispatch [:auth-request-error %])}))
       )
     (assoc-in app-state [:ui-state :wip-login?] true)
@@ -203,7 +215,6 @@
     (if (not-empty token)
       (dispatch [:state-message ""]))
     (cookies/set! :token token)
-    (trace "Got token" token app-state)
     (trace "Current state" (bidi-matcher (-> js/window .-location .-pathname)))
     (cond
       (empty? token) (dispatch [:state-ui-section :login])
@@ -409,12 +420,15 @@
 (reg-event-db
   ; Separate handler from :thread-load so that we can choose when to display a thread and when to load it.
   :thread-display
-  (fn [app-state [_ root-id]]
-    (when (empty? (get-in app-state [:cache :threads root-id]))
-      (dispatch [:thread-load root-id]))
-    (-> app-state
-        (assoc-in [:ui-state :show-thread?] true)
-        (assoc-in [:ui-state :show-thread-id] root-id))))
+  (fn [app-state [_ id]]
+    (let [root-id (if (string? id)
+                    (uuid id)
+                    id)]
+      (when (empty? (get-in app-state [:cache :threads root-id]))
+        (dispatch [:thread-load root-id]))
+      (-> app-state
+          (assoc-in [:ui-state :show-thread?] true)
+          (assoc-in [:ui-state :show-thread-id] root-id)))))
 
 (reg-event-db
   :thread-load
@@ -429,14 +443,16 @@
 (reg-event-db
   :thread-load-error
   (fn [app-state [_ result]]
-    ; Not sure if we actually know which thread failed loading. Probably not if the call failed altogether.
-    ; If we did, we could just assoc the thread to nil.
+    ;; Not sure if we actually know which thread failed loading. Probably not if the call failed altogether.
+    ;; If we did, we could just assoc the thread to nil.
+    (debug "Error loading thread" result)
     (dispatch [:state-message (str "Error loading thread: " result) "alert-danger"])
     app-state))
 
 (reg-event-db
   :thread-load-success
   (fn [app-state [_ {:keys [id results] :as result}]]
+    (debug "Loaded thread" id results)
     (dispatch [:state-ui-section :remember])
     (assoc-in app-state [:cache :threads id] (add-html-to-thoughts results))))
 
@@ -570,7 +586,7 @@
     (if @focus
       [:div {:class "col-sm-10 col-sm-offset-1"}
        [:div {:class "panel panel-default"}
-        [:div {:class "panel-heading"} "Elaborating... " [:i [:small "(from " (:created @focus) ")"]]
+        [:div {:class "panel-heading"} "Elaborating... " [:i [:small "(from " (format-date (:created @focus)) ")"]]
          [:button {:type "button" :class "close" :aria-hidden "true" :on-click #(dispatch [:refine nil])} "×"]]
         [:div {:class "panel-body"}
          [:p {:dangerouslySetInnerHTML {:__html (:html @focus)}}]
@@ -668,7 +684,7 @@
         ]
        [:div
         [:div {:class "col-sm-4 show-on-hover"}
-         [:i [:small (:created memory)]]
+         [:i [:small (format-date (:created memory))]]
          (when (= :open (:status memory))
            [OverlayTrigger
             {:placement :top
@@ -713,8 +729,8 @@
                   :class    "btn btn-primary"
                   :disabled (or @is-busy? (empty? @note))
                   :on-click #(dispatch [:memory-edit-save])} "Save"]
-        ; May want to add a style to show the Cancel button only on mobile, as the same functionality can
-        ; easily be triggered on desktop by pressing Esc
+        ;; May want to add a style to show the Cancel button only on mobile, as the same functionality can
+        ;; easily be triggered on desktop by pressing Esc
         [:button {:type     "reset"
                   :class    "btn btn-default"
                   :on-click #(dispatch [:memory-edit-set nil])} "Cancel"]
@@ -724,9 +740,9 @@
 (defn memory-thread []
   (let [show?     (subscribe [:ui-state :show-thread?])
         thread-id (subscribe [:ui-state :show-thread-id])
-        ; I subscribe to the whole thread cache because I can't just subscribe to [:threads @thread-id],
-        ; as it'd only be evaluated once. I tried to do a reaction with the path, then subscribe
-        ; to the @path... but the subscription is not refreshed when the @path changes.
+        ;; I subscribe to the whole thread cache because I can't just subscribe to [:threads @thread-id],
+        ;; as it'd only be evaluated once. I tried to do a reaction with the path, then subscribe
+        ;; to the @path... but the subscription is not refreshed when the @path changes.
         threads   (subscribe [:cache :threads])
         thread    (reaction (get @threads @thread-id))
         ready?    (reaction (and (not-empty @thread) @show?))]

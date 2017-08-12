@@ -7,4 +7,5 @@
                  (parser/cache-off!)
                  (log/info "\n-=[memento started successfully using the test profile]=-"))
    :stop       (fn []
-                 (log/info "\n-=[memento has shut down successfully]=-"))})
+                 (log/info "\n-=[memento has shut down successfully]=-"))
+   :middleware identity})

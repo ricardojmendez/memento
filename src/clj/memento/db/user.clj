@@ -6,7 +6,7 @@
 
 
 
-(defn create-user!
+(defn create!
   "Saves a new username, hashing the password as it does so"
   [^String username ^String password]
   ;; We could use bouncer for validation here if we get the params as a map
@@ -24,7 +24,7 @@
               {:success? false :message (-> e .getCause .getMessage)}))))
 
 
-(defn validate-user
+(defn validate
   "Receives a username and password and returns true if they validate to an actual user"
   [^String username ^String password]
   (if (or (empty? username)

@@ -1,30 +1,27 @@
 (ns memento.handler
-  (:require [buddy.auth.backends.token :refer [token-backend]]
-            [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
-            [bidi.ring :refer [make-handler]]
-            [memento.env :refer [defaults]]
-            [memento.auth :as auth]
-            [memento.middleware :as middleware]
-            [memento.routes.api :refer [api-routes not-found-route]]
+  (:require [compojure.core :refer [routes wrap-routes]]
+            [compojure.route :as route]
+            [memento.layout :refer [error-page]]
             [memento.routes.home :refer [home-routes]]
-            [mount.core :as mount]))
+            [memento.routes.api :refer [service-routes]]
+            [memento.env :refer [defaults]]
+            [mount.core :as mount]
+            [memento.middleware :as middleware]))
 
 (mount/defstate init-app
-                :start ((or (:init defaults) identity))
-                :stop ((or (:stop defaults) identity)))
+  :start ((or (:init defaults) identity))
+  :stop  ((or (:stop defaults) identity)))
+
+(def app-routes
+  (routes
+    (-> #'home-routes
+        (wrap-routes middleware/wrap-csrf)
+        (wrap-routes middleware/wrap-formats))
+    #'service-routes
+    (route/not-found
+      (:body
+        (error-page {:status 404
+                     :title "page not found"})))))
 
 
-;; Create an instance of auth backend.
-
-(def auth-backend
-  (token-backend {:authfn auth/decode-for-buddy}))
-
-
-(defn app []
-  (-> (make-handler ["" [api-routes home-routes not-found-route]])
-      ; TODO Wrap-csrf only for the home-routes
-      ; middleware/wrap-csrf
-      (wrap-authentication auth-backend)
-      (wrap-authorization auth-backend)
-      middleware/wrap-base
-      ))
+(defn app [] (middleware/wrap-base #'app-routes))

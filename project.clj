@@ -3,7 +3,7 @@
   :url "https://mementoapp.herokuapp.com/"
 
   :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.9.671" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.854" :scope "provided"]
                  [org.clojure/core.async "0.3.443"]
                  [bidi "2.1.2" :exclusions [ring/ring-core]]
                  [buddy/buddy-auth "1.4.1"]
@@ -13,26 +13,29 @@
                  [cljs-ajax "0.6.0"]
                  [cljsjs/react-bootstrap "0.30.2-0" :exclusions [org.webjars.bower/jquery]]
                  [org.clojure/tools.cli "0.3.5"]
+                 [com.andrewmcveigh/cljs-time "0.5.0"]
                  [com.taoensso/timbre "4.10.0"]
+                 [compojure "1.6.0"]
                  [conman "0.6.7"]
-                 [cprop "0.1.10"]
-                 [io.clojure/liberator-transit "0.3.1"]
+                 [cprop "0.1.11"]
                  [jayq "2.5.4"]
                  [kibu/pushy "0.3.7"]
-                 [liberator "0.15.1"]
                  [luminus-immutant "0.2.3"]
                  [luminus-migrations "0.3.9"]
                  [luminus-nrepl "0.1.4"]
                  [markdown-clj "0.9.99"]
-                 [metosin/ring-middleware-format "0.6.0"]
+                 [metosin/compojure-api "1.1.11"]
+                 [metosin/muuntaja "0.3.2"]
                  [metosin/ring-http-response "0.9.0"]
                  [mount "0.1.11"]
                  [org.jsoup/jsoup "1.10.3"]
-                 [org.postgresql/postgresql "42.1.3"]
-                 [ring/ring-defaults "0.3.1"]               ; Used for anti-forgery
-                 [reagent-utils "0.2.1"]                    ; Used for reagent.cookies
+                 [org.postgresql/postgresql "42.1.4"]
                  [re-frame "0.9.4"]
+                 [reagent-utils "0.2.1"]                    ; Used for reagent.cookies
+                 [ring/ring-defaults "0.3.1"]               ; Used for anti-forgery
+                 [ring-webjars "0.2.0"]
                  [ring/ring-session-timeout "0.2.0"]
+                 [ring/ring-defaults "0.3.1"]
                  [selmer "1.11.0"]]
 
   :min-lein-version "2.0.0"
@@ -54,19 +57,24 @@
   :migratus {:store         :database
              :migration-dir "migrations"}
 
-  :clean-targets ^{:protect false} ["resources/public/js" "target"]
 
   :source-paths ["src/clj" "src/cljs" "src/cljc"]
-  :resource-paths ["resources"]
+  :resource-paths ["resources" "target/cljsbuild"]
   :target-path "target/%s/"
   :test-paths ["test/clj" "test/cljs" "test/cljc"]
 
+  :clean-targets ^{:protect false} [:target-path
+                                    [:cljsbuild :builds :app :compiler :output-dir]
+                                    [:cljsbuild :builds :app :compiler :output-to]]
+
   :cljsbuild
   {:builds        {:app {:source-paths ["src/cljs"]
-                         :compiler     {:output-dir    "resources/public/js/"
+                         :compiler     {:main          "memento.app"
+                                        :asset-path    "/js/out"
                                         :externs       ["react/externs/react.js" "externs/jquery-1.9.js" "externs/misc-externs.js"]
                                         :optimizations :none
-                                        :output-to     "resources/public/js/memento.js"
+                                        :output-to     "target/cljsbuild/public/js/memento.js"
+                                        :output-dir    "target/cljsbuild/public/js/out"
                                         :pretty-print  true}}
                    }
    :test-commands {"test" ["phantomjs" "phantom/unit-test.js" "phantom/unit-test.html"]}}
@@ -90,14 +98,14 @@
 
    :project/dev  {:dependencies   [[binaryage/devtools "0.9.4"]
                                    [prone "1.1.4"]
-                                   [ring-mock "0.1.5"]
+                                   [ring/ring-mock "0.3.1"]
                                    [ring/ring-devel "1.6.2"]
                                    [pjstadig/humane-test-output "0.8.2"]
-                                   [figwheel-sidecar "0.5.11"]
+                                   [figwheel-sidecar "0.5.12"]
                                    [com.cemerick/piggieback "0.2.2"]]
                   :source-paths   ["env/dev/clj"]
                   :resource-paths ["env/dev/resources"]
-                  :plugins        [[lein-figwheel "0.5.11" :exclusions [org.clojure/clojure]]]
+                  :plugins        [[lein-figwheel "0.5.12" :exclusions [org.clojure/clojure]]]
                   :cljsbuild      {:builds {:app {:source-paths ["env/dev/cljs"]}}}
                   :figwheel       {:http-server-root "public"
                                    :nrepl-port       7002

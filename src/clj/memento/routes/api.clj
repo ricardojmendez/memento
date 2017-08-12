@@ -1,175 +1,205 @@
 (ns memento.routes.api
   (:require [buddy.auth :refer [authenticated? throw-unauthorized]]
+            [buddy.auth.accessrules :refer [restrict]]
             [buddy.auth.backends.token :refer [token-backend]]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
-            [cognitect.transit :as transit]
-            [liberator.core :refer [defresource resource request-method-in]]
-            [liberator.representation :refer [ring-response]]
-            [io.clojure.liberator-transit]
-            [memento.auth :as auth]
-            [memento.db.memory :as memory]
-            [memento.db.user :as user]
-            [numergent.utils :as utils])
-  (:import (java.util UUID)))
+            [compojure.api.meta :refer [restructure-param]]
+            [compojure.api.sweet :refer [defapi context POST GET PUT DELETE]]
+            [memento.middleware :refer [token-auth-mw]]
+            [memento.routes.api.auth :as auth]
+            [memento.routes.api.common :refer [read-content]]
+            [memento.routes.api.memory :as memory]
+            [memento.routes.api.reminder :as reminder]
+            [numergent.utils :as utils]
+            [ring.util.http-response :refer :all]
+            [schema.core :as s])
+  (:import (java.util UUID Date)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Access handlers and wrappers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn access-error [_ _]
+  (unauthorized {:error "unauthorized"}))
+
+(defn wrap-restricted [handler rule]
+  (restrict handler {:handler  rule
+                     :on-error access-error}))
+
+(defmethod restructure-param :auth-rules
+  [_ rule acc]
+  (update-in acc [:middleware] conj [wrap-restricted rule]))
+
+(defmethod restructure-param :auth-data
+  [_ binding acc]
+  (update-in acc [:letks] into [binding `(:identity ~'+compojure-api-request+)]))
 
 
-(defn read-content
-  "Receives a request context and returns its contents"
-  [ctx]
-  (let [reader (transit/reader (get-in ctx [:request :body]) :json)]
-    (transit/read reader)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Services
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defresource echo
-             :allowed-methods [:get]
-             :handle-ok (fn [state]
-                          (get-in state [:request :params]))
-             :available-media-types ["application/transit+json"
-                                     "application/transit+msgpack"
-                                     "application/json"])
+(s/defschema Reminder
+  {:id                       s/Uuid
+   :type_id                  s/Str
+   :thought_id               s/Uuid
+   :created                  s/Inst
+   :next_date                s/Inst
+   :properties               s/Any
+   :username                 s/Str
+   (s/optional-key :thought) s/Str                          ; Returned when querying for pending reminders
+   })
 
-(defresource memory
-             :allowed-methods [:post :get :put :delete]
-             :authorized? (fn [{request :request}]
-                            (let [{:keys [identity request-method params]} request
-                                  id            (:id params)
-                                  username      (:username identity)
-                                  has-identity? (not-empty username)
-                                  is-owner?     #(and has-identity?
-                                                      id
-                                                      (= username (:username (memory/load-memory (UUID/fromString id)))))]
-                              (condp = request-method
-                                :get has-identity?
-                                :post has-identity?
-                                :put (is-owner?)
-                                :delete (is-owner?)
-                                false)
-                              ))
-             :handle-ok (fn [{request :request}]
-                          (let [query    (:query-params request)
-                                username (get-in request [:identity :username])
-                                page     (utils/parse-string-number (query "page"))
-                                offset   (* page memory/result-limit)]
-                            (-> (memory/query-memories username nil offset)
-                                (assoc :current-page page)
-                                memory/format-created)
-                            ))
-             :can-put-to-missing? false
-             :put! (fn [{{{:keys [id thought]} :params} :request}]
-                     {:save-result (memory/update-memory! {:id (UUID/fromString id) :thought thought})})
-             :post! (fn [ctx]
-                      (let [content  (read-content ctx)
-                            username (get-in ctx [:request :identity :username])]
-                        (when (not-empty content)
-                          {:save-result (memory/create-memory! (assoc content :username username))})))
-             :delete! (fn [{{{:keys [id]} :params} :request}]
-                        (memory/delete-memory! (UUID/fromString id)))
-             :handle-created (fn [{record :save-result}]
-                               (ring-response {:status  201
-                                               :headers {"Location" (str "/api/thoughts/" (:id record))}
-                                               :body    record}))
-             :available-media-types ["application/transit+json"
-                                     "application/transit+msgpack"
-                                     "application/json"])
+(s/defschema Thought
+  {:id                         s/Uuid
+   :username                   s/Str
+   :thought                    s/Str
+   :created                    s/Inst
+   (s/optional-key :root_id)   (s/maybe s/Uuid)
+   (s/optional-key :refine_id) (s/maybe s/Uuid)
+   (s/optional-key :status)    s/Keyword})
 
+(s/defschema ThoughtSearchResult
+  {:total        s/Int
+   :pages        s/Int
+   :current-page s/Int
+   :results      [Thought]})
 
-(defresource memory-search
-             :allowed-methods [:get]
-             :authorized? (fn [ctx]
-                            (some? (get-in ctx [:request :identity])))
-             :handle-ok (fn [{request :request}]
-                          (let [query    (:query-params request)
-                                username (get-in request [:identity :username])
-                                page     (utils/parse-string-number (query "page"))
-                                offset   (* page memory/result-limit)]
-                            (-> (memory/query-memories username (query "q") offset)
-                                (assoc :current-page page)
-                                memory/format-created)
-                            ))
-             :available-media-types ["application/transit+json"
-                                     "application/transit+msgpack"
-                                     "application/json"])
+(s/defschema ThreadResult
+  {:id      s/Uuid
+   :results [Thought]})
 
-(defresource thought-thread
-             :allowed-methods [:get]
-             :authorized? (fn [ctx]
-                            (some? (get-in ctx [:request :identity])))
-             :handle-ok (fn [{request :request}]
-                          (let [id-str (get-in request [:route-params :id])
-                                id     (UUID/fromString id-str)]
-                            (->> id
-                                 memory/query-memory-thread
-                                 (filter #(= (:username %) (get-in request [:identity :username])))
-                                 ; I'll return the id as a string so that the frontend doesn't
-                                 ; have to do any parsing guesswork.
-                                 (hash-map :id id-str :results)
-                                 memory/format-created)))
-             :available-media-types ["application/transit+json"
-                                     "application/transit+msgpack"
-                                     "application/json"])
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Services
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defresource login
-             :allowed-methods [:post]
-             :authorized? (fn [ctx]
-                            (let [content (read-content ctx)
-                                  token   (auth/create-auth-token (:username content) (:password content))]
-                              (if (not-empty token)
-                                {:token token})))
-             :post! true                                    ; All the work is done on authorized?
-             :handle-created (fn [ctx]
-                               {:token (:token ctx)})
-             :available-media-types ["application/transit+json"
-                                     "application/transit+msgpack"
-                                     "application/json"])
+(defapi service-routes
+  {:swagger {:ui   "/swagger-ui"
+             :spec "/swagger.json"
+             :data {:info {:version     "1.0.0"
+                           :title       "Memento API"
+                           :description "Signup and data access"}}}}
 
-(defresource validate
-             :allowed-methods [:get]
-             :authorized? (fn [ctx]
-                            (some? (get-in ctx [:request :identity])))
-             :handle-ok (fn [ctx]
-                          {:token (get-in ctx [:request :identity :token])})
-             :available-media-types ["application/transit+json"
-                                     "application/transit+msgpack"
-                                     "application/json"])
+  (context "/api/auth" []
+    :tags ["AUTH"]
+
+    (POST "/login" []
+      :return s/Str
+      :body-params [username :- s/Str
+                    password :- s/Str]
+      :summary "Attempts to validate a username and password, and returns a token"
+      (auth/login username password))
+
+    (GET "/validate" []
+      :return s/Str
+      :header-params [authorization :- String]
+      :middleware [token-auth-mw]
+      :auth-rules authenticated?
+      :auth-data auth-data
+      :summary "Attempts to validate a token, and echoes it if valid"
+      ;; You'll notice I don't actually do any validation here. This is
+      ;; because the validation and the authentication verification are
+      ;; the same. If we got this far, the token is valid.
+      (ok (:token auth-data)))
+
+    (POST "/signup" []
+      :return s/Str
+      :body-params [username :- s/Str
+                    password :- s/Str
+                    {password2 :- s/Str ""}]
+      :summary "Creates a new user"
+      ;; Returns an authentication token
+      (auth/signup! username password)))
+
+  (context "/api" []
+    :tags ["THOUGHTS"]
+
+    ;; You'll need to be authenticated for these
+    :middleware [token-auth-mw]
+    :auth-rules authenticated?
+    :header-params [authorization :- s/Str]
 
 
-(defresource signup
-             :allowed-methods [:post]
-             :authorized? (fn [ctx]
-                            ;; Only allow a sign up if there is no known identity
-                            (nil? (get-in ctx [:request :identity])))
-             :post! (fn [ctx]
-                      (let [content (read-content ctx)
-                            created (user/create-user! (:username content) (:password content))]
-                        (if (:success? created)
-                          {::token (auth/create-auth-token (:username content) (:password content))})))
-             :handle-created (fn [{token ::token}]
-                               (if (empty? token)
-                                 (ring-response {:status 409 :body {:error "Invalid username/password combination"}})
-                                 {:token token}
-                                 ))
-             :available-media-types ["application/transit+json"
-                                     "application/transit+msgpack"
-                                     "application/json"])
+    (GET "/search" []
+      :summary "Searches the thoughts"
+      :query-params [{q :- s/Str ""}
+                     {page :- s/Int 0}]
+      :auth-data auth-data
+      (memory/search-thoughts (:username auth-data) q page))
 
+    (GET "/thoughts" []
+      :summary "Gets the first page of thoughts"
+      :return ThoughtSearchResult
+      :query-params [{page :- s/Int 0}]
+      :auth-data auth-data
+      (memory/get-thoughts (:username auth-data) page))
 
-(defresource not-found
-             :exists? false
-             :can-post-to-missing? false
-             :available-media-types ["application/transit+json"
-                                     "application/transit+msgpack"
-                                     "application/json"])
+    (POST "/thoughts" []
+      :summary "Creates a new thought"
+      :return Thought
+      :body-params [thought :- s/Str
+                    {refine_id :- (s/maybe s/Uuid) nil}]
+      :auth-data auth-data
+      (memory/save-thought (:username auth-data) thought refine_id))
 
+    (PUT "/thoughts/:id" []
+      :summary "Updates an existing thought. Needs to be open."
+      :return Thought
+      :path-params [id :- s/Uuid]
+      :body-params [thought :- s/Str]
+      :auth-data auth-data
+      (memory/update-thought (:username auth-data) id thought))
 
-(def api-routes
-  ["/api/" {"echo/"         {[:val] echo}
-            "auth/login"    login
-            "auth/signup"   signup
-            "auth/validate" validate
-            "thoughts"      memory
-            "thoughts/"     {[:id] memory}
-            "threads/"      {[:id] thought-thread}
-            "search"        memory-search}])
+    (DELETE "/thoughts/:id" []
+      :summary "Deletes an existing thought. Needs to be open."
+      :path-params [id :- s/Uuid]
+      :auth-data auth-data
+      (memory/delete-thought (:username auth-data) id))
 
-(def not-found-route
-  ["/" [[true not-found]]])
+    (GET "/threads/:id" []
+      :summary "Gets a thread"
+      :return ThreadResult
+      :path-params [id :- s/Uuid]
+      :auth-data auth-data
+      (memory/get-thread (:username auth-data) id))
+    )
+
+  (context "/api" []
+    :tags ["REMINDERS"]
+
+    ;; You'll need to be authenticated for these
+    :middleware [token-auth-mw]
+    :auth-rules authenticated?
+    :header-params [authorization :- s/Str]
+
+    (POST "/reminders" []
+      :summary "Creates a new reminder for a thought"
+      :return Reminder
+      :body-params [thought-id :- s/Uuid
+                    type-id :- s/Str]
+      :auth-data auth-data
+      (reminder/create-new (:username auth-data) thought-id type-id))
+
+    (GET "/reminders/:id" []
+      :summary "Retrieves a specific reminder by id"
+      :return Reminder
+      :path-params [id :- s/Uuid]
+      :auth-data auth-data
+      (reminder/get-reminder (:username auth-data) id))
+
+    (GET "/reminders" []
+      :summary "Retrieves all pending reminders"
+      :return [Reminder]
+      :auth-data auth-data
+      (reminder/get-pending-reminders (:username auth-data)))
+
+    (POST "/reminders/viewed/:id" []
+      :summary "Marks a reminder as viewed"
+      :path-params [id :- s/Uuid]
+      :return s/Int
+      :auth-data auth-data
+      (reminder/mark-as-viewed! (:username auth-data) id))
+    )
+
+  )
