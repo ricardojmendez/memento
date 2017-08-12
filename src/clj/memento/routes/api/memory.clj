@@ -43,10 +43,9 @@
   "Updates an existing thought"
   [username id thought]
   (let [trimmed  (string/trim thought)
-        existing (memory/get-by-id id)]
+        existing (memory/get-if-owner username id)]
     (cond
       (not existing) (not-found)
-      (not= username (:username existing)) (forbidden)
       (= :closed (:status existing)) (forbidden "Cannot update closed thoughts")
       :else (ok (memory/update! {:id id :thought trimmed}))
       )))
@@ -54,10 +53,9 @@
 (defn delete-thought
   "Deletes an existing thought"
   [username id]
-  (let [existing (memory/get-by-id id)]
+  (let [existing (memory/get-if-owner username id)]
     (cond
       (not existing) (not-found)
-      (not= username (:username existing)) (forbidden)
       (= :closed (:status existing)) (forbidden "Cannot update closed thoughts")
       :else (do
               (memory/delete! id)

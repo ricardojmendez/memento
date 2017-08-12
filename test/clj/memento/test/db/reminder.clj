@@ -13,10 +13,10 @@
 
 
 ;;;
-;;; Saving
+;;; Creation
 ;;;
 
-(deftest test-save-reminder
+(deftest test-create-reminder
   (tdu/init-placeholder-data!)
   (let [memory (memory/create! {:username tdu/ph-username :thought "Just wondering"})
         result (reminder/create! {:thought_id (:id memory) :type_id "spaced"})]
@@ -29,13 +29,27 @@
     (is (= (:id memory) (:thought_id result)))))
 
 
+;;;
+;;; Getting reminders by id
+;;;
+
 (deftest test-get-reminder
   (tdu/init-placeholder-data!)
   (let [memory  (memory/create! {:username tdu/ph-username :thought "Just wondering"})
         created (reminder/create! {:thought_id (:id memory) :type_id "spaced"})
-        another (reminder/create! {:thought_id (:id memory) :type_id "once" :next_date (coerce/to-date (l/local-now)) })
+        another (reminder/create! {:thought_id (:id memory) :type_id "once" :next_date (coerce/to-date (l/local-now))})
         result  (reminder/get-by-id (:id created))]
     (is (map? result))
     (is (:id result))
-    (is (= created (dissoc result :username)))              ; Getting a reminder also returns its owner
+    (is (= created (dissoc result :username)))              ; Getting a reminder also returns its owner, creating it does not
     (is (not= (:id result) (:id another)))))
+
+(deftest test-get-if-owner
+  (tdu/init-placeholder-data!)
+  (let [memory  (memory/create! {:username tdu/ph-username :thought "Just wondering"})
+        created (reminder/create! {:thought_id (:id memory) :type_id "spaced"})
+        item    (reminder/get-if-owner tdu/ph-username (:id created))
+        invalid (reminder/get-if-owner "someone-else" (:id created))]
+    (is (nil? invalid))
+    (is (some? item))
+    (is (= created (dissoc item :username)))))

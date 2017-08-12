@@ -21,3 +21,20 @@ INSERT INTO reminders (type_id, thought_id, next_date, properties)
 VALUES (:type_id, :thought_id, :next_date, :properties)
 RETURNING *;
 
+-- :name get-pending-reminders :? :*
+-- :doc Returns all reminders for a user where the next_date is before a received data
+SELECT
+  t.username,
+  t.thought,
+  r.*
+FROM reminders r
+  INNER JOIN thoughts t ON r.thought_id = t.id
+WHERE r.next_date <= :min_date
+  AND t.username = :username
+ORDER BY r.next_date;
+
+-- :name update-reminder-date! :! :n
+-- :doc Updates a reminder's next remind date. Returns the number of records updated.
+UPDATE reminders
+SET next_date = :next_date
+WHERE id = :id;

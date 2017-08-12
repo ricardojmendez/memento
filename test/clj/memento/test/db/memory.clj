@@ -87,6 +87,25 @@
     (is (= "Just wondering" (:thought result)))
     (is (= tdu/ph-username (:username result)))))
 
+(deftest test-get-memory
+  (tdu/init-placeholder-data!)
+  (testing "Test if we can get memories by id"
+    (let [created (memory/create! {:username tdu/ph-username :thought "Just wondering"})
+          loaded (memory/get-by-id (:id created))]
+      ;; We return only the number of records updated
+      (is (map? loaded))
+      (is (= created loaded))
+      (is (= "Just wondering" (:thought loaded)))
+      (is (= tdu/ph-username (:username loaded)))))
+  (testing "Test get-if-owner"
+    (let [created (memory/create! {:username tdu/ph-username :thought "Just wondering again"})
+          loaded (memory/get-if-owner tdu/ph-username (:id created))
+          invalid (memory/get-if-owner "some-else" (:id created))]
+      ;; We return only the number of records updated
+      (is (map? loaded))
+      (is (= created loaded))
+      (is (= tdu/ph-username (:username loaded)))
+      (is (nil? invalid)))))
 
 (deftest test-save-memory-refine
   (tdu/init-placeholder-data!)
@@ -200,8 +219,7 @@
       (is (= 2 (:total result)))
       (doseq [m texts]
         (is (re-seq #"memo" m))
-        )
-      ))
+        )))
   (testing "Wonder is considered a root for wondering"
     (let [result (memory/query tdu/ph-username "wonder")
           texts  (extract-text (:results result))]

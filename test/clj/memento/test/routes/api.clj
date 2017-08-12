@@ -131,11 +131,9 @@
   (tdu/init-placeholder-data!)
   (user/create! "user1" "password1")
   (let [token (invoke-login {:username "user1" :password "password1"})]
-    (testing "Attempting to add a memory without a token results in a 401"
-      (testing "We can add a new memory"
-        (let [[response _] (post-request "/api/thoughts" {:thought "Just a new idea"} nil)]
-          (is (= 400 (:status response)))
-          )))
+    (testing "Attempting to add a memory without a token results in a 400"
+      (let [[response _] (post-request "/api/thoughts" {:thought "Just a new idea"} nil)]
+        (is (= 400 (:status response)))))
     (testing "We can add a new memory"
       (let [[response record] (post-request "/api/thoughts" {:thought "Just a thought"} token)]
         (is (= 201 (:status response)))
@@ -219,6 +217,8 @@
 ;; For some reason this test is sometimes outputing the result of the search call,
 ;; but I haven't been able to find where I'm doing it. I don't see any log or
 ;; println. Even a single call to search, or get on thoughts, does it.
+;;
+;; Same thing happens with test-query-memories on memento.test.db.memory
 (deftest test-search-memory
   (tdu/init-placeholder-data!)
   (tdm/import-placeholder-memories!)
@@ -442,7 +442,7 @@
         ;; We still have only one record
         (is (= 1 (:total query2)))
         ;; Verify that we couldn't update it with token-u2
-        (is (= 403 (:status ru2)))
+        (is (= 404 (:status ru2)))
         (is (nil? data-ru2))
         (is (= "Memory" (:thought (first (:results query3)))))
         ))
@@ -480,7 +480,7 @@
             ]
         (is memory)
         (is (= 1 (:total query1)))
-        (is (= 403 (:status invalid)))
+        (is (= 404 (:status invalid)))
         (is (= 204 (:status deleted)))
         (is (= 0 (:total query2)))
         ))

@@ -31,6 +31,13 @@
   (set-status
     (db/get-thought-by-id *db* {:id id})))
 
+(defn get-if-owner
+  "Returns a thought if owned by a user, or nil otherwise"
+  [username id]
+  (let [existing (get-by-id id)]
+    (when (= username (:username existing))
+      existing)))
+
 (defn create!
   "Saves a new memory, after removing HTML tags from the thought."
   [memory]
@@ -46,7 +53,7 @@
                                     :root_id root-id))]
       (if refined
         (db/make-root! trans-conn {:id root-id}))
-      (db/create-thought! trans-conn item)
+      (set-status (db/create-thought! trans-conn item))
       )))
 
 
@@ -106,4 +113,3 @@
   "Returns a list with all the memories belonging to a root id"
   [id]
   (map set-status (db/get-thread-by-root-id *db* {:id id})))
-

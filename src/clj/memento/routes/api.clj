@@ -40,9 +40,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(s/defschema User
-  {:id    String
-   :email String})
+(s/defschema Reminder
+  {:id                       s/Uuid
+   :type_id                  s/Str
+   :thought_id               s/Uuid
+   :created                  s/Inst
+   :next_date                s/Inst
+   :properties               s/Any
+   :username                 s/Str
+   (s/optional-key :thought) s/Str                          ; Returned when querying for pending reminders
+   })
 
 (s/defschema Thought
   {:id                         s/Uuid
@@ -106,7 +113,7 @@
       (auth/signup! username password)))
 
   (context "/api" []
-    :tags ["THOUGHTS" "MEMORY"]
+    :tags ["THOUGHTS"]
 
     ;; You'll need to be authenticated for these
     :middleware [token-auth-mw]
@@ -156,6 +163,43 @@
       :path-params [id :- s/Uuid]
       :auth-data auth-data
       (memory/get-thread (:username auth-data) id))
+    )
+
+  (context "/api" []
+    :tags ["REMINDERS"]
+
+    ;; You'll need to be authenticated for these
+    :middleware [token-auth-mw]
+    :auth-rules authenticated?
+    :header-params [authorization :- s/Str]
+
+    (POST "/reminders" []
+      :summary "Creates a new reminder for a thought"
+      :return Reminder
+      :body-params [thought-id :- s/Uuid
+                    type-id :- s/Str]
+      :auth-data auth-data
+      (reminder/create-new (:username auth-data) thought-id type-id))
+
+    (GET "/reminders/:id" []
+      :summary "Retrieves a specific reminder by id"
+      :return Reminder
+      :path-params [id :- s/Uuid]
+      :auth-data auth-data
+      (reminder/get-reminder (:username auth-data) id))
+
+    (GET "/reminders" []
+      :summary "Retrieves all pending reminders"
+      :return [Reminder]
+      :auth-data auth-data
+      (reminder/get-pending-reminders (:username auth-data)))
+
+    (POST "/reminders/viewed/:id" []
+      :summary "Marks a reminder as viewed"
+      :path-params [id :- s/Uuid]
+      :return s/Int
+      :auth-data auth-data
+      (reminder/mark-as-viewed! (:username auth-data) id))
     )
 
   )
