@@ -1,8 +1,16 @@
 # memento
 
-Work in progress, alpha experimental project.
+Memento started as an experiment on introspection - private note-taking for thoughts you may want to revisit in the future.
+
+It's a work in progress, alpha experimental project.
 
 [![build status](https://gitlab.com/Numergent/memento/badges/master/build.svg)](https://gitlab.com/Numergent/memento/commits/master)
+
+## Live version 
+
+[You can find a live version here](https://mementoapp.herokuapp.com/). It's on Heroku running on free dynos, so you may need to wait while it wakes up.
+
+The user name does not need to be an e-mail address, although that will facilitate password reset in the future. You can use whatever login you fancy, though. 
 
 ## Prerequisites
 
@@ -32,12 +40,19 @@ lein run migrate
 lein with-profile test run migrate
 ```
 
+### Deploying live
+
+Memento uses token authentication. The tokens are signed using a private key, which is expected to be configured in the environment. 
+
+The repository includes a private/public key pair for development purposes. When deploying on your own instance, you'll need to replace `prod_auth_pub_key.pem` with the one matching your private key. The keys are currently configured on `config.edn` for the production environment, replacing it as an environment variable string should be enough.
 
 ## Running
 
 To start a web server for the application, run:
 
     lein run
+
+It'll run on port 3000. You'll need to have compiled ClojureScript first.
 
 ## Testing
 
