@@ -55,6 +55,12 @@
     (assoc-in app-state [:note :focus] thought)))
 
 (reg-event-db
+  :state-show-reminders
+  (fn [app-state [_ show?]]
+    ;; Trivial for now, since I'm not juggling a lot of decisions
+    (assoc-in app-state [:ui-state :show-reminders?] show?)))
+
+(reg-event-db
   :state-show-thread
   (fn [app-state [_ show?]]
     (when-not show? (dispatch [:state-browser-token :remember]))

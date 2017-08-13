@@ -77,17 +77,17 @@
 (reg-event-db
   :initialize
   (fn [app-state _]
-    (merge app-state {:ui-state  {:is-busy?      false
-                                  :wip-login?    false
-                                  :show-thread?  false
-                                  :section       :record
-                                  :current-query ""
-                                  :results-page  0
-                                  :memories      {:pages 0}
-                                  :is-searching? false}
-                      :cache     {}
-                      :note      {:edit-memory nil}
-                      :reminders nil
+    (merge app-state {:ui-state {:is-busy?        false
+                                 :wip-login?      false
+                                 :show-thread?    false
+                                 :section         :record
+                                 :current-query   ""
+                                 :results-page    0
+                                 :memories        {:pages 0}
+                                 :show-reminders? false
+                                 :is-searching?   false}
+                      :cache    {}                          ; Will be used for caching threads and reminders
+                      :note     {:edit-memory nil}
                       })))
 
 
@@ -178,6 +178,40 @@
         ]]))
   )
 
+(defn reminder-section [is-focused?]
+  (let [reminders (subscribe [:cache :reminders])
+        showing?  (subscribe [:ui-state :show-reminders?])]
+    (fn []
+      ;; We will only show the reminder notification when we aren't focused
+      ;; on elaborating a thought
+      (if (and @reminders @showing?)
+        ;; Reminder list
+        ;; TODO Should probably extract to a component
+        [:div {:id "reminder-list"}
+         (for [item (sort-by :created @reminders)]
+           ^{:key (:id item)}
+           [:div {:class "reminder-item hover-wrapper"}
+            [:span {:dangerouslySetInnerHTML {:__html (:html item)}}]
+            [:span {:class "show-on-hover"}
+             #_[:i [:small (helpers/format-date (:created item))]]
+             [:span {:class    "btn btn-success btn-xs icon-margin-left"
+                     :on-click #(dispatch [:reminder-viewed item])}
+              [:i {:class "fa fa-check"} " Viewed"]]]])
+         ]
+        ;; Reminder notice
+        (when (and (not-empty @reminders)
+                   (not @is-focused?))
+          [:div {:class "alert alert-info"}
+           [:p
+            [:strong "Hi!"]
+            " "
+            "You have some thoughts you wanted to be reminded of."]
+           [:p
+            [:a {:on-click #(dispatch [:state-show-reminders true])}
+             "Click here when you are ready to read them."]]]))
+
+      )))
+
 (defn write-section []
   (let [note        (subscribe [:note :current-note])
         is-busy?    (subscribe [:ui-state :is-busy?])
@@ -185,17 +219,19 @@
         is-focused? (reaction (not-empty @focus))]
     (dispatch-sync [:reminder-load])
     (fn []
-      [:fielset
-       [:div {:class "form-horizontal"}
-        [thought-edit-box :current-note]
-        [:div {:class "form-group"}
-         [:div {:class "col-sm-12" :style {:text-align "right"}}
-          [:button {:type     "submit"
-                    :disabled (or @is-busy? (empty? @note))
-                    :class    "btn btn-primary"
-                    :on-click #(dispatch [:memory-save])}
-           (if @is-focused? "Elaborate" "Record")]
-          ]]]])))
+      [:div
+       [reminder-section is-focused?]
+       [:fielset
+        [:div {:class "form-horizontal"}
+         [thought-edit-box :current-note]
+         [:div {:class "form-group"}
+          [:div {:class "col-sm-12" :style {:text-align "right"}}
+           [:button {:type     "submit"
+                     :disabled (or @is-busy? (empty? @note))
+                     :class    "btn btn-primary"
+                     :on-click #(dispatch [:memory-save])}
+            (if @is-focused? "Elaborate" "Record")]
+           ]]]]])))
 
 (defn panel [title msg class]
   [:div {:class (str "panel " class)}
@@ -212,6 +248,8 @@
 
 
 (defn memory-query []
+  ;; TODO: Try the new form
+  ;; https://lambdaisland.com/blog/11-02-2017-re-frame-form-1-subscriptions
   (let [query (subscribe [:ui-state :current-query])]
     (fn []
       [:div {:class "form-horizontal"}
@@ -274,8 +312,8 @@
                            (.scrollIntoView top-div-target)
                            (dispatch [:state-refine memory]))}
           [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]
-         [:a {:class "btn btn-primary btn-xs"
-              }
+         [:a {:class    "btn btn-primary btn-xs"
+              :on-click #(dispatch [:reminder-create memory "spaced"])}
           [:i {:class "fa fa-bell icon-margin-both"}] "Remind"]
          ]
         ]])))
@@ -422,13 +460,13 @@
     ))
 
 (defn header []
-  (let [state  (subscribe [:ui-state :section])
-        header (condp = @state
-                 :record "Record a new thought"
-                 :remember "Remember"
-                 "")]
-    (if (not-empty header)
-      [:h1 {:id "forms"} header])
+  (let [state (subscribe [:ui-state :section])
+        label (condp = @state
+                :record "Record a new thought"
+                :remember "Remember"
+                "")]
+    (if (not-empty label)
+      [:h1 {:id "forms"} label])
     ))
 
 
