@@ -13,7 +13,7 @@
 (defn now [] (Date.))
 (def result-limit 10)
 
-
+;; TODO Consider making this configurable
 (def open-duration (* 24 60 60 1000))
 
 

@@ -8,10 +8,6 @@
             [memento.db.core :refer [*db*] :as db]
             ))
 
-;; TODO
-;; - query
-;; - mark as done
-
 (defn get-by-id
   [id]
   (jdbc/with-db-transaction
@@ -77,9 +73,4 @@
                                     tc/to-date))]
       (db/update-reminder-date! trans-conn {:id id :next_date next-date}))))
 
-;; TODO
-;; - List pending reminders
-;; - Mark a reminder as viewed and set the next date
-;; - Completed reminders do not have a next date
-;;
 

@@ -18,7 +18,6 @@
 (reg-event-db
   :reminder-load-success
   (fn [app-state [_ result]]
-    #_(timbre/debug "Loaded reminders" (not-empty result))
     (assoc-in app-state [:cache :reminders] (helpers/add-html-to-thoughts (not-empty result)))))
 
 (reg-event-db
