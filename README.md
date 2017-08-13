@@ -64,4 +64,4 @@ Make sure you either create a REPL profile specifically for the test settings, o
 
 ## License
 
-Copyright © 2015-2017 Numergent Limited.
+Copyright © 2015-2017 Numergent Limited. [Released under the MIT License](https://tldrlegal.com/license/mit-license).
