@@ -82,6 +82,6 @@
   (fn [app-state _]
     (when-let [token (get-in app-state [:credentials :token])]
       (GET "/api/auth/validate" {:headers       {:authorization (str "Token " token)}
-                                 :handler       #(dispatch [:auth-set-token (:token %)])
+                                 :handler       #(dispatch [:auth-set-token %])
                                  :error-handler #(dispatch [:auth-request-error %])}))
     app-state))
