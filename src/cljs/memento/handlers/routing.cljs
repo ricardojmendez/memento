@@ -37,9 +37,6 @@
 ;; :record leads to /record. The handler is expected to apply any
 ;; necessary changes to the ui state, or dispatch the relevant
 ;; events.
-;;
-;; TODO: This function might belong in memento.routing instead, it's
-;; the only one here messing with bidi, pushy and routing
 (reg-event-db
   :state-browser-token
   (fn [app-state [_ token-key]]
