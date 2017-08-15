@@ -28,18 +28,16 @@
                  [metosin/muuntaja "0.3.2"]
                  [metosin/ring-http-response "0.9.0"]
                  [mount "0.1.11"]
-                 [org.jsoup/jsoup "1.10.3"]
+                 [org.jsoup/jsoup "1.10.3"]                 ; For cleaning out HTML tags
                  [org.postgresql/postgresql "42.1.4"]
                  [re-frame "0.9.4"]
                  [reagent-utils "0.2.1"]                    ; Used for reagent.cookies
                  [ring/ring-defaults "0.3.1"]               ; Used for anti-forgery
                  [ring-webjars "0.2.0"]
-                 [ring/ring-session-timeout "0.2.0"]
                  [ring/ring-defaults "0.3.1"]
                  [selmer "1.11.0"]]
 
   :min-lein-version "2.0.0"
-  :uberjar-name "memento.jar"
   :jvm-opts ["-server" "-Dconf=.lein-env"]
 
   :heroku {:app-name      "mementoapp"
@@ -81,6 +79,8 @@
 
   :profiles
   {:uberjar      {:omit-source    true
+                  :uberjar-name   "memento.jar"
+                  :prep-tasks     ["clean" "compile" ["cljsbuild" "once"]]
                   :aot            :all
                   :source-paths   ["env/prod/clj"]
                   :resource-paths ["env/prod/resources"]
