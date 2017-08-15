@@ -81,6 +81,7 @@
 
   :profiles
   {:uberjar      {:omit-source    true
+                  :prep-tasks     ["clean" "compile" ["cljsbuild" "once"]]
                   :aot            :all
                   :source-paths   ["env/prod/clj"]
                   :resource-paths ["env/prod/resources"]
