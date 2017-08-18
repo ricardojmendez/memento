@@ -126,14 +126,14 @@
       :query-params [{q :- s/Str ""}
                      {page :- s/Int 0}]
       :auth-data auth-data
-      (memory/search-thoughts (:username auth-data) q page))
+      (memory/query-thoughts (:username auth-data) q page))
 
     (GET "/thoughts" []
       :summary "Gets the first page of thoughts"
       :return ThoughtSearchResult
       :query-params [{page :- s/Int 0}]
       :auth-data auth-data
-      (memory/get-thoughts (:username auth-data) page))
+      (memory/query-thoughts (:username auth-data) nil page))
 
     (POST "/thoughts" []
       :summary "Creates a new thought"

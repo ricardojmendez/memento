@@ -11,21 +11,12 @@
   (:import (java.util UUID)))
 
 
-(defn get-thoughts
-  "Gets the next set of memories for a username"
-  [username page]
-  (ok (let [offset (* page memory/result-limit)]
-        (-> (memory/query username nil offset)
-            (assoc :current-page page))
-        )))
-
-(defn search-thoughts
-  "Searches the thought database"
+(defn query-thoughts
+  "Gets the next set of memories for a username, potentially with a search query"
   [username query page]
   (let [offset (* page memory/result-limit)]
     (ok (-> (memory/query username query offset)
-            (assoc :current-page page)))
-    ))
+            (assoc :current-page page)))))
 
 (defn save-thought
   "Saves a new thought"
