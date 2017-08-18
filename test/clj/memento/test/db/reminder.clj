@@ -25,7 +25,8 @@
     (is (:created result))
     (is (= "spaced" (:type_id result)))
     (is (:next_date result))
-    (is (= 4 (count (get-in result [:properties :schedule]))))
+    (is (= 4 (count (get-in result [:properties :days]))))
+    (is (zero? (get-in result [:properties :day-idx])))
     (is (= (:id memory) (:thought_id result)))))
 
 
