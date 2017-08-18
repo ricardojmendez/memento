@@ -2,7 +2,7 @@
 
 Memento started as an experiment on introspection - private note-taking for thoughts you may want to revisit in the future.
 
-It's a work in progress, alpha experimental project.
+It's a work in progress, alpha experimental project. Features are likely to change
 
 [![build status](https://gitlab.com/Numergent/memento/badges/master/build.svg)](https://gitlab.com/Numergent/memento/commits/master)
 
@@ -12,16 +12,39 @@ It's a work in progress, alpha experimental project.
 
 The user name does not need to be an e-mail address, although that will facilitate password reset in the future. You can use whatever login you fancy, though. 
 
-## Prerequisites
+
+## Usage
+
+### General
+
+Memento is a straightforward note taking application for thoughts you may want to revisit: ideas, quotes, things you may have believed at a time and want to re-evaluate later.
+
+It supports full-text search through PostgreSQL's own functions. It currently assumes that the language is English.
+
+### Editing rules 
+
+Memento was meant as a place to record what I was thinking at a specific time, so it has some editing rules:
+
+- You can edit or delete thoughts for 24 hours after you've registered them;
+- After that, a thought is "closed" and you can no longer modify it.
+
+I set these in place to allow editing while avoiding second-guessing myself in the long run. 
+
+I'm considering allowing you to archive thoughts that you no longer consider relevant. If you think that's an important feature, [feel free to vote or comment on the issue](https://gitlab.com/Numergent/memento/issues/34).
+
+### Reminders
+
+Memento allows you to set reminders for thoughts, so you can re-evaluate them later. Currently the only reminder type is [spaced repetition on pre-set intervals](https://gitlab.com/Numergent/memento/issues/50).
+
+## Installation
+
+### Prerequisites
 
 You will need [Leiningen][1] 2.0 or above installed.
 
 [1]: https://github.com/technomancy/leiningen
 
 You'll need also need a PostgreSQL 9.4.4 database running. The default configuration assumes it's on localhost.
-
-
-## Installation
 
 ### Creating the test and dev databases
 
