@@ -188,6 +188,13 @@
         ;; Reminder list
         ;; TODO Should probably extract to a component
         [:div {:id "reminder-list"}
+         [:a {:on-click #(dispatch [:state-show-reminders false])}
+          [:i {:style {:top       "0px"
+                       :right     "5px"
+                       :font-size "24px"
+                       :position  "absolute"}
+               :class "fa fa-window-close"}
+           ]]
          (for [item (sort-by :created @reminders)]
            ^{:key (:id item)}
            [:div {:class "reminder-item hover-wrapper"}

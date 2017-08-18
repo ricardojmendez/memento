@@ -39,7 +39,8 @@
         (is (map? record))
         (is (:id record))
         (is (= "spaced" (:type_id record)))
-        (is (= 4 (count (get-in record [:properties :schedule]))))
+        (is (= 4 (count (get-in record [:properties :days]))))
+        (is (zero? (get-in record [:properties :day-idx])))
         (is (= (str "http://localhost/api/reminders/" (:id record)) (get-in response [:headers "Location"])))
         ))
     (testing "After adding a reminder, we can retrieve it"

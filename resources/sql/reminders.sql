@@ -36,5 +36,5 @@ ORDER BY r.next_date;
 -- :name update-reminder-date! :! :n
 -- :doc Updates a reminder's next remind date. Returns the number of records updated.
 UPDATE reminders
-SET next_date = :next_date
+SET next_date = :next_date, properties = :properties
 WHERE id = :id;

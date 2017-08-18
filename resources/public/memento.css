@@ -39,3 +39,11 @@
 .hover-wrapper:hover .show-on-hover {
     visibility: visible;
 }
+
+.reminder-item p {
+    margin-bottom: 0.5em;
+}
+
+.reminder-item {
+    margin-bottom: 1em;
+}
