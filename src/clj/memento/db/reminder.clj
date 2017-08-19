@@ -74,6 +74,15 @@
     (db/create-reminder! trans-conn (add-schedule-to-record trans-conn reminder))))
 
 
+(defn update-reminder-date!
+  "Updates a reminder's next date and its properties"
+  [id next-date properties]
+  (jdbc/with-db-transaction
+    [trans-conn *db*]
+    (db/update-reminder-date! trans-conn {:id id
+                                          :next_date next-date
+                                          :properties properties})))
+
 (defn mark-as-viewed!
   "Sets a reminder as viewed.
 

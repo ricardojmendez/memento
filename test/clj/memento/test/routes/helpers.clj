@@ -65,6 +65,12 @@
     [response data]))
 
 
+(defn patch-request
+  "Makes a patch request to a URL with a body. Returns a vector with the
+  response and the translated body."
+  [^String url id req-body auth-token]
+  (req-with-body :patch url id nil req-body auth-token))
+
 (defn post-request
   "Makes a post request to a URL with a body. Returns a vector with the
   response and the translated body."
