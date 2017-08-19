@@ -15,6 +15,7 @@
             [markdown.lists :as mdlists]
             [markdown.transformers :as transformers]
             [memento.handlers.auth :refer [clear-token-on-unauth]]
+            [memento.handlers.cache]
             [memento.handlers.memory]
             [memento.handlers.reminder]
             [memento.handlers.routing :as r]
@@ -339,9 +340,16 @@
                            (.scrollIntoView top-div-target)
                            (dispatch [:state-refine memory]))}
           [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]
-         [:a {:class    "btn btn-primary btn-xs"
-              :on-click #(dispatch [:reminder-create memory "spaced"])}
-          [:i {:class "fa fa-bell icon-margin-both"}] "Remind"]
+         (if (empty? (:reminders memory))
+           [:a {:class    "btn btn-primary btn-xs"
+                :on-click #(dispatch [:reminder-create memory "spaced"])}
+            [:i {:class "fa fa-bell icon-margin-both"}] "Remind"]
+           [:a {:class    "btn btn-danger btn-xs"
+                ;; doseq since a thought may have multiple reminders
+                :on-click #(doseq [item (:reminders memory)]
+                             (dispatch [:reminder-cancel item]))}
+            [:i {:class "fa fa-bell icon-margin-both"}] "Cancel"])
+
          ]
         ]])))
 
