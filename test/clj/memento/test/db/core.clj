@@ -42,7 +42,8 @@
   (let [record {:username "testuser" :password "unencrypted"}
         _      (db/create-user! *db* record)
         result (db/get-user *db* {:username "testuser"})]
-    (is (= record result))))
+    (is (:created result))
+    (is (= record (dissoc result :created)))))
 
 
 (deftest create-user-twice-fails
