@@ -45,6 +45,8 @@
 
 
   :main memento.core
+  ;; Necessary at a global level for uberjar deployments to Heroku
+  :uberjar-name "memento.jar"
 
   :plugins [[lein-cprop "1.0.3"]
             [lein-cljsbuild "1.1.7"]
