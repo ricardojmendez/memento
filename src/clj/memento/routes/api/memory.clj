@@ -58,6 +58,4 @@
   (ok (->> id
            memory/query-thread
            (filter #(= (:username %) username))
-           ;; I'll return the id as a string so that the frontend doesn't
-           ;; have to do any parsing guesswork.
-           (hash-map :id (str id) :results))))
+           (hash-map :id id :results))))
