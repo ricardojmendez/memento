@@ -35,7 +35,17 @@
   "Adds a number of days to the current date. If it receives nil, it returns nil."
   [days]
   (when (some? days)
-    (tc/to-sql-date (tm/plus (tm/now) (tm/days days)))))
+    (tc/to-sql-date (tm/plus (tm/now)
+                             (tm/days days)))))
+
+(defn add-random-days
+  "Adds a number of random days to a date"
+  [r date]
+  (when (some? date)
+    ;; Use tm/minutes because it gives us more granularity, since instant functions
+    ;; expect integers
+    (tc/to-sql-date (tm/plus (tc/to-date-time date)
+                             (tm/minutes (* 24 60 (rand r)))))))
 
 (defn- add-schedule-to-record
   "Adds a new schedule to reminder record based on its type. Expects a connection to use."
@@ -54,7 +64,7 @@
     ;; - Not overwrite the next_date
     (merge reminder {:properties {:days    schedule
                                   :day-idx 0}
-                     :next_date  (add-days-to-now (first schedule))})))
+                     :next_date  (add-random-days 1 (add-days-to-now (first schedule)))})))
 
 (defn create!
   "Saves a new reminder associated with a memory."
@@ -91,7 +101,8 @@
                                                   ;; for the last element
                                                   (drop day-idx)
                                                   first
-                                                  add-days-to-now))
+                                                  add-days-to-now
+                                                  (add-random-days day-idx)))
                                       (assoc-in [:properties :day-idx] day-idx))
                                   ;; If we find a legacy case which does not include the days,
                                   ;; add a new schedule to the default.
