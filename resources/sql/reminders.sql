@@ -47,3 +47,8 @@ FROM reminders r
 WHERE r.next_date IS NOT NULL
       AND t.username = :username
 ORDER BY r.next_date;
+
+
+-- :name delete-reminders-for-thought! :! :n
+-- :doc  Deletes a thought's reminders
+DELETE FROM reminders WHERE thought_id = :id;

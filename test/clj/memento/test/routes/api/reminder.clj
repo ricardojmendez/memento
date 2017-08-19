@@ -57,6 +57,27 @@
         (is (some? item))
         (is (nil? item-2))))))
 
+(deftest test-delete-thought
+  (tdu/init-placeholder-data!)
+  (user/create! "user1" "password1")
+  (let [token (invoke-login {:username "user1" :password "password1"})
+        [_ record] (post-request "/api/thoughts" {:thought "Just a thought"} token)]
+    ;; On to the tests
+    (testing "We can delete a thought with reminders"
+      (let [[_ reminder] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} token)
+            [deleted _] (del-request "/api/thoughts" (:id record) token)
+            ; Query post-delete
+            [r-del-thought thoughts-after-delete] (get-request "/api/thoughts" nil token)
+            [r-del-reminder reminder-after-delete] (get-request (str "/api/reminders/" (:id reminder)) nil token)]
+        (is reminder)
+        (is (= 204 (:status deleted)))
+        (is (= 404 (:status r-del-reminder)))
+        (is (zero?  (:total thoughts-after-delete)))
+        (is (empty? reminder-after-delete))
+        ))
+
+    ))
+
 (deftest test-patch-next-date
   (tdu/init-placeholder-data!)
   (user/create! "user1" "password1")

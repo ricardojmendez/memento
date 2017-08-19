@@ -75,7 +75,11 @@
   [^UUID id]
   (let [current (set-status (db/get-thought-by-id *db* {:id id}))]
     (if (= :open (:status current))
-      (db/delete-thought! *db* {:id id})
+      (jdbc/with-db-transaction
+        [trans-conn *db*]
+        (db/delete-reminders-for-thought! trans-conn {:id id})
+        (db/delete-thought! trans-conn {:id id}))
+
       0)))
 
 
