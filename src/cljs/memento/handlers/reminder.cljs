@@ -27,10 +27,9 @@
           {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
            :handler       #(timbre/info "Reminder successfully marked as viewed")
            :error-handler #(dispatch [:state-message (str "Error marking reminder as viewed: " %) "alert-danger"])})
-    (let [new-list (not-empty (remove #(= item %) (get-in app-state [:cache :reminders])))]
-      (when (not new-list)
-        (dispatch [:state-show-reminders false]))
-      (assoc-in app-state [:cache :reminders] new-list))))
+    ;; Notice that we only remove it from the list of reminders to list, not all the caches
+    (dispatch [:cache-remove-reminder-display item])
+    app-state))
 
 (reg-event-db
   :reminder-cancel
@@ -38,12 +37,11 @@
     (PATCH (str "/api/reminders/" (:id item))
            {:params        {:next-date nil}
             :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-            :handler       #(dispatch [:state-message "Reminder canceled" "alert-success"])
+            :handler       #(do
+                              (dispatch [:cache-remove-reminder item])
+                              (dispatch [:state-message "Reminder canceled" "alert-success"]))
             :error-handler #(dispatch [:state-message (str "Error canceling reminder: " %) "alert-danger"])})
-    (let [new-list (not-empty (remove #(= item %) (get-in app-state [:cache :reminders])))]
-      (when (not new-list)
-        (dispatch [:state-show-reminders false]))
-      (assoc-in app-state [:cache :reminders] new-list))))
+    app-state))
 
 (reg-event-db
   :reminder-create
@@ -52,9 +50,8 @@
           {:params        {:thought-id (:id thought) :type-id type}
            :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
            :handler       #(do
-                             ;; TODO: A proper modal would be ideal, maybe removing the reminder button
                              (timbre/info "Reminder created" %)
-                             (js/alert "Reminder created")
+                             (dispatch [:cache-add-reminder %])
                              (dispatch [:state-message "Created reminder" "alert-success"]))
            :error-handler #(dispatch [:state-message (str "Error creating reminder as viewed: " %) "alert-danger"])})
     app-state
