@@ -187,7 +187,7 @@
       (if (and @reminders @showing?)
         ;; Reminder list
         ;; TODO Should probably extract to a component
-        [:div {:id "reminder-list"}
+        [:div {:id "reminder-list" :class "well well-sm"}
          [:a {:on-click #(dispatch [:state-show-reminders false])}
           [:i {:style {:top       "0px"
                        :right     "5px"
@@ -196,14 +196,34 @@
                :class "fa fa-window-close"}
            ]]
          (for [item (sort-by :created @reminders)]
-           ^{:key (:id item)}
-           [:div {:class "reminder-item hover-wrapper"}
-            [:span {:dangerouslySetInnerHTML {:__html (:html item)}}]
-            [:span {:class "show-on-hover"}
-             #_[:i [:small (helpers/format-date (:created item))]]
-             [:span {:class    "btn btn-success btn-xs icon-margin-left"
-                     :on-click #(dispatch [:reminder-viewed item])}
-              [:i {:class "fa fa-check"} " Viewed"]]]])
+           ;; Need to figure out if the reminder has a day-idx in its schedule,
+           ;; since legacy reminders will not.  See #73.
+           (let [day-idx    (get-in item [:properties :day-idx])
+                 days       (get-in item [:properties :days])
+                 total-days (count days)
+                 days-left? (and (some? day-idx)            ; Could be nil
+                                 (< day-idx (dec total-days)))
+                 next-leap  (when days-left?
+                              (nth days (inc day-idx)))
+                 label      (cond
+                              next-leap "Viewed"
+                              (nil? day-idx) "Viewed"       ; Thought about labeling it differently, let's not confuse users
+                              :else "Done")]
+             ;; TODO: Would be ideal to display a tooltip with the number of
+             ;; days until the next reminder, but OverlayTrigger/Tooltip are
+             ;; barfing with an error. Tabling.
+             ^{:key (:id item)}
+             [:div {:class "reminder-item hover-wrapper"}
+              [:span {:dangerouslySetInnerHTML {:__html (:html item)}}]
+              [:span {:class "show-on-hover"}
+               [:span {:class    "btn btn-success btn-xs icon-margin-left"
+                       :on-click #(dispatch [:reminder-viewed item])}
+                [:i {:class "fa fa-check"} " " label]]
+               (when (or next-leap (nil? day-idx))
+                 [:span {:class    "btn btn-danger btn-xs icon-margin-left"
+                         :on-click #(dispatch [:reminder-cancel item])}
+                  [:i {:class "fa fa-trash"} " Cancel"]])
+               ]]))
          ]
         ;; Reminder notice
         (when (and (not-empty @reminders)

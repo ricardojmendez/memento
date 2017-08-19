@@ -27,6 +27,15 @@
     (ok existing)
     (not-found)))
 
+(defn set-next-date
+  "Sets the next date for a reminder"
+  [username id next-date]
+  (if-let [existing (reminder/get-if-owner username id)]
+    (do
+      (reminder/update-reminder-date! id next-date (:properties existing))
+      (no-content))
+    (not-found)))
+
 (defn get-pending-reminders
   "Retrieves all pending reminders for a user"
   [username]

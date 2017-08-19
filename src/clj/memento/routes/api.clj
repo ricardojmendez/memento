@@ -4,7 +4,7 @@
             [buddy.auth.backends.token :refer [token-backend]]
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
             [compojure.api.meta :refer [restructure-param]]
-            [compojure.api.sweet :refer [defapi context POST GET PUT DELETE]]
+            [compojure.api.sweet :refer [defapi context PATCH POST GET PUT DELETE]]
             [memento.middleware :refer [token-auth-mw]]
             [memento.routes.api.auth :as auth]
             [memento.routes.api.common :refer [read-content]]
@@ -45,7 +45,7 @@
    :type_id                  s/Str
    :thought_id               s/Uuid
    :created                  s/Inst
-   :next_date                s/Inst
+   :next_date                (s/maybe s/Inst)
    :properties               s/Any
    :username                 s/Str
    (s/optional-key :thought) s/Str                          ; Returned when querying for pending reminders
@@ -187,6 +187,13 @@
       :path-params [id :- s/Uuid]
       :auth-data auth-data
       (reminder/get-reminder (:username auth-data) id))
+
+    (PATCH "/reminders/:id" []
+      :summary "Patches a reminder's next-date"
+      :path-params [id :- s/Uuid]
+      :body-params [next-date :- (s/maybe s/Inst)]
+      :auth-data auth-data
+      (reminder/set-next-date (:username auth-data) id next-date))
 
     (GET "/reminders" []
       :summary "Retrieves all pending reminders"

@@ -1,5 +1,5 @@
 (ns memento.handlers.reminder
-  (:require [ajax.core :refer [GET POST PUT]]
+  (:require [ajax.core :refer [GET POST PUT PATCH]]
             [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
             [taoensso.timbre :as timbre]
             [memento.helpers :as helpers]))
@@ -27,6 +27,19 @@
           {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
            :handler       #(timbre/info "Reminder successfully marked as viewed")
            :error-handler #(dispatch [:state-message (str "Error marking reminder as viewed: " %) "alert-danger"])})
+    (let [new-list (not-empty (remove #(= item %) (get-in app-state [:cache :reminders])))]
+      (when (not new-list)
+        (dispatch [:state-show-reminders false]))
+      (assoc-in app-state [:cache :reminders] new-list))))
+
+(reg-event-db
+  :reminder-cancel
+  (fn [app-state [_ item]]
+    (PATCH (str "/api/reminders/" (:id item))
+           {:params        {:next-date nil}
+            :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+            :handler       #(dispatch [:state-message "Reminder canceled" "alert-success"])
+            :error-handler #(dispatch [:state-message (str "Error canceling reminder: " %) "alert-danger"])})
     (let [new-list (not-empty (remove #(= item %) (get-in app-state [:cache :reminders])))]
       (when (not new-list)
         (dispatch [:state-show-reminders false]))

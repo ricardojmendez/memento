@@ -8,7 +8,7 @@
             [memento.test.db.core :as tdb]
             [memento.test.db.memory :as tdm]
             [memento.test.db.user :as tdu]
-            [memento.test.routes.helpers :refer [post-request get-request put-request del-request invoke-login]]
+            [memento.test.routes.helpers :refer [patch-request post-request get-request put-request del-request invoke-login]]
             [memento.db.core :refer [*db*] :as db]
             [ring.mock.request :refer [request header body]]
             [clojure.string :as string]
@@ -55,9 +55,58 @@
             [response item-2] (get-request (str "/api/reminders/" (:id item)) nil invalid-token)]
         (is (= 404 (:status response)))
         (is (some? item))
-        (is (nil? item-2))))
-    )
-  )
+        (is (nil? item-2))))))
+
+(deftest test-patch-next-date
+  (tdu/init-placeholder-data!)
+  (user/create! "user1" "password1")
+  (let [token (invoke-login {:username "user1" :password "password1"})
+        [_ record] (post-request "/api/thoughts" {:thought "Just a thought"} token)]
+    ;; Verify the basics
+    (is (string? token))
+    (is (map? record))
+    ;; On to the tests
+    (testing "We can set a nil date for an existing reminder"
+      (let [[r-initial initial] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} token)
+            [r-updated r-empty] (patch-request "/api/reminders" (:id initial) {:next-date nil} token)
+            [_ updated] (get-request (str "/api/reminders/" (:id initial)) nil token)
+            ]
+        ;; TODO: Expand tests, just verifying the basics work right now, since the API may change
+        (is (= 201 (:status r-initial)))
+        (is (= 204 (:status r-updated)))
+        (is (empty? r-empty))                               ; Patch returns no content
+        ;; Both reminders should be the same, other than the next_date
+        (is (= (dissoc initial :next_date)
+               (dissoc updated :next_date)))
+        (is (nil? (:next_date updated)))
+        ))
+    (testing "We can set a string date for an existing reminder"
+      (let [[r-initial initial] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} token)
+            [r-updated r-empty] (patch-request "/api/reminders" (:id initial) {:next-date "2017-01-01"} token)
+            [_ updated] (get-request (str "/api/reminders/" (:id initial)) nil token)
+            ]
+        ;; TODO: Expand tests, just verifying the basics work right now, since the API may change
+        (is (= 201 (:status r-initial)))
+        (is (= 204 (:status r-updated)))
+        (is (empty? r-empty))                               ; Patch returns no content
+        ;; Both reminders should be the same, other than the next_date
+        (is (= (dissoc initial :next_date)
+               (dissoc updated :next_date)))
+        (is (= (read-string "#inst \"2017-01-01\"") (:next_date updated)))
+        ))
+    (testing "Trying to set the date from someone other than the owner fails"
+      (let [[r-initial initial] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} token)
+            invalid-token (invoke-login {:username tdu/ph-username :password tdu/ph-password})
+            [r-updated r-empty] (patch-request "/api/reminders" (:id initial) {:next-date "2017-01-01"} invalid-token)
+            [_ updated] (get-request (str "/api/reminders/" (:id initial)) nil token)
+            ]
+        ;; TODO: Expand tests, just verifying the basics work right now, since the API may change
+        (is (= 201 (:status r-initial)))
+        (is (= 404 (:status r-updated)))
+        (is (empty? r-empty))                               ; Patch returns no content
+        ;; Nothing should have changed
+        (is (= initial updated))))
+    ))
 
 ;; TODO: Tests for
 ;; - Get active reminders
