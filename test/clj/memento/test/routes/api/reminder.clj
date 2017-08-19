@@ -111,3 +111,4 @@
 ;; TODO: Tests for
 ;; - Get active reminders
 ;; - Mark a reminder as expired
+;; - Get reminders for a thought

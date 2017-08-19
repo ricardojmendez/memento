@@ -41,14 +41,14 @@
 
 
 (s/defschema Reminder
-  {:id                       s/Uuid
-   :type_id                  s/Str
-   :thought_id               s/Uuid
-   :created                  s/Inst
-   :next_date                (s/maybe s/Inst)
-   :properties               s/Any
-   :username                 s/Str
-   (s/optional-key :thought) s/Str                          ; Returned when querying for pending reminders
+  {:id                        s/Uuid
+   :type_id                   s/Str
+   :thought_id                s/Uuid
+   :created                   s/Inst
+   :next_date                 (s/maybe s/Inst)
+   :properties                s/Any
+   (s/optional-key :username) s/Str
+   (s/optional-key :thought)  s/Str                         ; Returned when querying for pending reminders
    })
 
 (s/defschema Thought
@@ -58,7 +58,9 @@
    :created                    s/Inst
    (s/optional-key :root_id)   (s/maybe s/Uuid)
    (s/optional-key :refine_id) (s/maybe s/Uuid)
-   (s/optional-key :status)    s/Keyword})
+   (s/optional-key :status)    s/Keyword
+   (s/optional-key :reminders) [Reminder]
+   })
 
 (s/defschema ThoughtSearchResult
   {:total        s/Int

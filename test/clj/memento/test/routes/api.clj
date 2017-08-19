@@ -160,7 +160,7 @@
             m2  (first results)
             [_ data] (get-request (str "/api/threads/" (:id m1)) nil token)
             ; m1 became a root after m2 was created, so we will expect it to have a root_id when returned
-            m1r (assoc m1 :root_id (:id m1))
+            m1r (assoc m1 :root_id (:id m1) :reminders [])
             ]
         (is m1)
         (is (nil? (:refine_id m1)))

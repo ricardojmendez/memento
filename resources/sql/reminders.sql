@@ -30,7 +30,7 @@ SELECT
 FROM reminders r
   INNER JOIN thoughts t ON r.thought_id = t.id
 WHERE r.next_date <= :min_date
-  AND t.username = :username
+      AND t.username = :username
 ORDER BY r.next_date;
 
 -- :name update-reminder-date! :! :n
@@ -38,3 +38,12 @@ ORDER BY r.next_date;
 UPDATE reminders
 SET next_date = :next_date, properties = :properties
 WHERE id = :id;
+
+-- :name get-active-reminders-for-thought :? :*
+-- :doc Returns all reminders for a thought that are considered active (have a next_date). Will filter by username.
+SELECT r.*
+FROM reminders r
+  INNER JOIN thoughts t ON r.thought_id = :id
+WHERE r.next_date IS NOT NULL
+      AND t.username = :username
+ORDER BY r.next_date;

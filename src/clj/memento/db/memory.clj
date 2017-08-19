@@ -101,9 +101,13 @@
          total     (if (empty? query-str)
                      (:count (db/get-thought-count *db* params))
                      (:count (db/search-thought-count *db* params)))
-         results   (if (empty? query-str)
-                     (db/get-thoughts *db* params)
-                     (db/search-thoughts *db* params))]
+         results   (->>
+                     (if (empty? query-str)
+                       (db/get-thoughts *db* params)
+                       (db/search-thoughts *db* params))
+                     (map #(assoc % :reminders (db/get-active-reminders-for-thought
+                                                 (select-keys % [:id :username]))))
+                     )]
      {:total   total
       :pages   (int (Math/ceil (/ total result-limit)))
       :results (map set-status results)}
@@ -112,4 +116,7 @@
 (defn query-thread
   "Returns a list with all the memories belonging to a root id"
   [id]
-  (map set-status (db/get-thread-by-root-id *db* {:id id})))
+  (->> (db/get-thread-by-root-id *db* {:id id})
+       (map set-status)
+       (map #(assoc % :reminders (db/get-active-reminders-for-thought
+                                   (select-keys % [:id :username]))))))
