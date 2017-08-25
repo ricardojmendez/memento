@@ -9,7 +9,7 @@
             [memento.test.db.core :as tdb]
             [memento.test.db.memory :as tdm]
             [memento.test.db.user :as tdu]
-            [memento.test.routes.helpers :refer [post-request get-request put-request del-request invoke-login]]
+            [memento.test.routes.helpers :refer [post-request patch-request get-request put-request del-request invoke-login]]
             [memento.db.core :refer [*db*] :as db]
             [memento.db.memory :as memory]
             [ring.mock.request :refer [request header body]]
@@ -428,10 +428,10 @@
     (testing "We can update a memory by posting to an ID"
       (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
             [_ query1] (get-request "/api/thoughts" nil token-u1)
-            [_ updated] (put-request "/api/thoughts" (:id memory) {:thought "Memory"} token-u1)
+            [_ updated] (patch-request "/api/thoughts" (:id memory) {:thought "Memory"} token-u1)
             [_ query2] (get-request "/api/thoughts" nil token-u1)
             ;; After we have updated it, check that we _aren't_ allowed to do PUT with an ID that does not belog to us
-            [ru2 data-ru2] (put-request "/api/thoughts" (:id memory) {:thought "Memories"} token-u2)
+            [ru2 data-ru2] (patch-request "/api/thoughts" (:id memory) {:thought "Memories"} token-u2)
             [_ query3] (get-request "/api/thoughts" nil token-u1)
             ]
         (is memory)
@@ -451,7 +451,7 @@
             ;; Force the date as if we created it a while ago
             _ (tdb/update-thought-created! *db* (assoc memory :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
             ;; Try to update
-            [response updated] (put-request "/api/thoughts" (:id memory) {:thought "Memory"} token-u1)
+            [response updated] (patch-request "/api/thoughts" (:id memory) {:thought "Memory"} token-u1)
             ]
         (is memory)
         (is (= "Memora" (:thought memory)))

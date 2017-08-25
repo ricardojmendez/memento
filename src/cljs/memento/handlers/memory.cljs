@@ -1,5 +1,5 @@
 (ns memento.handlers.memory
-  (:require [ajax.core :refer [GET POST PUT DELETE]]
+  (:require [ajax.core :refer [GET POST PATCH DELETE]]
             [memento.handlers.auth :refer [clear-token-on-unauth]]
             [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
             [taoensso.timbre :as timbre]
