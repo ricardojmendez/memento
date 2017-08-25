@@ -145,8 +145,11 @@
       :auth-data auth-data
       (memory/save-thought (:username auth-data) thought refine_id))
 
-    (PUT "/thoughts/:id" []
+    (PATCH "/thoughts/:id" []
       :summary "Updates an existing thought. Needs to be open."
+      ;; I'm not 100% sure if patch should return a value, according to the standard, but
+      ;; doing so here because it simplifies things if we have the full thought as it comes
+      ;; from the server.
       :return Thought
       :path-params [id :- s/Uuid]
       :body-params [thought :- s/Str]
