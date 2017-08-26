@@ -3,8 +3,16 @@
             [memento.db.core :refer [*db*] :as db]
             [memento.db.user :as user]
             [memento.test.db.core :as tdb]
-            [buddy.hashers :as hashers]))
+            [buddy.hashers :as hashers]
+            [mount.core :as mount]))
 
+(use-fixtures
+  :once
+  (fn [f]
+    (mount/start
+      #'memento.config/env
+      #'memento.db.core/*db*)
+    (f)))
 
 ;;;;
 ;;;; Helper functions

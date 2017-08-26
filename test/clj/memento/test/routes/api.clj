@@ -15,8 +15,17 @@
             [ring.mock.request :refer [request header body]]
             [clojure.string :as string]
             [numergent.auth :refer [create-auth-token decode-token]] ; Only for validation, all other calls should go through the API
-            [taoensso.timbre :as timbre])
+            [taoensso.timbre :as timbre]
+            [mount.core :as mount])
   (:import (java.util Date)))
+
+(use-fixtures
+  :once
+  (fn [f]
+    (mount/start
+      #'memento.config/env
+      #'memento.db.core/*db*)
+    (f)))
 
 ;;;;
 ;;;; Tests

@@ -12,7 +12,17 @@
             [memento.db.core :refer [*db*] :as db]
             [ring.mock.request :refer [request header body]]
             [clojure.string :as string]
-            [numergent.auth :as auth]))
+            [numergent.auth :as auth]
+            [mount.core :as mount]))
+
+
+(use-fixtures
+  :once
+  (fn [f]
+    (mount/start
+      #'memento.config/env
+      #'memento.db.core/*db*)
+    (f)))
 
 ;;;;
 ;;;; Tests

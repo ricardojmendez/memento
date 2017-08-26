@@ -18,7 +18,6 @@
     (mount/start
       #'memento.config/env
       #'memento.db.core/*db*)
-    (migrations/migrate ["migrate"] (select-keys env [:database-url]))
     (f)))
 
 

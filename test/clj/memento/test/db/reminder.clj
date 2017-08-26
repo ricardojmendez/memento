@@ -8,9 +8,17 @@
             [memento.db.memory :as memory]
             [memento.test.db.core :as tdb]
             [memento.test.db.user :as tdu]
-            [memento.test.db.memory :as tdm]))
+            [memento.test.db.memory :as tdm]
+            [mount.core :as mount]))
 
 
+(use-fixtures
+  :once
+  (fn [f]
+    (mount/start
+      #'memento.config/env
+      #'memento.db.core/*db*)
+    (f)))
 
 ;;;
 ;;; Creation
