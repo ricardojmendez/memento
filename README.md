@@ -4,7 +4,7 @@ Memento started as an experiment on introspection - private note-taking for thou
 
 It's a work in progress, alpha experimental project. Features are likely to change
 
-[![build status](https://gitlab.com/Numergent/memento/badges/master/build.svg)](https://gitlab.com/Numergent/memento/commits/master)
+[![build status](https://gitlab.com/Numergent/memento/badges/master/build.svg)](https://gitlab.com/Numergent/memento/commits/master) [![codecov](https://codecov.io/gl/Numergent/memento/branch/master/graph/badge.svg)](https://codecov.io/gl/Numergent/memento)
 
 ## Live version 
 
