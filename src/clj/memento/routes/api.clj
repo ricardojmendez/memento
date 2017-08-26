@@ -28,7 +28,7 @@
 
 (defmethod restructure-param :auth-rules
   [_ rule acc]
-  (update-in acc [:middleware] conj [wrap-restricted rule]))
+  (update-in acc [:middleware] conj [`wrap-restricted rule]))
 
 (defmethod restructure-param :auth-data
   [_ binding acc]

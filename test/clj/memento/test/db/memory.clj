@@ -10,8 +10,16 @@
             [memento.test.db.core :as tdb]
             [memento.test.db.user :as tdu]
             [numergent.utils :as u]
-            ))
+            [mount.core :as mount]))
 
+
+(use-fixtures
+  :once
+  (fn [f]
+    (mount/start
+      #'memento.config/env
+      #'memento.db.core/*db*)
+    (f)))
 
 ;;;;
 ;;;; Definitions

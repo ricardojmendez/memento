@@ -50,6 +50,7 @@
 
   :plugins [[lein-cprop "1.0.3"]
             [lein-cljsbuild "1.1.7"]
+            [lein-cloverage "1.0.9"]
             [lein-heroku "0.5.3"]
             [migratus-lein "0.5.0"]]
 
