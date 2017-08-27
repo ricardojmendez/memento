@@ -8,3 +8,9 @@ coverage:
       default:
         target: 30%    # Still adding untested experiments
         threshold: 10%
+
+ignore:
+  - "env/.*"   # Nothing to test on the environment
+  - "test/.*"  # Guess
+  - "src/clj/memento/core.clj" # Mostly start/stop code which the tests don't touch
+  - "src/clj/memento/routes/home.clj" # Home page routes that the tests don't currently touch
