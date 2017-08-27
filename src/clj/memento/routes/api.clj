@@ -7,7 +7,6 @@
             [compojure.api.sweet :refer [defapi context PATCH POST GET PUT DELETE]]
             [memento.middleware :refer [token-auth-mw]]
             [memento.routes.api.auth :as auth]
-            [memento.routes.api.common :refer [read-content]]
             [memento.routes.api.memory :as memory]
             [memento.routes.api.reminder :as reminder]
             [numergent.utils :as utils]
