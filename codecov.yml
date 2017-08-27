@@ -1,0 +1,10 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 60%
+        threshold: 5%
+    patch:
+      default:
+        target: 30%    # Still adding untested experiments
+        threshold: 10%
