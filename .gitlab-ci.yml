@@ -19,7 +19,7 @@ test:
   - lein with-profile test run migrate
   - lein test
   - lein cloverage --codecov
-  - bash <(curl -s https://codecov.io/bash) -f target/coverage/codecov.json
+  - bash <(curl -s https://codecov.io/bash) -f target/coverage/codecov.json -t $CODECOV_KEY
 
 uberjar:
   stage: build
