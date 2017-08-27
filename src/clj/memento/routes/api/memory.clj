@@ -1,6 +1,5 @@
 (ns memento.routes.api.memory
   (:require [memento.db.user :as user]
-            [memento.routes.api.common :refer [read-content]]
             [memento.db.memory :as memory]
             [numergent.auth :as auth]
             [numergent.utils :as utils]

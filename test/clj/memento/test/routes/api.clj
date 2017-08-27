@@ -143,6 +143,12 @@
     (testing "Attempting to add a memory without a token results in a 400"
       (let [[response _] (post-request "/api/thoughts" {:thought "Just a new idea"} nil)]
         (is (= 400 (:status response)))))
+    (testing "We cannot add empty thoughts"
+      (let [[response _] (post-request "/api/thoughts" {:thought ""} token)]
+        (is (= 400 (:status response))))
+      ;; Empty string is trimmed
+      (let [[response _] (post-request "/api/thoughts" {:thought "  "} token)]
+        (is (= 400 (:status response)))))
     (testing "We can add a new memory"
       (let [[response record] (post-request "/api/thoughts" {:thought "Just a thought"} token)]
         (is (= 201 (:status response)))
