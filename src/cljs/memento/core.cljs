@@ -3,17 +3,11 @@
             [bidi.bidi :as bidi]
             [clojure.string :refer [trim split]]
             [cljsjs.react-bootstrap]
-            [cljs-time.format :as tf]
-            [cljs-time.coerce :as tc]
             [reagent.cookies :as cookies]
             [reagent.core :as reagent :refer [atom]]
             [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
             [jayq.core :refer [$]]
             [markdown.core :refer [md->html]]
-            [markdown.common :as mdcommon]
-            [markdown.links :as mdlinks]
-            [markdown.lists :as mdlists]
-            [markdown.transformers :as transformers]
             [memento.handlers.auth :refer [clear-token-on-unauth]]
             [memento.handlers.cache]
             [memento.handlers.memory]
@@ -24,7 +18,6 @@
             [memento.helpers :as helpers]
             [pushy.core :as pushy]
             [ajax.core :refer [GET POST PUT DELETE]]
-            [clojure.string :as string]
             [taoensso.timbre :as timbre
              :refer-macros [log trace debug info warn error fatal report
                             logf tracef debugf infof warnf errorf fatalf reportf
