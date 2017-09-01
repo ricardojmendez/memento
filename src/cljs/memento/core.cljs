@@ -186,9 +186,9 @@
           [:i {:style {:top       "0px"
                        :right     "5px"
                        :font-size "24px"
+                       :z-index   999
                        :position  "absolute"}
-               :class "fa fa-window-close"}
-           ]]
+               :class "fa fa-window-close"}]]
          (for [item (sort-by :created @reminders)]
            ;; Need to figure out if the reminder has a day-idx in its schedule,
            ;; since legacy reminders will not.  See #73.
@@ -226,7 +226,7 @@
                 (if (:root_id thought)
                   [:a {:class "btn btn-primary btn-xs"
                        :href  (str "/thread/" (:root_id thought))}
-                   [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])
+                   [:i {:class "fa fa-list-ul icon-margin-both"}] "Context"])
                 [:a {:class    "btn btn-primary btn-xs"
                      :on-click #(do
                                   (.scrollIntoView top-div-target)
@@ -345,7 +345,7 @@
          (if (and show-thread-btn? (:root_id memory))
            [:a {:class "btn btn-primary btn-xs"
                 :href  (str "/thread/" (:root_id memory))}
-            [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])
+            [:i {:class "fa fa-list-ul icon-margin-both"}] "Context"])
          [:a {:class    "btn btn-primary btn-xs"
               :on-click #(do
                            (.scrollIntoView top-div-target)
@@ -415,7 +415,7 @@
     (fn []
       [panel (if @busy?
                [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]]
-               "Memories")
+               "Thoughts")
        [:span
         (if (empty? @results)
           [:p "Nothing."]
