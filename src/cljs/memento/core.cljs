@@ -202,22 +202,40 @@
                  label      (cond
                               next-leap "Viewed"
                               (nil? day-idx) "Viewed"       ; Thought about labeling it differently, let's not confuse users
-                              :else "Done")]
+                              :else "Done")
+                 thought    (:thought-record item)]
              ;; TODO: Would be ideal to display a tooltip with the number of
              ;; days until the next reminder, but OverlayTrigger/Tooltip are
              ;; barfing with an error. Tabling.
              ^{:key (:id item)}
-             [:div {:class "reminder-item hover-wrapper"}
-              [:span {:dangerouslySetInnerHTML {:__html (:html item)}}]
-              [:span {:class "show-on-hover"}
-               [:span {:class    "btn btn-success btn-xs icon-margin-left"
-                       :on-click #(dispatch [:reminder-viewed item])}
-                [:i {:class "fa fa-check"} " " label]]
-               (when (or next-leap (nil? day-idx))
-                 [:span {:class    "btn btn-danger btn-xs icon-margin-left"
-                         :on-click #(dispatch [:reminder-cancel item])}
-                  [:i {:class "fa fa-trash"} " Cancel"]])
-               ]]))
+             [:div {:class "row reminder-item hover-wrapper"}
+              [:div {:class "col-sm-12"}
+               [:span {:dangerouslySetInnerHTML {:__html (:html item)}}]]
+              [:div {:class "col-sm-12 show-on-hover"}
+               [:div {:class "show-on-hover col-sm-4"}
+                [:span {:class    "btn btn-success btn-xs icon-margin-left"
+                        :on-click #(dispatch [:reminder-viewed item])}
+                 [:i {:class "fa fa-check"} " " label]]
+                (when (or next-leap (nil? day-idx))
+                  [:span {:class    "btn btn-danger btn-xs icon-margin-left"
+                          :on-click #(dispatch [:reminder-cancel item])}
+                   [:i {:class "fa fa-trash"} " Cancel"]])]
+               ;; Showing only the buttons for Elaborate and Thread. I don't want to get into the potential mess
+               ;; of editing or removing a thought while the reminder is shown yet.
+               [:span {:class "col-sm-8" :style {:text-align "right"}}
+                (if (:root_id thought)
+                  [:a {:class "btn btn-primary btn-xs"
+                       :href  (str "/thread/" (:root_id thought))}
+                   [:i {:class "fa fa-list-ul icon-margin-both"}] "Thread"])
+                [:a {:class    "btn btn-primary btn-xs"
+                     :on-click #(do
+                                  (.scrollIntoView top-div-target)
+                                  (dispatch [:state-refine thought]))}
+                 [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]
+
+                ]]
+
+              ]))
          ]
         ;; Reminder notice
         (when (and (not-empty @reminders)

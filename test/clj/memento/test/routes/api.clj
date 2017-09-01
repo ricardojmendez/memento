@@ -158,7 +158,7 @@
         (is (= "Just a thought" (:thought record)))
         (is (= (str "http://localhost/api/thoughts/" (:id record)) (get-in response [:headers "Location"])))
         ))
-    (testing "After adding a memory, we can query for it"
+    (testing "After adding a memory, it shows up on the query results"
       (let [[_ {:keys [total results]}] (get-request "/api/thoughts" nil token)
             item (first results)]
         (is (= 1 (count results)))
@@ -191,6 +191,23 @@
           (is new-token)
           (is (= {:results [] :id (:id m1)} data)))
         ))
+    (testing "After adding a memory, we can request it directly"
+      (let [[_ item-post] (post-request "/api/thoughts" {:thought "Just a thought to retrieve"} token)
+            [resp item-get] (get-request (str "/api/thoughts/" (:id item-post)) nil token)]
+        (is (= 200 (:status resp)))
+        (is (= item-post item-get))))
+    (testing "After adding a memory, we can only see it from the creator"
+      (user/create! "user2" "password2")
+      (let [token-u2 (invoke-login {:username "user2" :password "password2"})
+            [_ item-post] (post-request "/api/thoughts" {:thought "Just a thought to retrieve"} token)
+            [resp item-get] (get-request (str "/api/thoughts/" (:id item-post)) nil token)
+            [resp-bad item-bad] (get-request (str "/api/thoughts/" (:id item-post)) nil token-u2)]
+        ;; We can't read it with an invalid token
+        (is (= 404 (:status resp-bad)))
+        (is (nil? item-bad))
+        ;; ... but the valid token responds as expected
+        (is (= 200 (:status resp)))
+        (is (= item-post item-get))))
     )
   (let [token (invoke-login {:username "User1" :password "password1"})]
     (testing "Username on memory addition is not case sensitive"

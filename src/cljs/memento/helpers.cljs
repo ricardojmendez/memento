@@ -61,12 +61,17 @@
 ;;;; Helpers
 ;;;;-------------------------
 
+(defn add-html
+  "Receives a single thought and adds a :html element to it by
+  transforming its text into markdown"
+  [item]
+  (assoc item :html (md->html (:thought item) :replacement-transformers md-transformers)))
+
 (defn add-html-to-thoughts
   "Receives a list of thoughts and converts the markdown to html, adding it
   to the map as a :html attribute"
   [thoughts]
-  (map #(assoc % :html (md->html (:thought %) :replacement-transformers md-transformers))
-       thoughts))
+  (map add-html (not-empty thoughts)))
 
 (defn format-date
   "Formats a date for displaying"

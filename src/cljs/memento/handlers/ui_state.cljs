@@ -24,7 +24,7 @@
   :state-message
   (fn [app-state [_ msg class]]
     (let [message {:text msg :class class}]
-      ; TODO: Consider changing this for a keyword
+      ;; TODO: Consider changing this for a keyword
       (if (= class "alert-success")
         (js/setTimeout #(dispatch [:state-message-if-same message nil]) 3000))
       (assoc-in app-state [:ui-state :last-message] message))))

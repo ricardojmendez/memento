@@ -1,13 +1,9 @@
 (ns memento.routes.api.memory
-  (:require [memento.db.user :as user]
-            [memento.db.memory :as memory]
-            [numergent.auth :as auth]
-            [numergent.utils :as utils]
+  (:require [memento.db.memory :as memory]
             [ring.util.http-response :refer [ok unauthorized conflict created
                                              bad-request! not-found forbidden
                                              no-content]]
-            [clojure.string :as string])
-  (:import (java.util UUID)))
+            [clojure.string :as string]))
 
 
 (defn query-thoughts
@@ -39,6 +35,13 @@
       (= :closed (:status existing)) (forbidden "Cannot update closed thoughts")
       :else (ok (memory/update! {:id id :thought trimmed}))
       )))
+
+(defn get-thought
+  "Gets a thought by id"
+  [username id]
+  (if-let [existing (memory/get-if-owner username id)]
+    (ok existing)
+    (not-found)))
 
 (defn delete-thought
   "Deletes an existing thought"

@@ -1,5 +1,5 @@
 (ns memento.handlers.memory
-  (:require [ajax.core :refer [GET POST PATCH DELETE]]
+  (:require [ajax.core :refer [GET POST PUT PATCH DELETE]]
             [memento.handlers.auth :refer [clear-token-on-unauth]]
             [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
             [taoensso.timbre :as timbre]
@@ -86,10 +86,10 @@
     (let [note   (get-in app-state [:note :edit-note])
           memory (get-in app-state [:note :edit-memory])
           url    (str "/api/thoughts/" (:id memory))]
-      (PUT url {:params        {:thought note}
-                :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                :handler       #(dispatch [:memory-edit-save-success memory note])
-                :error-handler #(dispatch [:memory-edit-save-error memory %])}))
+      (PATCH url {:params        {:thought note}
+                  :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                  :handler       #(dispatch [:memory-edit-save-success memory note])
+                  :error-handler #(dispatch [:memory-edit-save-error memory %])}))
     (assoc-in app-state [:ui-state :is-busy?] true)))
 
 
