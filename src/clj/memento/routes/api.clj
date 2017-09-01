@@ -9,10 +9,8 @@
             [memento.routes.api.auth :as auth]
             [memento.routes.api.memory :as memory]
             [memento.routes.api.reminder :as reminder]
-            [numergent.utils :as utils]
             [ring.util.http-response :refer :all]
-            [schema.core :as s])
-  (:import (java.util UUID Date)))
+            [schema.core :as s]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Access handlers and wrappers
@@ -135,6 +133,13 @@
       :query-params [{page :- s/Int 0}]
       :auth-data auth-data
       (memory/query-thoughts (:username auth-data) nil page))
+
+    (GET "/thoughts/:id" []
+      :summary "Gets a thought"
+      :path-params [id :- s/Uuid]
+      :return Thought
+      :auth-data auth-data
+      (memory/get-thought (:username auth-data) id))
 
     (POST "/thoughts" []
       :summary "Creates a new thought"

@@ -18,7 +18,12 @@
 (reg-event-db
   :reminder-load-success
   (fn [app-state [_ result]]
-    (assoc-in app-state [:cache :reminders] (helpers/add-html-to-thoughts (not-empty result)))))
+    (doseq [item result]
+      (GET (str "/api/thoughts/" (:thought_id item))
+           {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+            :handler       #(dispatch [:cache-add-reminder-thought (helpers/add-html %)])
+            :error-handler #(dispatch [:state-message (str "Error loading thought: " %) "alert-danger"])}))
+    (assoc-in app-state [:cache :reminders] (helpers/add-html-to-thoughts result))))
 
 (reg-event-db
   :reminder-viewed

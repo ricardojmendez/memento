@@ -1,8 +1,7 @@
 (ns memento.handlers.cache
   (:require [ajax.core :refer [GET POST PUT PATCH]]
             [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
-            [taoensso.timbre :as timbre]
-            [memento.helpers :as helpers]))
+            [taoensso.timbre :as timbre]))
 
 
 (reg-event-db
@@ -14,6 +13,7 @@
       (when (empty? new-reminder-list)
         (dispatch [:state-show-reminders false]))
       (assoc-in app-state [:cache :reminders] new-reminder-list))))
+
 
 (reg-event-db
   :cache-remove-reminder
@@ -52,9 +52,19 @@
           threads         (get-in app-state [:cache :threads])
           new-threads     (into {}
                                 (for [[id thread] threads]
-                                  [id (map fn-add-reminder thread)]))
-          ]
+                                  [id (map fn-add-reminder thread)]))]
       (-> app-state
           (assoc-in [:cache :threads] new-threads)
-          (assoc-in [:search-state :list] new-search-list)))
-    ))
+          (assoc-in [:search-state :list] new-search-list)))))
+
+(reg-event-db
+  :cache-add-reminder-thought
+  (fn [app-state [_ thought]]
+    ;; Looks for the reminder associated with the thought, and add it
+    (let [fn-add-thought (fn [e] (if (= (:thought_id e) (:id thought))
+                                   (assoc e :thought-record thought)
+                                   e))]
+      (assoc-in app-state [:cache :reminders]
+                (map fn-add-thought (get-in app-state [:cache :reminders]))
+
+                ))))
