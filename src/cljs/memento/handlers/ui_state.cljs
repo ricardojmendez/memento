@@ -52,6 +52,7 @@
   :state-refine
   (fn [app-state [_ thought]]
     (dispatch [:state-browser-token :record])
+    (dispatch [:state-show-reminders false])
     (assoc-in app-state [:note :focus] thought)))
 
 (reg-event-db
