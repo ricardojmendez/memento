@@ -29,13 +29,21 @@
       (handler route-params)
       (dispatch [:state-ui-section handler]))))
 
-(defn bidi-matcher [s]
+(defn bidi-matcher
+  "Will match a URL to a route"
+  [s]
   (timbre/trace "Matching" s (bidi/match-route routes s))
   (bidi/match-route routes s))
+
 
 (def history
   (pushy/pushy set-page! bidi-matcher))
 
+(defn match-and-set!
+  "Matches a URL to a route, sets the page, and pushes it on the state"
+  [url]
+  (pushy/set-token! history url)
+  (set-page! (bidi-matcher url)))
 
 ;; Handler for changing the browser token from a keyword, so that
 ;; :record leads to /record. The handler is expected to apply any

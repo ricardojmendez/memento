@@ -322,8 +322,10 @@
       ^{:key (:id memory)}
       [:div {:class "col-sm-12 thought hover-wrapper"}
        [:div {:class "memory col-sm-12"}
-        [:span {:dangerouslySetInnerHTML {:__html (:html memory)}}]
-        ]
+        [:span {:on-click #(when (and show-thread-btn? (:root_id memory))
+                             (r/match-and-set! (str "/thread/" (:root_id memory))))
+                :dangerouslySetInnerHTML
+                          {:__html (:html memory)}}]]
        [:div
         [:div {:class "col-sm-4 show-on-hover"}
          [:i [:small (helpers/format-date (:created memory))]]
