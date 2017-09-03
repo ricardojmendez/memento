@@ -4,8 +4,7 @@ variables:
   DATABASE_URL: "postgresql://memento:testdb@postgres:5432/memento_test"
 
 before_script:
-  - apt-get update -y
-  - lein deps
+  - export LEIN_SNAPSHOTS_IN_RELEASE=true
 
 
 test:
@@ -13,6 +12,7 @@ test:
   services:
     - postgres:latest
   script:
+  - apt-get update -y
   - apt-get install postgresql-client -y
   - psql -h postgres -U postgres < db-setup.sql
   - echo $DATABASE_URL
@@ -24,22 +24,18 @@ test:
 uberjar:
   stage: build
   script:
-  - export LEIN_SNAPSHOTS_IN_RELEASE=true
   - lein uberjar
   artifacts:
     paths:
     - target/uberjar/memento.jar
   only:
   - master
+  - tags
 
 production:
   stage: deploy
   script:
-  - export LEIN_SNAPSHOTS_IN_RELEASE=true
-  - lein uberjar
+  - ls -l target/uberjar # Uberjar should be here from the build stage
   - HEROKU_API_KEY=$HEROKU_PRODUCTION_API_KEY lein heroku deploy
-  artifacts:
-    paths:
-    - target/uberjar/memento.jar
   only:
-  - tags
+  - master
