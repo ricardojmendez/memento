@@ -3,18 +3,9 @@
             [memento.handlers.auth :refer [clear-token-on-unauth]]
             [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
             [taoensso.timbre :as timbre]
+            [memento.handlers.thread :as thread]
             [memento.helpers :as helpers]))
 
-
-;;;
-;;; Helpers
-;;;
-
-(defn thread-in-cache?
-  "Receives an application state and a thread-id, and returns true if the
-  application cache currently contains that thread."
-  [app-state thread-id]
-  (contains? (get-in app-state [:cache :threads]) thread-id))
 
 
 ;;;
@@ -100,8 +91,7 @@
       (dispatch [:state-message (str "Updated memory to: " msg) "alert-success"])
       (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
         (dispatch [:memories-load]))
-      (when (thread-in-cache? app-state thread-id)
-        (dispatch [:thread-load thread-id]))
+      (thread/reload-if-cached app-state thread-id)
       (-> app-state
           (assoc-in [:ui-state :is-busy?] false)
           (assoc-in [:note :edit-memory] nil)
@@ -112,7 +102,7 @@
 
 (reg-event-db
   :memory-edit-save-error
-  (fn [app-state [_ memory result]]
+  (fn [app-state [_ _ result]]
     (dispatch [:state-message (str "Error editing memory: " result) "alert-danger"])
     (clear-token-on-unauth result)
     (assoc-in app-state [:ui-state :is-busy?] false)))
@@ -129,19 +119,16 @@
 (reg-event-db
   :memory-forget-success
   (fn [app-state [_ memory msg]]
-    (let [thread-id (:root_id memory)]
-      (dispatch [:state-message (str "Thought forgotten") "alert-success"])
-      (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
-        (dispatch [:memories-load]))
-      (when (thread-in-cache? app-state thread-id)
-        (dispatch [:thread-load thread-id]))
-      (-> app-state
-          (assoc-in [:ui-state :is-busy?] false)
-          (assoc-in [:note :edit-memory] nil)
-          (assoc-in [:note :edit-note] "")
-          (assoc-in [:note :focus] nil)
-          (assoc :search-state nil)
-          )))
+    (dispatch [:state-message (str "Thought forgotten") "alert-success"])
+    (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
+      (dispatch [:memories-load]))
+    (thread/reload-if-cached app-state (:root_id memory))
+    (-> app-state
+        (assoc-in [:ui-state :is-busy?] false)
+        (assoc-in [:note :edit-memory] nil)
+        (assoc-in [:note :edit-note] "")
+        (assoc-in [:note :focus] nil)
+        (assoc :search-state nil)))
   )
 
 (reg-event-db
@@ -167,9 +154,7 @@
   :memory-save-success
   (fn [app-state [_ result msg]]
     (dispatch [:state-message (str "Saved: " msg) "alert-success"])
-    (let [thread-id (str (:root_id result))]
-      (when (thread-in-cache? app-state thread-id)
-        (dispatch [:thread-load thread-id])))
+    (thread/reload-if-cached app-state (:root_id result))
     (-> app-state
         (assoc-in [:ui-state :is-busy?] false)
         (assoc-in [:note :current-note] "")
