@@ -79,8 +79,8 @@
   [id next-date properties]
   (jdbc/with-db-transaction
     [trans-conn *db*]
-    (db/update-reminder-date! trans-conn {:id id
-                                          :next_date next-date
+    (db/update-reminder-date! trans-conn {:id         id
+                                          :next_date  next-date
                                           :properties properties})))
 
 (defn mark-as-viewed!

@@ -1,17 +1,14 @@
 (ns memento.routes.api.reminder
-  (:require [numergent.auth :as auth]
-            [memento.db.user :as user]
-            [memento.db.memory :as memory]
+  (:require [memento.db.memory :as memory]
             [memento.db.reminder :as reminder]
-            [numergent.utils :as utils]
             [ring.util.http-response :refer [ok unauthorized conflict created
                                              bad-request! not-found forbidden
-                                             no-content]])
-  (:import (java.util UUID)))
+                                             no-content]]))
 
 
 (defn create-new
-  "Saves a new reminder"
+  "Saves a new reminder for a thought. Returns not-found if it can't find a thought-id
+  belonging to the user."
   [username thought-id type-id]
   (if (memory/get-if-owner username thought-id)
     (let [item (reminder/create! {:thought_id thought-id :type_id type-id})]

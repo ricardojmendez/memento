@@ -5,6 +5,7 @@
             [memento.handler :refer [app]]
             [memento.db.user :as user]
             [memento.test.db.user :as tdu]
+            [memento.test.db.core :as tdb]
             [memento.test.routes.helpers :refer [patch-request post-request get-request put-request del-request invoke-login]]
             [ring.mock.request :refer [request header body]]
             [mount.core :as mount]
@@ -38,7 +39,6 @@
         (is (= 400 (:status response)))))
     (testing "We can add a new reminder to a thought"
       (let [[response record] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} token)]
-        ;; TODO: Expand tests, just verifying the basics work right now, since the API may change
         (is (= 201 (:status response)))
         (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
         (is (map? record))
@@ -54,13 +54,24 @@
         (is (= 200 (:status response)))
         (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
         (is (= item item-2))))
+    ;; Security concerns
     (testing "Trying to retrieve a reminder from someone other than the owner fails"
       (let [[_ item] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} token)
-            invalid-token (invoke-login {:username tdu/ph-username :password tdu/ph-password})
-            [response item-2] (get-request (str "/api/reminders/" (:id item)) nil invalid-token)]
+            other-token (invoke-login {:username tdu/ph-username :password tdu/ph-password})
+            [response item-2] (get-request (str "/api/reminders/" (:id item)) nil other-token)]
         (is (= 404 (:status response)))
         (is (some? item))
-        (is (nil? item-2))))))
+        (is (nil? item-2))))
+    (testing "Trying to add a reminder to a thought by someone other than the owner fails"
+      (let [all-before  (tdb/get-all-reminders)
+            other-token (invoke-login {:username tdu/ph-username :password tdu/ph-password})
+            all-after   (tdb/get-all-reminders)
+            [response item] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} other-token)]
+        (is (= 404 (:status response)))
+        (is (nil? item))
+        ;; Ensure not only we 404'd, but there weren't any actual changes
+        (is (= 3 (count all-before)))
+        (is (= all-before all-after))))))
 
 (deftest test-delete-thought
   (tdu/init-placeholder-data!)
@@ -198,8 +209,7 @@
         ;; The call itself succeeded, since it's a valid user, but there are no reminders
         (is (= 401 (:status response)))
         (is (:error result))))
-    )
-  )
+    ))
 
 ;; TODO: Tests for
 ;; - Mark a reminder as expired
