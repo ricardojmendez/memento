@@ -257,7 +257,7 @@
             " "
             "You have some thoughts you wanted to be reminded of."]
            [:p
-            "Click this section when you are ready to read them."]]))
+            [:b "Click this section when you are ready to read them."]]]))
 
       )))
 
