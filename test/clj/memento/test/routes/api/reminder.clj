@@ -208,7 +208,119 @@
       (let [[response result] (get-request "/api/reminders" nil "invalid")]
         ;; The call itself succeeded, since it's a valid user, but there are no reminders
         (is (= 401 (:status response)))
-        (is (:error result))))
+        (is (:error result))))))
+
+
+(deftest test-mark-as-viewed
+  (tdu/init-placeholder-data!)
+  ;; Test with a single user
+  (user/create! "user1" "password1")
+  (let [token         (invoke-login {:username "user1" :password "password1"})
+        ;; Test thought and reminders
+        [_ thought-1] (post-request "/api/thoughts" {:thought "Just a thought"} token)
+        [_ thought-2] (post-request "/api/thoughts" {:thought "Another thought"} token)
+        [_ rem-1] (post-request "/api/reminders" {:thought-id (:id thought-1) :type-id "spaced"} token)
+        [_ rem-2] (post-request "/api/reminders" {:thought-id (:id thought-2) :type-id "spaced"} token)
+        ;; Some test timestamps
+        minus-2s      (c/to-date (t/plus (t/now) (t/seconds -2)))
+        minus-1s      (c/to-date (t/plus (t/now) (t/seconds -1)))
+        ;; Set both reminders to have their next reminder date ready and reload
+        _             (reminder/update-reminder-date! (:id rem-1)
+                                                      minus-1s
+                                                      (:properties rem-1))
+        _             (reminder/update-reminder-date! (:id rem-2)
+                                                      minus-2s
+                                                      (:properties rem-2))
+        rem-1         (reminder/get-by-id (:id rem-1))
+        rem-2         (reminder/get-by-id (:id rem-2))
+
+        ;; We get the thought description when returning the reminders, so
+        ;; let's define a function to remove it
+        clear-thought #(dissoc % :thought)]
+    ;; Verify the basics
+    (is (string? token))
+    (doseq [item [thought-1 thought-2 rem-1 rem-2]]
+      (is (map? item) (str "Item should be a map " item)))
+    ;; On to the tests
+    (testing "All reminders are pending initially"
+      (let [[response r-list] (get-request "/api/reminders" nil token)]
+        (is (= 200 (:status response)))
+        (is (= [rem-2 rem-1]
+               (map clear-thought r-list)))))
+    (testing "Marking a reminder as viewed removes it from the list"
+      (let [[response post-result] (post-request (str "/api/reminders/viewed/" (:id rem-1)) nil token)
+            [_ r-list] (get-request "/api/reminders" nil token)
+            new-rem-1 (reminder/get-by-id (:id rem-1))]
+        ;; API call returns what we expect
+        (is (= 200 (:status response)))
+        (is (= 1 post-result))
+        ;; Reminder should no longer show up as pending
+        (is (= [rem-2]
+               (map clear-thought r-list)))
+        ;; The reminder itself was updated
+        (is (not= rem-1 new-rem-1))
+        (is (= (dissoc rem-1 :next_date :properties)
+               (dissoc new-rem-1 :next_date :properties)))
+        (is (t/after? (c/to-date-time (:next_date new-rem-1))
+                      (c/to-date-time (:next_date rem-1))))
+        (is (= 1 (get-in new-rem-1 [:properties :day-idx])))))
+    (testing "A different user cannot mark the reminder as viewed"
+      (user/create! "user2" "password")
+      (let [other-token (invoke-login {:username "user2" :password "password"})
+            rem-before  (reminder/get-by-id (:id rem-1))
+            [response post-result] (post-request (str "/api/reminders/viewed/" (:id rem-1)) nil other-token)
+            rem-after   (reminder/get-by-id (:id rem-1))]
+        (is (string? other-token))
+        ;; The call itself succeeded, since it's a valid user, but there are no reminders
+        (is (= 404 (:status response)))
+        (is (empty? post-result))
+        (is (= rem-before rem-after))))
+    (testing "Calling the function repeatedly keeps moving forward the date and increasing the day index"
+      (let [day-count   (count (get-in rem-1 [:properties :days]))
+            ;; Will call the function multiple times on purpose to ensure it works even after the reminder has no more repetitions
+            time-series (for [i (range (+ 3 day-count))]
+                          (let [[response post-result] (post-request (str "/api/reminders/viewed/" (:id rem-1)) nil token)
+                                new-rem (reminder/get-by-id (:id rem-1))]
+                            {:status    (:status response)
+                             :result    post-result
+                             :index     i
+                             :next_date (:next_date new-rem)
+                             :day-idx   (get-in new-rem [:properties :day-idx])}
+                            ))]
+        (doseq [item time-series]
+          ;; We will always return that we updated an existing reminder, even if we didn't move it forward
+          (is (= 200 (:status item)))
+          (is (= 1 (:result item)))
+          (if (< (:day-idx item) day-count)
+            (is (some? (:next_date item)) (str "Expected a date on " item))
+            (do
+              (is (nil? (:next_date item)) (str "Did not expect a date for " item))
+              (is (= day-count (:day-idx item)) (str "Did not expect the day index to move after " day-count))))
+          )
+        ))
+    (testing "Marking a legacy reminder as viewed adds a schedule and moves its date forward"
+      (let [_         (reminder/update-reminder-date! (:id rem-1)
+                                                      minus-1s
+                                                      nil)
+            legacy    (reminder/get-by-id (:id rem-1))
+            [response post-result] (post-request (str "/api/reminders/viewed/" (:id rem-1)) nil token)
+            [_ r-list] (get-request "/api/reminders" nil token)
+            new-rem-1 (reminder/get-by-id (:id rem-1))]
+        ;; Ensure our setup went as expected
+        (is (nil? (:properties legacy)))
+        (is (= minus-1s (:next_date legacy)))
+        ;; API call returns what we expect
+        (is (= 200 (:status response)))
+        (is (= 1 post-result))
+        ;; Reminder does not show up as pending
+        (is (= [rem-2]
+               (map clear-thought r-list)))
+        ;; The call configured the reminder to for spaced repetition and moved the date
+        ;; forward, but left it at the first index
+        (is (zero? (get-in new-rem-1 [:properties :day-idx])))
+        (is (t/after? (c/to-date-time (:next_date new-rem-1))
+                      (c/to-date-time minus-1s)))
+        (is (< 0 (count (get-in new-rem-1 [:properties :days]))))))
     ))
 
 ;; TODO: Tests for
