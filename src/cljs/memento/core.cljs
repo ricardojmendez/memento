@@ -458,6 +458,14 @@
     (fn []
       [:div {:class "modal"}
        [:div {:class "modal-dialog"}
+        [:div {:class "jumbotron"}
+         [:h3 "Welcome!"]
+         [:p "Memento is an experimental note-taking application "
+          "for thoughts and ideas you may want to revisit."]
+         [:p [:a {:class "btn btn-primary"
+                  :href "/about"}
+              "Learn more"]]
+         ]
         [:div {:class "modal-content"}
          [:div {:class "modal-header"}
           [:h4 {:clss "modal-title"} "Login"]]
