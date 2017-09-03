@@ -5,6 +5,28 @@
             [taoensso.timbre :as timbre]
             [memento.helpers :as helpers]))
 
+
+;;;
+;;; Helpers
+;;;
+
+(defn thread-in-cache?
+  "Receives an application state and a thread-id, and returns true if the
+  application cache currently contains that thread."
+  [app-state ^UUID thread-id]
+  (contains? (get-in app-state [:cache :threads]) thread-id))
+
+
+(defn reload-if-cached [app-state ^UUID thread-id]
+  (when (thread-in-cache? app-state thread-id)
+    (dispatch [:thread-load thread-id])))
+
+
+;;;
+;;; Handlers
+;;;
+
+
 ;; This might be better called a train of thought.
 
 (reg-event-db
