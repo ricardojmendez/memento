@@ -250,14 +250,14 @@
         ;; Reminder notice
         (when (and (not-empty @reminders)
                    (not @is-focused?))
-          [:div {:class "alert alert-info"}
+          [:div {:class    "alert alert-info"
+                 :on-click #(dispatch [:state-show-reminders true])}
            [:p
             [:strong "Hi!"]
             " "
             "You have some thoughts you wanted to be reminded of."]
            [:p
-            [:a {:on-click #(dispatch [:state-show-reminders true])}
-             "Click here when you are ready to read them."]]]))
+            "Click this section when you are ready to read them."]]))
 
       )))
 
