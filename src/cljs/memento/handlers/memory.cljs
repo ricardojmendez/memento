@@ -13,7 +13,7 @@
 (defn thread-in-cache?
   "Receives an application state and a thread-id, and returns true if the
   application cache currently contains that thread."
-  [app-state thread-id]
+  [app-state ^UUID thread-id]
   (contains? (get-in app-state [:cache :threads]) thread-id))
 
 
@@ -167,7 +167,7 @@
   :memory-save-success
   (fn [app-state [_ result msg]]
     (dispatch [:state-message (str "Saved: " msg) "alert-success"])
-    (let [thread-id (str (:root_id result))]
+    (let [thread-id (:root_id result)]
       (when (thread-in-cache? app-state thread-id)
         (dispatch [:thread-load thread-id])))
     (-> app-state
