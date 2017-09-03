@@ -34,6 +34,13 @@
 (adapt-bootstrap OverlayTrigger)
 (adapt-bootstrap Popover)
 (adapt-bootstrap Tooltip)
+(adapt-bootstrap Navbar)
+(adapt-bootstrap Navbar.Header)
+(adapt-bootstrap Navbar.Brand)
+(adapt-bootstrap Navbar.Toggle)
+(adapt-bootstrap Navbar.Collapse)
+(adapt-bootstrap Nav)
+(adapt-bootstrap NavItem)
 (def Modal (reagent/adapt-react-class js/ReactBootstrap.Modal))
 (def ModalBody (reagent/adapt-react-class js/ReactBootstrap.ModalBody))
 (def ModalFooter (reagent/adapt-react-class js/ReactBootstrap.ModalFooter))
@@ -105,29 +112,32 @@
   (let [current     (subscribe [:ui-state :section])
         is-current? (reaction (= section @current))
         class       (when @is-current? "active")]
-    [:li {:class class} [:a {:href (bidi/path-for r/routes section)}
-                         label
-                         (if @is-current?
-                           [:span {:class "sr-only"} "(current)"])]]))
+    [NavItem {:class    class
+              :eventKey section
+              :href     (bidi/path-for r/routes section)}
+     label
+     (when @is-current?
+       [:span {:class "sr-only"} "(current)"])]))
 
 
 (defn navbar []
   (let [token (subscribe [:credentials :token])]
     (fn []
-      [:nav {:class "navbar navbar-default navbar-fixed-top"}
-       [:div {:class "container-fluid"}
-        [:div {:class "navbar-header"}
-         [:a {:class "navbar-brand"} "Memento"]]
-        [:div {:class "collapse navbar-collapse" :id "navbar-items"}
-         [:ul {:class "nav navbar-nav"}
-          (if (nil? @token)
-            [:ul {:class "nav navbar-nav"}
-             [navbar-item "Login" :login]
-             [navbar-item "Sign up" :signup]]
-            [:ul {:class "nav navbar-nav"}
-             [navbar-item "Record" :record]
-             [navbar-item "Remember" :remember]])
-          ]]]])))
+      [Navbar {:collapseOnSelect true
+               :fixedTop         true}
+       [Navbar.Header
+        [Navbar.Brand "Memento"]
+        [Navbar.Toggle]]
+       [Navbar.Collapse
+        (if (nil? @token)
+          [Nav
+           [navbar-item "Login" :login]
+           [navbar-item "Sign up" :signup]]
+          [Nav
+           [navbar-item "Record" :record]
+           [navbar-item "Remember" :remember]])]
+       ]
+      )))
 
 
 (defn alert []
