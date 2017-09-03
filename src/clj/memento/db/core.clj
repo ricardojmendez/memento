@@ -20,7 +20,8 @@
                    {:jdbc-url (to-jdbc-uri (env :database-url))})
           :stop (conman/disconnect! *db*))
 
-(conman/bind-connection *db* "sql/queries.sql")
+(conman/bind-connection *db* "sql/users.sql")
+(conman/bind-connection *db* "sql/thoughts.sql")
 (conman/bind-connection *db* "sql/reminders.sql")
 
 (defn to-date [^java.sql.Date sql-date]
