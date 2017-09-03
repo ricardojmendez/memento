@@ -79,8 +79,8 @@
   [id next-date properties]
   (jdbc/with-db-transaction
     [trans-conn *db*]
-    (db/update-reminder-date! trans-conn {:id id
-                                          :next_date next-date
+    (db/update-reminder-date! trans-conn {:id         id
+                                          :next_date  next-date
                                           :properties properties})))
 
 (defn mark-as-viewed!
@@ -89,16 +89,22 @@
   For `once`, it will just mark the next date as nil.
 
   For `spaced` repetition, it'll either get the next date in line or mark it
-  as nil."
+  as nil. It will not move the day-idx past the maximum day count.
+  "
   [id]
   (jdbc/with-db-transaction
     [trans-conn *db*]
     ;; This is crying out for a protocol or something
     (let [item       (db/get-reminder trans-conn {:id id})
           properties (:properties item)
-          day-idx    (inc (or (get-in item [:properties :day-idx]) 0))
+          day-count  (count (get-in item [:properties :days]))
+          day-idx    (inc (min (dec day-count)              ; Ensure it never goes past the index
+                               (or (get-in item [:properties :day-idx])
+                                   0)))
           new-state  (condp = (:type_id item)
+                       ;; One-off reminders. Not testing it yet, may end up discarding it.
                        "once" (assoc item :properties nil :next_date nil)
+                       ;; Spaced repetition
                        "spaced" (cond
                                   ;; If it already contains the days, then move it along
                                   (contains? properties :days)

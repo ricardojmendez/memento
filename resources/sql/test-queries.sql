@@ -15,3 +15,7 @@ DELETE FROM users;
 UPDATE thoughts
 SET created = :created
 WHERE id = :id;
+
+-- :name get-all-reminders :? :*
+-- :doc Returns all reminders in the database
+SELECT * FROM reminders ORDER BY created;
