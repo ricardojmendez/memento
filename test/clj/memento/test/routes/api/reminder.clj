@@ -2,18 +2,13 @@
   (:require [clojure.test :refer :all]
             [clj-time.coerce :as c]
             [clj-time.core :as t]
-            [cognitect.transit :as transit]
             [memento.handler :refer [app]]
             [memento.db.user :as user]
-            [memento.test.db.core :as tdb]
-            [memento.test.db.memory :as tdm]
             [memento.test.db.user :as tdu]
             [memento.test.routes.helpers :refer [patch-request post-request get-request put-request del-request invoke-login]]
-            [memento.db.core :refer [*db*] :as db]
             [ring.mock.request :refer [request header body]]
-            [clojure.string :as string]
-            [numergent.auth :as auth]
-            [mount.core :as mount]))
+            [mount.core :as mount]
+            [memento.db.reminder :as reminder]))
 
 
 (use-fixtures
@@ -82,11 +77,9 @@
         (is reminder)
         (is (= 204 (:status deleted)))
         (is (= 404 (:status r-del-reminder)))
-        (is (zero?  (:total thoughts-after-delete)))
+        (is (zero? (:total thoughts-after-delete)))
         (is (empty? reminder-after-delete))
-        ))
-
-    ))
+        ))))
 
 (deftest test-patch-next-date
   (tdu/init-placeholder-data!)
@@ -102,7 +95,6 @@
             [r-updated r-empty] (patch-request "/api/reminders" (:id initial) {:next-date nil} token)
             [_ updated] (get-request (str "/api/reminders/" (:id initial)) nil token)
             ]
-        ;; TODO: Expand tests, just verifying the basics work right now, since the API may change
         (is (= 201 (:status r-initial)))
         (is (= 204 (:status r-updated)))
         (is (empty? r-empty))                               ; Patch returns no content
@@ -131,15 +123,84 @@
             [r-updated r-empty] (patch-request "/api/reminders" (:id initial) {:next-date "2017-01-01"} invalid-token)
             [_ updated] (get-request (str "/api/reminders/" (:id initial)) nil token)
             ]
-        ;; TODO: Expand tests, just verifying the basics work right now, since the API may change
         (is (= 201 (:status r-initial)))
         (is (= 404 (:status r-updated)))
         (is (empty? r-empty))                               ; Patch returns no content
         ;; Nothing should have changed
-        (is (= initial updated))))
-    ))
+        (is (= initial updated))))))
+
+(deftest test-get-active-reminders
+  (tdu/init-placeholder-data!)
+  ;; Test with a single user
+  (user/create! "user1" "password1")
+  (let [token         (invoke-login {:username "user1" :password "password1"})
+        ;; Test thought and reminders
+        [_ thought-1] (post-request "/api/thoughts" {:thought "Just a thought"} token)
+        [_ thought-2] (post-request "/api/thoughts" {:thought "Another thought"} token)
+        [_ rem-1-1] (post-request "/api/reminders" {:thought-id (:id thought-1) :type-id "spaced"} token)
+        [_ rem-1-2] (post-request "/api/reminders" {:thought-id (:id thought-1) :type-id "spaced"} token)
+        [_ rem-2] (post-request "/api/reminders" {:thought-id (:id thought-2) :type-id "spaced"} token)
+        ;; Some test timestamps
+        minus-2s      (c/to-date (t/plus (t/now) (t/seconds -2)))
+        minus-1s      (c/to-date (t/plus (t/now) (t/seconds -1)))
+        in-10m        (c/to-date (t/plus (t/now) (t/minutes 10)))
+        ;; We get the thought description when returning the reminders, so
+        ;; let's define a function to remove it
+        clear-thought #(dissoc % :thought)
+        ]
+    ;; Verify the basics
+    (is (string? token))
+    (doseq [item [thought-1 thought-2 rem-1-1 rem-1-2 rem-2]]
+      (is (map? item) (str "Item should be a map " item)))
+    ;; On to the tests
+    (testing "There are no pending reminders initially"
+      (let [[response reminders] (get-request "/api/reminders" nil token)]
+        (is (= 200 (:status response)))
+        (is (empty? reminders))))
+    (testing "A reminder shows up as pending if its next_date is in the past"
+      ;; Change the next reminder dates
+      (is (= 1 (reminder/update-reminder-date! (:id rem-1-2)
+                                               minus-1s
+                                               (:properties rem-1-2))))
+      (is (= 1 (reminder/update-reminder-date! (:id rem-1-1)
+                                               in-10m
+                                               (:properties rem-1-1))))
+      (let [rem-1-2 (reminder/get-by-id (:id rem-1-2))      ; Reload since we changed the date
+            [response r-list] (get-request "/api/reminders" nil token)]
+        (is (= 200 (:status response)))
+        (is (= [rem-1-2]
+               (map clear-thought r-list)))                 ; Reminder list includes the thought
+        (is (= (:thought thought-1)
+               (:thought (first r-list))))
+        ))
+    (testing "Reminders are returned in next_date order"
+      (is (= 1 (reminder/update-reminder-date! (:id rem-2)
+                                               minus-2s
+                                               (:properties rem-2))))
+      (let [rem-1-2 (reminder/get-by-id (:id rem-1-2))      ; Reload since we changed the date
+            rem-2   (reminder/get-by-id (:id rem-2))
+            [response r-list] (get-request "/api/reminders" nil token)]
+        (is (= 200 (:status response)))
+        (is (= [rem-2 rem-1-2]
+               (map clear-thought r-list)))                 ; Reminder list includes the thought
+        (is (= (map :thought [thought-2 thought-1])
+               (map :thought r-list)))))
+    (testing "A different user does not get any pending reminders"
+      (user/create! "user2" "password")
+      (let [other-token (invoke-login {:username "user2" :password "password"})
+            [response reminders] (get-request "/api/reminders" nil other-token)]
+        (is (string? other-token))
+        ;; The call itself succeeded, since it's a valid user, but there are no reminders
+        (is (= 200 (:status response)))
+        (is (empty? reminders))))
+    (testing "An invalid token throws up an error"
+      (let [[response result] (get-request "/api/reminders" nil "invalid")]
+        ;; The call itself succeeded, since it's a valid user, but there are no reminders
+        (is (= 401 (:status response)))
+        (is (:error result))))
+    )
+  )
 
 ;; TODO: Tests for
-;; - Get active reminders
 ;; - Mark a reminder as expired
 ;; - Get reminders for a thought
