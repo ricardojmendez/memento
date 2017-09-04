@@ -122,8 +122,8 @@
                   :injections     [(require 'pjstadig.humane-test-output)
                                    (pjstadig.humane-test-output/activate!)]
                   }
-   :project/test {:hooks          [leiningen.cljsbuild]
-                  :source-paths   ["env/test/clj" "test/clj" "test/cljc" "test/cljs"]
+   :project/test {:source-paths   ["env/test/clj" "test/clj" "test/cljc" "test/cljs"]
+                  ; :hooks          [leiningen.cljsbuild]
                   :resource-paths ["env/dev/resources" "env/test/resources"]
                   :cljsbuild      {:builds {:test {:source-paths ["src/cljs"]
                                                    :compiler
