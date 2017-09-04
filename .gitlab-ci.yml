@@ -6,6 +6,10 @@ variables:
 before_script:
   - export LEIN_SNAPSHOTS_IN_RELEASE=true
 
+stages:
+  - test
+  - build
+  - deploy
 
 test:
   stage: test
@@ -29,13 +33,15 @@ uberjar:
     paths:
     - target/uberjar/memento.jar
   only:
-  - master
   - tags
 
 production:
   stage: deploy
   script:
-  - ls -l target/uberjar # Uberjar should be here from the build stage
+  - lein uberjar
   - HEROKU_API_KEY=$HEROKU_PRODUCTION_API_KEY lein heroku deploy
+  artifacts:
+    paths:
+    - target/uberjar/memento.jar
   only:
   - master
