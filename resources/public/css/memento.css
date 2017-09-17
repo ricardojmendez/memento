@@ -1,5 +1,9 @@
-.btn {
+.btn-group, .btn {
     margin-right: 5px
+}
+
+.btn-group .btn {
+    margin-right: 1px;
 }
 
 .thought {

@@ -31,6 +31,10 @@
 ;;;;------------------------------
 
 
+(adapt-bootstrap Button)
+(adapt-bootstrap ButtonGroup)
+(adapt-bootstrap DropdownButton)
+(adapt-bootstrap MenuItem)
 (adapt-bootstrap OverlayTrigger)
 (adapt-bootstrap Popover)
 (adapt-bootstrap Tooltip)
@@ -156,7 +160,7 @@
     (if @focus
       [:div {:class "col-sm-10 col-sm-offset-1"}
        [:div {:class "panel panel-default"}
-        [:div {:class "panel-heading"} "Elaborating... " [:i [:small "(from " (helpers/format-date (:created @focus)) ")"]]
+        [:div {:class "panel-heading"} "Following up ... " [:i [:small "(from " (helpers/format-date (:created @focus)) ")"]]
          [:button {:type "button" :class "close" :aria-hidden "true" :on-click #(dispatch [:state-refine nil])} "×"]]
         [:div {:class "panel-body"}
          [:p {:dangerouslySetInnerHTML {:__html (:html @focus)}}]
@@ -227,7 +231,7 @@
                         :on-click #(dispatch [:reminder-viewed item])}
                  [:i {:class "fa fa-check"} " " label]]
                 (when (or next-leap (nil? day-idx))
-                  [:span {:class    "btn btn-danger btn-xs icon-margin-left"
+                  [:span {:class    "btn btn-warning btn-xs icon-margin-left"
                           :on-click #(dispatch [:reminder-cancel item])}
                    [:i {:class "fa fa-trash"} " Cancel"]])]
                ;; Showing only the buttons for Elaborate and Thread. I don't want to get into the potential mess
@@ -236,12 +240,12 @@
                 (if (:root_id thought)
                   [:a {:class "btn btn-primary btn-xs"
                        :href  (str "/thread/" (:root_id thought))}
-                   [:i {:class "fa fa-list-ul icon-margin-both"}] "Context"])
+                   [:i {:class "fa fa-list-ul icon-margin-both"}] "Train of thought"])
                 [:a {:class    "btn btn-primary btn-xs"
                      :on-click #(do
                                   (.scrollIntoView top-div-target)
                                   (dispatch [:state-refine thought]))}
-                 [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]
+                 [:i {:class "fa fa-pencil icon-margin-both"}] "Follow up"]
 
                 ]]
 
@@ -279,7 +283,7 @@
                      :disabled (or @is-busy? (empty? @note))
                      :class    "btn btn-primary"
                      :on-click #(dispatch [:memory-save])}
-            (if @is-focused? "Elaborate" "Record")]
+            "Record"]
            ]]]]])))
 
 (defn panel [title msg class]
@@ -337,8 +341,41 @@
                 :dangerouslySetInnerHTML
                           {:__html (:html memory)}}]]
        [:div
-        [:div {:class "col-sm-4 show-on-hover"}
+        [:div {:class "col-sm-8"}
+         [ButtonGroup
+          (if (empty? (:reminders memory))
+            [Button {:bsStyle  "primary"
+                     :bsSize   "xsmall"
+                     :on-click #(dispatch [:reminder-create memory "spaced"])}
+             [:i {:class "fa fa-bell icon-margin-both"}] "Remind"]
+            [Button {:bsStyle  "warning"
+                     :bsSize   "xsmall"
+                     ;; doseq since a thought may have multiple reminders
+                     :on-click #(doseq [item (:reminders memory)]
+                                  (dispatch [:reminder-cancel item]))}
+             [:i {:class "fa fa-bell icon-margin-both"}] "Cancel"])
+          [DropdownButton {:title   "..."
+                           :bsSize  "xsmall"
+                           :class   "btn-primary"
+                           :dropup  true
+                           :noCaret true}
+           (when (= :open (:status memory))
+             [MenuItem {:on-click #(do
+                                     (dispatch [:state-note :edit-note (:thought memory)])
+                                     (dispatch [:memory-edit-set memory]))}
+              [:i {:class "fa fa-file-text icon-margin-both"}] "Edit"])
+           (when (and show-thread-btn? (:root_id memory))
+             [MenuItem {:href (str "/thread/" (:root_id memory))}
+              [:i {:class "fa fa-list-ul icon-margin-both"}] "Train of thought"])
+           [MenuItem {:on-click #(do
+                                   (.scrollIntoView top-div-target)
+                                   (dispatch [:state-refine memory]))}
+            [:i {:class "fa fa-pencil icon-margin-both"}] "Follow up"]
+           ]]
          [:i [:small (helpers/format-date (:created memory))]]
+         ]
+        [:div {:class "col-sm-4 show-on-hover"
+               :style {:text-align "right"}}
          (when (= :open (:status memory))
            [OverlayTrigger
             {:placement :top
@@ -347,33 +384,7 @@
                     :on-click #(dispatch [:memory-forget memory])}
              [:i {:class "fa fa-remove"}]]
             ])]
-        [:div {:class "col-sm-8" :style {:text-align "right"}}
-         (when (= :open (:status memory))
-           [:a {:class    "btn btn-primary btn-xs"
-                :on-click #(do
-                             (dispatch [:state-note :edit-note (:thought memory)])
-                             (dispatch [:memory-edit-set memory]))}
-            [:i {:class "fa fa-file-text icon-margin-both"}] "Edit"])
-         (if (and show-thread-btn? (:root_id memory))
-           [:a {:class "btn btn-primary btn-xs"
-                :href  (str "/thread/" (:root_id memory))}
-            [:i {:class "fa fa-list-ul icon-margin-both"}] "Context"])
-         [:a {:class    "btn btn-primary btn-xs"
-              :on-click #(do
-                           (.scrollIntoView top-div-target)
-                           (dispatch [:state-refine memory]))}
-          [:i {:class "fa fa-pencil icon-margin-both"}] "Elaborate"]
-         (if (empty? (:reminders memory))
-           [:a {:class    "btn btn-primary btn-xs"
-                :on-click #(dispatch [:reminder-create memory "spaced"])}
-            [:i {:class "fa fa-bell icon-margin-both"}] "Remind"]
-           [:a {:class    "btn btn-danger btn-xs"
-                ;; doseq since a thought may have multiple reminders
-                :on-click #(doseq [item (:reminders memory)]
-                             (dispatch [:reminder-cancel item]))}
-            [:i {:class "fa fa-bell icon-margin-both"}] "Cancel"])
 
-         ]
         ]])))
 
 
@@ -463,7 +474,7 @@
          [:p "Memento is an experimental note-taking application "
           "for thoughts and ideas you may want to revisit."]
          [:p [:a {:class "btn btn-primary"
-                  :href "/about"}
+                  :href  "/about"}
               "Learn more"]]
          ]
         [:div {:class "modal-content"}
