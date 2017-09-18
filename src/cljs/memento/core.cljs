@@ -231,9 +231,9 @@
                         :on-click #(dispatch [:reminder-viewed item])}
                  [:i {:class "fa fa-check"} " " label]]
                 (when (or next-leap (nil? day-idx))
-                  [:span {:class    "btn btn-warning btn-xs icon-margin-left"
+                  [:span {:class    "btn btn-danger btn-xs icon-margin-left"
                           :on-click #(dispatch [:reminder-cancel item])}
-                   [:i {:class "fa fa-trash"} " Cancel"]])]
+                   [:i {:class "fa fa-trash"} "Cancel"]])]
                ;; Showing only the buttons for Elaborate and Thread. I don't want to get into the potential mess
                ;; of editing or removing a thought while the reminder is shown yet.
                [:span {:class "col-sm-8" :style {:text-align "right"}}
@@ -348,7 +348,7 @@
                      :bsSize   "xsmall"
                      :on-click #(dispatch [:reminder-create memory "spaced"])}
              [:i {:class "fa fa-bell icon-margin-both"}] "Remind"]
-            [Button {:bsStyle  "warning"
+            [Button {:bsStyle  "danger"
                      :bsSize   "xsmall"
                      ;; doseq since a thought may have multiple reminders
                      :on-click #(doseq [item (:reminders memory)]
