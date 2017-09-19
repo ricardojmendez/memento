@@ -130,7 +130,10 @@
       [Navbar {:collapseOnSelect true
                :fixedTop         true}
        [Navbar.Header
-        [Navbar.Brand "Memento"]
+        ;; Oddly, if the :a is inside the Navbar.Brand, it ends up being converted to a span
+        ;; Not quite sure what the hiccup rule is in that case
+        [:a {:href "/about"}
+         [Navbar.Brand "Memento"]]
         [Navbar.Toggle]]
        [Navbar.Collapse
         (if (nil? @token)
@@ -139,7 +142,10 @@
            [navbar-item "Sign up" :signup]]
           [Nav
            [navbar-item "Record" :record]
-           [navbar-item "Remember" :remember]])]
+           [navbar-item "Remember" :remember]])
+        [Nav {:pullRight true}
+         [NavItem {:href "/about"} "About"]]
+        ]
        ]
       )))
 
