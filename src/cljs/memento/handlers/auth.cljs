@@ -1,7 +1,7 @@
 (ns memento.handlers.auth
   (:require [ajax.core :refer [GET POST PUT]]
             [memento.handlers.routing :as r]
-            [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
+            [re-frame.core :refer [dispatch reg-sub reg-event-db reg-event-fx subscribe dispatch-sync]]
             [taoensso.timbre :as timbre]
             [reagent.cookies :as cookies]))
 
@@ -77,11 +77,11 @@
           (assoc-in [:credentials :password2] nil)))
     ))
 
-(reg-event-db
+(reg-event-fx
   :auth-validate
-  (fn [app-state _]
-    (when-let [token (get-in app-state [:credentials :token])]
+  (fn [{:keys [db]} _]
+    (when-let [token (get-in db [:credentials :token])]
       (GET "/api/auth/validate" {:headers       {:authorization (str "Token " token)}
                                  :handler       #(dispatch [:auth-set-token %])
                                  :error-handler #(dispatch [:auth-request-error %])}))
-    app-state))
+    nil))

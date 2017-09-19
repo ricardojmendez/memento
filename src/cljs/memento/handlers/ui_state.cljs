@@ -1,8 +1,7 @@
 (ns memento.handlers.ui-state
   (:require [ajax.core :refer [GET POST PUT]]
             [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
-            [taoensso.timbre :as timbre]
-            ))
+            [taoensso.timbre :as timbre]))
 
 (reg-event-db
   :state-credentials

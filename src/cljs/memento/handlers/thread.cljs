@@ -1,7 +1,7 @@
 (ns memento.handlers.thread
   (:require [ajax.core :refer [GET POST PUT DELETE]]
             [memento.handlers.auth :refer [clear-token-on-unauth]]
-            [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
+            [re-frame.core :refer [dispatch reg-sub reg-event-db reg-event-fx subscribe dispatch-sync]]
             [taoensso.timbre :as timbre]
             [memento.helpers :as helpers]))
 
@@ -42,24 +42,24 @@
           (assoc-in [:ui-state :show-thread?] true)
           (assoc-in [:ui-state :show-thread-id] root-id)))))
 
-(reg-event-db
+(reg-event-fx
   :thread-load
-  (fn [app-state [_ root-id]]
+  (fn [{:keys [db]} [_ root-id]]
     (let [url (str "/api/threads/" root-id)]
-      (GET url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+      (GET url {:headers       {:authorization (str "Token " (get-in db [:credentials :token]))}
                 :handler       #(dispatch [:thread-load-success %])
                 :error-handler #(dispatch [:thread-load-error %])}
            ))
-    app-state))
+    nil))
 
-(reg-event-db
+(reg-event-fx
   :thread-load-error
-  (fn [app-state [_ result]]
+  (fn [_ [_ result]]
     ;; Not sure if we actually know which thread failed loading. Probably not if the call failed altogether.
     ;; If we did, we could just assoc the thread to nil.
     (timbre/error "Error loading thread" result)
     (dispatch [:state-message (str "Error loading thread: " result) "alert-danger"])
-    app-state))
+    nil))
 
 (reg-event-db
   :thread-load-success

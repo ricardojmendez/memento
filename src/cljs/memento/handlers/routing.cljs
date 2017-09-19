@@ -2,7 +2,8 @@
   (:require [ajax.core :refer [GET POST PUT]]
             [bidi.bidi :as bidi]
             [pushy.core :as pushy]
-            [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
+            [re-frame.core :refer [dispatch reg-sub reg-event-db reg-event-fx
+                                   subscribe dispatch-sync]]
             [taoensso.timbre :as timbre]))
 
 ;;;;-------------------------
@@ -49,8 +50,8 @@
 ;; :record leads to /record. The handler is expected to apply any
 ;; necessary changes to the ui state, or dispatch the relevant
 ;; events.
-(reg-event-db
+(reg-event-fx
   :state-browser-token
-  (fn [app-state [_ token-key]]
+  (fn [_ [_ token-key]]
     (pushy/set-token! history (bidi/path-for routes token-key))
-    app-state))
+    nil))
