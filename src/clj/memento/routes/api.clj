@@ -53,6 +53,7 @@
    :username                   s/Str
    :thought                    s/Str
    :created                    s/Inst
+   :archived?                  s/Bool
    (s/optional-key :root_id)   (s/maybe s/Uuid)
    (s/optional-key :refine_id) (s/maybe s/Uuid)
    (s/optional-key :status)    s/Keyword

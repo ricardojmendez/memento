@@ -2,7 +2,6 @@
   (:require [clojure.test :refer :all]
             [clj-time.coerce :as c]
             [clj-time.core :as t]
-            [cognitect.transit :as transit]
             [memento.handler :refer [app]]
             [memento.config :refer [env]]
             [memento.db.user :as user]
@@ -10,12 +9,9 @@
             [memento.test.db.memory :as tdm]
             [memento.test.db.user :as tdu]
             [memento.test.routes.helpers :refer [post-request patch-request get-request put-request del-request invoke-login]]
-            [memento.db.core :refer [*db*] :as db]
+            [memento.db.core :refer [*db*]]
             [memento.db.memory :as memory]
-            [ring.mock.request :refer [request header body]]
-            [clojure.string :as string]
             [numergent.auth :refer [create-auth-token decode-token]] ; Only for validation, all other calls should go through the API
-            [taoensso.timbre :as timbre]
             [mount.core :as mount])
   (:import (java.util Date)))
 

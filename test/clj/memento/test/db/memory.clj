@@ -218,6 +218,10 @@
       (is (= 2 (count texts)))
       ;; All items are considered open, since we just created them
       (is (= 2 (count (filter #(= :open (:status %)) (:results result)))))
+      ;; All thoughts are created as not archived
+      (is (= 2 (count (filter #(false? (:archived? %))
+                              (:results result)))))
+      ;; Both thoughts contain the word "memory"
       (doseq [m texts]
         (is (re-seq #"memory" m)))))
   (testing "Confirm words from a similar root are returned"
@@ -241,8 +245,7 @@
       (is (= 3 (:total result)))
       (doseq [m texts]
         (is (or (re-seq #"memory" m)
-                (re-seq #"second" m)))
-        )
+                (re-seq #"second" m))))
       )))
 
 

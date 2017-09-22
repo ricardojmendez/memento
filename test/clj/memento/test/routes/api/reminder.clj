@@ -7,7 +7,6 @@
             [memento.test.db.user :as tdu]
             [memento.test.db.core :as tdb]
             [memento.test.routes.helpers :refer [patch-request post-request get-request put-request del-request invoke-login]]
-            [ring.mock.request :refer [request header body]]
             [mount.core :as mount]
             [memento.db.reminder :as reminder]))
 
