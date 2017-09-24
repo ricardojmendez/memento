@@ -79,7 +79,6 @@
         [trans-conn *db*]
         (db/delete-reminders-for-thought! trans-conn {:id id})
         (db/delete-thought! trans-conn {:id id}))
-
       0)))
 
 

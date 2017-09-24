@@ -49,7 +49,7 @@
   (let [existing (memory/get-if-owner username id)]
     (cond
       (not existing) (not-found)
-      (= :closed (:status existing)) (forbidden "Cannot update closed thoughts")
+      (= :closed (:status existing)) (forbidden "Cannot delete closed thoughts")
       :else (do
               (memory/delete! id)
               (no-content)))))

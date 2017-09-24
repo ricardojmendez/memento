@@ -499,21 +499,39 @@
   (user/create! "user2" "password2")
   (let [token-u1 (invoke-login {:username "user1" :password "password1"})
         token-u2 (invoke-login {:username "user2" :password "password2"})]
-    (testing "We can update a memory by posting to an ID"
+    (testing "We can delete a thought"
       (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
-            ; Attempt deleting by an invalid auth token
+            ;; Attempt deleting by an invalid auth token
             [invalid _] (del-request "/api/thoughts" (:id memory) token-u2)
-            ; Query before valid delete
+            ;; Query before valid delete
             [_ query1] (get-request "/api/thoughts" nil token-u1)
-            ; Delete
+            ;; Delete and re-query
             [deleted _] (del-request "/api/thoughts" (:id memory) token-u1)
-            ; Query post-delete
             [_ query2] (get-request "/api/thoughts" nil token-u1)
+            [response item] (get-request (str "/api/thoughts/" (:id memory)) nil token-u1)
             ]
         (is memory)
         (is (= 1 (:total query1)))
         (is (= 404 (:status invalid)))
         (is (= 204 (:status deleted)))
+        ;; Ensure that it's neither available through querying or direct GET
         (is (= 0 (:total query2)))
+        (is (= 404 (:status response)))
+        (is (nil? item))
+        ))
+    (testing "We cannot delete closed thoughts"
+      (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
+            ;; Force the date as if we created it a while ago
+            _ (tdb/update-thought-created! *db* (assoc memory :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
+            ;; Query before valid delete
+            [_ query1] (get-request "/api/thoughts" nil token-u1)
+            ;; Delete and re-query
+            [response body] (del-request "/api/thoughts" (:id memory) token-u1)
+            [_ query2] (get-request "/api/thoughts" nil token-u1)]
+        (is memory)
+        (is (= 1 (:total query1)))
+        (is (= 403 (:status response)))
+        (is (= "Cannot delete closed thoughts" body))
+        (is (= 1 (:total query2)))
         ))
     ))
