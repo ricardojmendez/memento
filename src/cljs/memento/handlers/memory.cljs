@@ -7,10 +7,29 @@
             [memento.helpers :as helpers]))
 
 
-
 ;;;
 ;;; Handlers
 ;;;
+
+(reg-event-db
+  :memory-archive
+  (fn [app-state [_ memory archived?]]
+    (let [url (str "/api/thoughts/" (:id memory) "/archive")]
+      (PUT url {:params        {:archived? archived?}
+                :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                :handler       #(dispatch [:memory-archive-success memory])
+                :error-handler #(dispatch [:state-error "Error changing archive state" %])}))
+    (assoc-in app-state [:ui-state :is-busy?] true)))
+
+(reg-event-db
+  :memory-archive-success
+  (fn [app-state [_ memory]]
+    (let [thread-id (:root_id memory)]
+      (thread/reload-if-cached app-state thread-id)
+      (dispatch [:memories-load])
+      (-> app-state
+          (assoc-in [:ui-state :is-busy?] false)
+          (assoc :search-state nil)))))
 
 (reg-event-db
   :memories-load
@@ -27,7 +46,7 @@
           (GET "/api/search" {:params        {:q q :page p}
                               :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                               :handler       #(dispatch [:memories-load-success %])
-                              :error-handler #(dispatch [:memories-load-error %])
+                              :error-handler #(dispatch [:state-error "Error remembering" %])
                               })
           (-> app-state
               (assoc-in [:ui-state :is-searching?] true)
@@ -54,14 +73,6 @@
         (assoc-in [:ui-state :is-searching?] false))
     ))
 
-(reg-event-db
-  :memories-load-error
-  (fn [app-state [_ result]]
-    (dispatch [:state-message (str "Error remembering: " result) "alert-danger"])
-    (clear-token-on-unauth result)
-    app-state
-    ))
-
 
 (reg-event-db
   :memory-edit-set
@@ -80,7 +91,7 @@
       (PATCH url {:params        {:thought note}
                   :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                   :handler       #(dispatch [:memory-edit-save-success memory note])
-                  :error-handler #(dispatch [:memory-edit-save-error memory %])}))
+                  :error-handler #(dispatch [:state-error "Error editing memory" %])}))
     (assoc-in app-state [:ui-state :is-busy?] true)))
 
 
@@ -89,8 +100,7 @@
   (fn [app-state [_ memory msg]]
     (let [thread-id (:root_id memory)]
       (dispatch [:state-message (str "Updated memory to: " msg) "alert-success"])
-      (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
-        (dispatch [:memories-load]))
+      (dispatch [:memories-load])
       (thread/reload-if-cached app-state thread-id)
       (-> app-state
           (assoc-in [:ui-state :is-busy?] false)
@@ -100,12 +110,6 @@
           (assoc :search-state nil)
           ))))
 
-(reg-event-db
-  :memory-edit-save-error
-  (fn [app-state [_ _ result]]
-    (dispatch [:state-message (str "Error editing memory: " result) "alert-danger"])
-    (clear-token-on-unauth result)
-    (assoc-in app-state [:ui-state :is-busy?] false)))
 
 (reg-event-db
   :memory-forget
@@ -113,31 +117,18 @@
     (let [url (str "/api/thoughts/" (:id memory))]
       (DELETE url {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                    :handler       #(dispatch [:memory-forget-success memory %])
-                   :error-handler #(dispatch [:memory-forget-error %])}))
+                   :error-handler #(dispatch [:state-error "Error forgetting thought" %])}))
     app-state))
 
 (reg-event-db
   :memory-forget-success
   (fn [app-state [_ memory msg]]
     (dispatch [:state-message (str "Thought forgotten") "alert-success"])
-    (if (= :remember (get-in app-state [:ui-state :section])) ; Just in case we allow editing from elsewhere...
-      (dispatch [:memories-load]))
     (thread/reload-if-cached app-state (:root_id memory))
+    (dispatch [:memories-load])
     (-> app-state
         (assoc-in [:ui-state :is-busy?] false)
-        (assoc-in [:note :edit-memory] nil)
-        (assoc-in [:note :edit-note] "")
-        (assoc-in [:note :focus] nil)
-        (assoc :search-state nil)))
-  )
-
-(reg-event-db
-  :memory-forget-error
-  (fn [app-state [_ result]]
-    (.log js/console "Forget error" result)
-    (dispatch [:state-message (str "Error forgetting: " result) "alert-danger"])
-    (clear-token-on-unauth result)
-    (assoc-in app-state [:ui-state :is-busy?] false)))
+        (assoc :search-state nil))))
 
 
 (reg-event-db
@@ -147,7 +138,7 @@
       (POST "/api/thoughts" {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
                              :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                              :handler       #(dispatch [:memory-save-success % note])
-                             :error-handler #(dispatch [:memory-save-error %])}))
+                             :error-handler #(dispatch [:state-error "Error saving thought" %])}))
     (assoc-in app-state [:ui-state :is-busy?] true)))
 
 (reg-event-db
@@ -162,10 +153,3 @@
         (assoc-in [:ui-state :show-thread?] false)
         (assoc-in [:note :focus] nil)
         (assoc :search-state nil))))
-
-(reg-event-db
-  :memory-save-error
-  (fn [app-state [_ result]]
-    (dispatch [:state-message (str "Error saving note: " result) "alert-danger"])
-    (clear-token-on-unauth result)
-    (assoc-in app-state [:ui-state :is-busy?] false)))

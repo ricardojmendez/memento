@@ -248,9 +248,8 @@
                        :href  (str "/thread/" (:root_id thought))}
                    [:i {:class "fa fa-list-ul icon-margin-both"}] "Train of thought"])
                 [:a {:class    "btn btn-primary btn-xs"
-                     :on-click #(do
-                                  (.scrollIntoView top-div-target)
-                                  (dispatch [:state-refine thought]))}
+                     :on-click #(do (.scrollIntoView top-div-target)
+                                    (dispatch [:state-refine thought]))}
                  [:i {:class "fa fa-pencil icon-margin-both"}] "Follow up"]
 
                 ]]
@@ -295,10 +294,8 @@
 (defn panel [title msg class]
   [:div {:class (str "panel " class)}
    [:div {:class "panel-heading"}
-    [:h3 {:class "panel-title"} title]
-    ]
-   [:div {:class "panel-body"} msg]
-   ])
+    [:h3 {:class "panel-title"} title]]
+   [:div {:class "panel-body"} msg]])
 
 
 (defn dispatch-on-press-enter [e d]
@@ -365,21 +362,34 @@
                            :class   "btn-primary"
                            :dropup  true
                            :noCaret true}
+           ;; Adding the archive option separately so that we don't click it accidentally
+           (let [archived?     (:archived? memory)
+                 archive-label (if archived? "De-archive" "Archive")
+                 archive-class (if archived? "fa-file" "fa-archive")]
+             [MenuItem {:on-click #(do (.scrollIntoView top-div-target)
+                                       (dispatch [:memory-archive memory (not archived?)]))}
+              [:i {:class (str "fa icon-margin-both " archive-class)}]
+              archive-label])
+           [MenuItem {:divider true}]
+           ;; ... then the rest of the menu
            (when (= :open (:status memory))
-             [MenuItem {:on-click #(do
-                                     (dispatch [:state-note :edit-note (:thought memory)])
-                                     (dispatch [:memory-edit-set memory]))}
+             [MenuItem {:on-click #(do (dispatch [:state-note :edit-note (:thought memory)])
+                                       (dispatch [:memory-edit-set memory]))}
               [:i {:class "fa fa-file-text icon-margin-both"}] "Edit"])
+           ;; Do we have a thread?
            (when (and show-thread-btn? (:root_id memory))
              [MenuItem {:href (str "/thread/" (:root_id memory))}
               [:i {:class "fa fa-list-ul icon-margin-both"}] "Train of thought"])
-           [MenuItem {:on-click #(do
-                                   (.scrollIntoView top-div-target)
-                                   (dispatch [:state-refine memory]))}
+           ;; We can always follow up on a thought, even if it's been archived
+           [MenuItem {:on-click #(do (.scrollIntoView top-div-target)
+                                     (dispatch [:state-refine memory]))}
             [:i {:class "fa fa-pencil icon-margin-both"}] "Follow up"]
            ]]
-         [:i [:small (helpers/format-date (:created memory))]]
-         ]
+         ;; Time stamp and other indicators
+         [:i [:small
+              (helpers/format-date (:created memory))
+              (when (:archived? memory)
+                [:i {:class (str "fa icon-margin-both fa-archive")}])]]]
         [:div {:class "col-sm-4 show-on-hover"
                :style {:text-align "right"}}
          (when (= :open (:status memory))
