@@ -64,9 +64,15 @@
   [memory]
   (let [current (set-status (db/get-thought-by-id *db* memory))]
     (if (= :open (:status current))
-      (db/update-thought! *db* (clean-memory-text memory))
+      (set-status (db/update-thought! *db* (clean-memory-text memory)))
       {}
       )))
+
+
+(defn archive!
+  "Archives/de-archives a thought. The thought does not need to be open."
+  [memory]
+  (set-status (db/archive-thought! *db* memory)))
 
 
 (defn delete!

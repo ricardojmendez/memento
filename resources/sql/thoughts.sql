@@ -39,6 +39,14 @@ WHERE id = :id
 RETURNING *;
 
 
+-- :name archive-thought! :<! :1
+-- :doc Updates a thought's archive status and returns the thought
+UPDATE thoughts
+SET "archived?" = :archived?
+WHERE id = :id
+RETURNING *;
+
+
 -- :name make-root! :! :n
 -- :doc  Marks a thought as a root by setting its root_id to itself.
 --  Ensures that the thought isn't refining any other thought before doing so.
@@ -64,6 +72,7 @@ WHERE t.username = :username
 ORDER BY rank DESC, created DESC
 LIMIT :limit
 OFFSET :offset;
+
 
 -- :name search-thought-count :? :1
 -- :doc Returns the count of thoughts for a username which match a search string.

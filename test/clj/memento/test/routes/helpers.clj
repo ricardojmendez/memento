@@ -74,14 +74,18 @@
 (defn post-request
   "Makes a post request to a URL with a body. Returns a vector with the
   response and the translated body."
-  [^String url req-body auth-token]
-  (req-with-body :post url nil nil req-body auth-token))
+  ([^String url req-body auth-token]
+   (post-request url nil nil req-body auth-token))
+  ([^String url id path req-body auth-token]
+   (req-with-body :post url id path req-body auth-token)))
 
 (defn put-request
   "Makes a put request to a URL with a body, under a specific path. Returns
   a vector with the response and the translated body."
-  [^String url id req-body auth-token]
-  (req-with-body :put url id nil req-body auth-token))
+  ([^String url id req-body auth-token]
+   (put-request url id req-body auth-token))
+  ([^String url id path req-body auth-token]
+   (req-with-body :put url id path req-body auth-token)))
 
 (defn del-request
   "Makes a delete request to a URL with a body, under a specific path. Returns
