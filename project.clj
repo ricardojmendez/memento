@@ -123,6 +123,7 @@
                                    (pjstadig.humane-test-output/activate!)]
                   }
    :project/test {:source-paths   ["env/test/clj" "test/clj" "test/cljc" "test/cljs"]
+                  :dependencies   [[ring/ring-mock "0.3.1"]] ; Added so I can run individual tests on a test REPL
                   ; :hooks          [leiningen.cljsbuild]
                   :resource-paths ["env/dev/resources" "env/test/resources"]
                   :cljsbuild      {:builds {:test {:source-paths ["src/cljs"]

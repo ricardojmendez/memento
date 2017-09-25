@@ -1,5 +1,6 @@
 (ns memento.handlers.ui-state
   (:require [ajax.core :refer [GET POST PUT]]
+            [memento.handlers.auth :refer [clear-token-on-unauth]]
             [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
             [taoensso.timbre :as timbre]))
 
@@ -48,6 +49,12 @@
     (assoc-in app-state [:ui-state :current-query] q)))
 
 (reg-event-db
+  :state-query-all?
+  (fn [app-state [_ archived?]]
+    (dispatch [:memories-load 0])
+    (assoc-in app-state [:ui-state :query-all?] archived?)))
+
+(reg-event-db
   :state-refine
   (fn [app-state [_ thought]]
     (dispatch [:state-browser-token :record])
@@ -65,3 +72,11 @@
   (fn [app-state [_ show?]]
     (when-not show? (dispatch [:state-browser-token :remember]))
     (assoc-in app-state [:ui-state :show-thread?] show?)))
+
+(reg-event-db
+  :state-error
+  (fn [app-state [_ message result]]
+    (timbre/error message result)
+    (dispatch [:state-message (str message ": " result) "alert-danger"])
+    (clear-token-on-unauth result)
+    (assoc-in app-state [:ui-state :is-busy?] false)))

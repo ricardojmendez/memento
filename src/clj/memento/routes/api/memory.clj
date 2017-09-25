@@ -8,9 +8,9 @@
 
 (defn query-thoughts
   "Gets the next set of memories for a username, potentially with a search query"
-  [username query page]
+  [username query page include-archived?]
   (let [offset (* page memory/result-limit)]
-    (ok (-> (memory/query username query offset)
+    (ok (-> (memory/query username query offset include-archived?)
             (assoc :current-page page)))))
 
 (defn save-thought
@@ -28,13 +28,25 @@
 (defn update-thought
   "Updates an existing thought"
   [username id thought]
+  ;; TODO: I'm actually getting the memory twice: once here, and once when I
+  ;; call memory/update!. I could just get it once, or re-use the DB
+  ;; connection to avoid making multiple ones.
   (let [trimmed  (string/trim thought)
         existing (memory/get-if-owner username id)]
     (cond
       (not existing) (not-found)
       (= :closed (:status existing)) (forbidden "Cannot update closed thoughts")
+      (empty? trimmed) (forbidden "Cannot blank a thought's text")
       :else (ok (memory/update! {:id id :thought trimmed}))
       )))
+
+(defn archive-thought
+  "Archived/de-archives a thought"
+  [username id archived?]
+  (let [existing (memory/get-if-owner username id)]
+    (cond
+      (not existing) (not-found)
+      :else (ok (memory/archive! {:id id :archived? archived?})))))
 
 (defn get-thought
   "Gets a thought by id"
@@ -49,7 +61,7 @@
   (let [existing (memory/get-if-owner username id)]
     (cond
       (not existing) (not-found)
-      (= :closed (:status existing)) (forbidden "Cannot update closed thoughts")
+      (= :closed (:status existing)) (forbidden "Cannot delete closed thoughts")
       :else (do
               (memory/delete! id)
               (no-content)))))

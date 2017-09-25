@@ -53,6 +53,7 @@
    :username                   s/Str
    :thought                    s/Str
    :created                    s/Inst
+   :archived?                  s/Bool
    (s/optional-key :root_id)   (s/maybe s/Uuid)
    (s/optional-key :refine_id) (s/maybe s/Uuid)
    (s/optional-key :status)    s/Keyword
@@ -123,16 +124,18 @@
     (GET "/search" []
       :summary "Searches the thoughts"
       :query-params [{q :- s/Str ""}
-                     {page :- s/Int 0}]
+                     {page :- s/Int 0}
+                     {all? :- s/Bool false}]
       :auth-data auth-data
-      (memory/query-thoughts (:username auth-data) q page))
+      (memory/query-thoughts (:username auth-data) q page all?))
 
     (GET "/thoughts" []
       :summary "Gets the first page of thoughts"
       :return ThoughtSearchResult
-      :query-params [{page :- s/Int 0}]
+      :query-params [{page :- s/Int 0}
+                     {all? :- s/Bool false}]
       :auth-data auth-data
-      (memory/query-thoughts (:username auth-data) nil page))
+      (memory/query-thoughts (:username auth-data) nil page all?))
 
     (GET "/thoughts/:id" []
       :summary "Gets a thought"
@@ -160,6 +163,14 @@
       :auth-data auth-data
       (memory/update-thought (:username auth-data) id thought))
 
+    (PUT "/thoughts/:id/archive" []
+      :summary "Archives/de-archives a thought"
+      :return Thought
+      :path-params [id :- s/Uuid]
+      :body-params [archived? :- s/Bool]
+      :auth-data auth-data
+      (memory/archive-thought (:username auth-data) id archived?))
+
     (DELETE "/thoughts/:id" []
       :summary "Deletes an existing thought. Needs to be open."
       :path-params [id :- s/Uuid]
@@ -171,8 +182,7 @@
       :return ThreadResult
       :path-params [id :- s/Uuid]
       :auth-data auth-data
-      (memory/get-thread (:username auth-data) id))
-    )
+      (memory/get-thread (:username auth-data) id)))
 
   (context "/api" []
     :tags ["REMINDERS"]

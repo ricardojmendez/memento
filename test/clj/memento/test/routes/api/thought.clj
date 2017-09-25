@@ -1,8 +1,7 @@
-(ns memento.test.routes.api
+(ns memento.test.routes.api.thought
   (:require [clojure.test :refer :all]
             [clj-time.coerce :as c]
             [clj-time.core :as t]
-            [cognitect.transit :as transit]
             [memento.handler :refer [app]]
             [memento.config :refer [env]]
             [memento.db.user :as user]
@@ -10,12 +9,8 @@
             [memento.test.db.memory :as tdm]
             [memento.test.db.user :as tdu]
             [memento.test.routes.helpers :refer [post-request patch-request get-request put-request del-request invoke-login]]
-            [memento.db.core :refer [*db*] :as db]
+            [memento.db.core :refer [*db*]]
             [memento.db.memory :as memory]
-            [ring.mock.request :refer [request header body]]
-            [clojure.string :as string]
-            [numergent.auth :refer [create-auth-token decode-token]] ; Only for validation, all other calls should go through the API
-            [taoensso.timbre :as timbre]
             [mount.core :as mount])
   (:import (java.util Date)))
 
@@ -30,104 +25,6 @@
 ;;;;
 ;;;; Tests
 ;;;;
-
-
-;;;
-;;; Authentication
-;;;
-
-(deftest test-login
-  (tdb/wipe-database! *db*)
-  (user/create! "user1" "password1")
-  (testing "We get a login token when authenticating with a valid username/password"
-    (let [[response data] (post-request "/api/auth/login" {:username "user1" :password "password1"} nil)]
-      (is (= 200 (:status response)))
-      (is (string? data))
-      (decode-token (:auth-conf env) data)))
-  (testing "Auth is not case-sensitive on the username"
-    (let [[response data] (post-request "/api/auth/login" {:username "User1" :password "password1"} nil)]
-      (is (= 200 (:status response)))
-      (is (string? data))
-      (decode-token (:auth-conf env) data)))
-  (testing "We get a 401 when authenticating with an invalid username/password"
-    (let [[response data] (post-request "/api/auth/login" {:username "user2" :password "password1"} nil)]
-      (is (= 401 (:status response)))
-      (is (= "Authentication error" data))))
-  (testing "Auth is case-sensitive on the password"
-    (let [[response data] (post-request "/api/auth/login" {:username "user1" :password "Password1"} nil)]
-      (is (= 401 (:status response)))
-      (is (= "Authentication error" data))))
-  )
-
-(deftest test-auth-validate
-  (tdb/wipe-database! *db*)
-  (user/create! "user1" "password1")
-  (testing "We can validate a token we just created through login"
-    (let [[_ token] (post-request "/api/auth/login" {:username "user1" :password "password1"} nil)
-          [response body] (get-request "/api/auth/validate" nil token)]
-      (is (some? token))
-      (is (= 200 (:status response)))
-      (is (= token body))))
-  (testing "We  can validate a token we created directly"
-    (let [token (create-auth-token (:auth-conf env) "user1")
-          [response body] (get-request "/api/auth/validate" nil token)]
-      (is (some? token))
-      (is (= 200 (:status response)))
-      (is (decode-token (:auth-conf env) body))
-      (is (= token body))))
-  (testing "We cannot validate an expired token"
-    (let [token (create-auth-token (:auth-conf env) "user1" (t/minus (t/now) (t/minutes 1)))
-          [response _] (get-request "/api/auth/validate" nil token)]
-      (is (some? token))
-      (is (= 401 (:status response)))))
-  (testing "We cannot validate a nil token"
-    (let [[response _] (get-request "/api/auth/validate" nil nil)]
-      (is (= 401 (:status response)))))
-  (testing "We cannot validate gibberish"
-    (let [[response _] (get-request "/api/auth/validate" nil "I'MFORREAL")]
-      (is (= 401 (:status response)))))
-  )
-
-
-(deftest test-signup
-  (tdb/wipe-database! *db*)
-  (let [username "newuser"
-        password "password"]
-    (testing "Attempting to log in with the credentials initially results on a 401"
-      (let [[response data] (post-request "/api/auth/login" {:username username :password password} nil)]
-        (is (= 401 (:status response)))
-        (is (= "Authentication error" data))))
-    (testing "We get a login token when signing up with a valid username/password"
-      (let [[response data] (post-request "/api/auth/signup" {:username username :password password} nil)]
-        (is (= 201 (:status response)))
-        (is data)
-        (is (decode-token (:auth-conf env) data))
-        ))
-    (testing "Attempting to log in with the credentials after creating it results on a token"
-      (let [[response data] (post-request "/api/auth/login" {:username username :password password} nil)]
-        (is (= 200 (:status response)))
-        (is (decode-token (:auth-conf env) data))))
-    (testing "Attempting to sign up with the same username/password results on an error"
-      (let [[response data] (post-request "/api/auth/signup" {:username username :password password} nil)]
-        (is (= 409 (:status response)))
-        (is (= "Invalid username/password combination" data))))
-    (testing "Attempting to sign up with the same username results on an error"
-      (let [[response data] (post-request "/api/auth/signup" {:username username :password "password2"} nil)]
-        (is (= 409 (:status response)))
-        (is (= "Invalid username/password combination" data))))
-    (testing "Attempting to sign up with empty username fails"
-      (let [[response data] (post-request "/api/auth/signup" {:username "" :password password} nil)]
-        (is (= 409 (:status response)))
-        (is (= "Invalid username/password combination" data))))
-    (testing "Attempting to sign up with empty password fails"
-      (let [[response data] (post-request "/api/auth/signup" {:username username :password ""} nil)]
-        (is (= 409 (:status response)))
-        (is (= "Invalid username/password combination" data))))
-    (testing "We get a login token when signing up with a new username/password"
-      (let [[response data] (post-request "/api/auth/signup" {:username "u1" :password "p1"} nil)]
-        (is (= 201 (:status response)))
-        (is (decode-token (:auth-conf env) data))))
-    ))
 
 
 ;;;
@@ -451,18 +348,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(deftest test-update-memory
+(deftest test-update-memory-text
   (tdu/init-placeholder-data!)
   (user/create! "user1" "password1")
   (user/create! "user2" "password2")
   (let [token-u1 (invoke-login {:username "user1" :password "password1"})
         token-u2 (invoke-login {:username "user2" :password "password2"})]
-    (testing "We can update a memory by posting to an ID"
+    (testing "We can update a thought's text by patching to an ID"
       (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
             [_ query1] (get-request "/api/thoughts" nil token-u1)
             [_ updated] (patch-request "/api/thoughts" (:id memory) {:thought "Memory"} token-u1)
             [_ query2] (get-request "/api/thoughts" nil token-u1)
-            ;; After we have updated it, check that we _aren't_ allowed to do PUT with an ID that does not belog to us
+            ;; After we have updated it, check that we _aren't_ allowed to do PATCH with an ID that does not belong to us
             [ru2 data-ru2] (patch-request "/api/thoughts" (:id memory) {:thought "Memories"} token-u2)
             [_ query3] (get-request "/api/thoughts" nil token-u1)
             ]
@@ -477,6 +374,43 @@
         (is (= 404 (:status ru2)))
         (is (nil? data-ru2))
         (is (= "Memory" (:thought (first (:results query3)))))
+        ))
+    (testing "Sending a nil thought raises an error"
+      (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
+            [_ loaded-1] (get-request (str "/api/thoughts/" (:id memory)) nil token-u1)
+            [result _] (patch-request "/api/thoughts" (:id memory) {:thought nil} token-u1)
+            [_ loaded-2] (get-request (str "/api/thoughts/" (:id memory)) nil token-u1)
+            ]
+        (is memory)
+        (is (= "Memora" (:thought memory)))
+        (is (= "Memora" (:thought loaded-1)))
+        (is (= 400 (:status result)))
+        (is (= loaded-1 loaded-2))
+        ))
+    (testing "Sending a blank thought does not alter anything"
+      (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
+            [_ loaded-1] (get-request (str "/api/thoughts/" (:id memory)) nil token-u1)
+            [result updated] (patch-request "/api/thoughts" (:id memory) {:thought " "} token-u1)
+            [_ loaded-2] (get-request (str "/api/thoughts/" (:id memory)) nil token-u1)
+            ]
+        (is memory)
+        (is (= "Memora" (:thought memory)))
+        (is (= "Memora" (:thought loaded-1)))
+        (is (= 403 (:status result)))
+        (is (= "Cannot blank a thought's text" updated))
+        (is (= loaded-1 loaded-2))
+        ))
+    (testing "Not sending thought information at all raises an error"
+      (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
+            [_ loaded-1] (get-request (str "/api/thoughts/" (:id memory)) nil token-u1)
+            [result _] (patch-request "/api/thoughts" (:id memory) {} token-u1)
+            [_ loaded-2] (get-request (str "/api/thoughts/" (:id memory)) nil token-u1)
+            ]
+        (is memory)
+        (is (= "Memora" (:thought memory)))
+        (is (= "Memora" (:thought loaded-1)))
+        (is (= 400 (:status result)))
+        (is (= loaded-1 loaded-2))
         ))
     (testing "Attempting to update a closed memory returns an empty dataset"
       (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
@@ -493,27 +427,154 @@
     ))
 
 
+(deftest test-archive-memory
+  (tdu/init-placeholder-data!)
+  (user/create! "user1" "password1")
+  (user/create! "user2" "password2")
+  (let [token-u1 (invoke-login {:username "user1" :password "password1"})
+        token-u2 (invoke-login {:username "user2" :password "password2"})]
+    (testing "We can archive a thought using PUT to archive"
+      (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
+            [_ query1] (get-request "/api/thoughts" nil token-u1)
+            [_ updated-1] (put-request "/api/thoughts" (:id memory) "archive" {:archived? true} token-u1)
+            [_ query2] (get-request "/api/thoughts" nil token-u1)
+            ;; After we have updated it, check that we _aren't_ allowed to do PUT with an ID that does not belong to us
+            [ru2 data-ru2] (put-request "/api/thoughts" (:id memory) "archive" {:archived? false} token-u2)
+            [_ after-invalid] (get-request (str "/api/thoughts/" (:id updated-1)) nil token-u1)
+            ;; De-archive
+            [_ updated-2] (put-request "/api/thoughts" (:id memory) "archive" {:archived? false} token-u1)
+            [_ updated-3] (put-request "/api/thoughts" (:id memory) "archive" {:archived? false} token-u1)
+            ]
+        ;; Check the original state
+        (is memory)
+        (is (false? (:archived? memory)))
+        (is (= "Memora" (:thought memory)))
+        (is (= "Memora" (:thought (first (:results query1)))))
+        ;; Check the updated state
+        (is (= "Memora" (:thought updated-1)))
+        (is (:archived? updated-1))
+        ;; We have no records, as it doesn't return archived thoughts by  default
+        (is (= 0 (:total query2)))
+        ;; Verify that we couldn't update it with token-u2
+        (is (= 404 (:status ru2)))
+        (is (nil? data-ru2))
+        ;; Status should still be archived
+        (is (:archived? after-invalid))
+        (is (= updated-1 after-invalid))
+        ;; De-archiving a thought works as expected
+        (is (= updated-2
+               (assoc updated-1 :archived? false)))
+        ;; De-archiving is idempotent
+        (is (= updated-2 updated-3))
+        ))
+    (testing "Archiving thoughts on a thread does not affect the thread"
+      (let [[_ memory] (post-request "/api/thoughts" {:thought "To follow up"} token-u1)
+            [_ refine] (post-request "/api/thoughts" {:thought "Following up on an idea" :refine_id (:id memory)} token-u1)
+            [_ query1] (get-request "/api/thoughts" nil token-u1)
+            [_ updated-1] (put-request "/api/thoughts" (:id memory) "archive" {:archived? true} token-u1)
+            [_ query2] (get-request "/api/thoughts" nil token-u1)
+            [_ thread] (get-request (str "/api/threads/" (:id memory)) nil token-u1)
+            ]
+        ;; Check the original state
+        (is memory)
+        (is (false? (:archived? memory)))
+        (is (= "To follow up" (:thought memory)))
+        (is (= (:id memory) (:root_id refine)))
+        ;; Check the updated state
+        (is (:archived? updated-1))
+        ;; The result on query are as expected
+        (is (= 3 (:total query1)))
+        (is (= 2 (:total query2)))
+        ;; The follow-up thought wasn't affected
+        (is (false? (:archived? (memory/get-by-id (:id refine)))))
+        ;; The thread returns the archived thoughts
+        (is (= (map :id [memory refine])
+               (map :id (:results thread))))
+        (is (= [true false]
+               (map :archived? (:results thread))))
+        ))
+    ))
+
+(deftest test-query-archived-memories
+  (tdu/init-placeholder-data!)
+  (user/create! "user1" "password1")
+  (user/create! "user2" "password2")
+  (let [token-u1 (invoke-login {:username "user1" :password "password1"})
+        token-u2 (invoke-login {:username "user2" :password "password2"})]
+    (testing "We can archive a thought using PUT to archive"
+      (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
+            [_ query1] (get-request "/api/thoughts" nil token-u1)
+            [_ updated-1] (put-request "/api/thoughts" (:id memory) "archive" {:archived? true} token-u1)
+            [_ query2] (get-request "/api/thoughts" nil token-u1)
+            ;; After we have updated it, check that we _aren't_ allowed to do PUT with an ID that does not belong to us
+            [ru2 data-ru2] (put-request "/api/thoughts" (:id memory) "archive" {:archived? false} token-u2)
+            [_ after-invalid] (get-request (str "/api/thoughts/" (:id updated-1)) nil token-u1)
+            ;; De-archive
+            [_ updated-2] (put-request "/api/thoughts" (:id memory) "archive" {:archived? false} token-u1)
+            [_ updated-3] (put-request "/api/thoughts" (:id memory) "archive" {:archived? false} token-u1)]
+        ;; Check the original state
+        (is memory)
+        (is (false? (:archived? memory)))
+        (is (= "Memora" (:thought memory)))
+        (is (= "Memora" (:thought (first (:results query1)))))
+        ;; Check the updated state
+        (is (= "Memora" (:thought updated-1)))
+        (is (:archived? updated-1))
+        ;; We have no records, as it doesn't return archived thoughts by  default
+        (is (= 0 (:total query2)))
+        ;; Verify that we couldn't update it with token-u2
+        (is (= 404 (:status ru2)))
+        (is (nil? data-ru2))
+        ;; Status should still be archived
+        (is (:archived? after-invalid))
+        (is (= updated-1 after-invalid))
+        ;; De-archiving a thought works as expected
+        (is (= updated-2
+               (assoc updated-1 :archived? false)))
+        ;; De-archiving is idempotent
+        (is (= updated-2 updated-3))
+        ))
+    ))
+
 (deftest test-delete-memory
   (tdu/init-placeholder-data!)
   (user/create! "user1" "password1")
   (user/create! "user2" "password2")
   (let [token-u1 (invoke-login {:username "user1" :password "password1"})
         token-u2 (invoke-login {:username "user2" :password "password2"})]
-    (testing "We can update a memory by posting to an ID"
+    (testing "We can delete a thought"
       (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
-            ; Attempt deleting by an invalid auth token
+            ;; Attempt deleting by an invalid auth token
             [invalid _] (del-request "/api/thoughts" (:id memory) token-u2)
-            ; Query before valid delete
+            ;; Query before valid delete
             [_ query1] (get-request "/api/thoughts" nil token-u1)
-            ; Delete
+            ;; Delete and re-query
             [deleted _] (del-request "/api/thoughts" (:id memory) token-u1)
-            ; Query post-delete
             [_ query2] (get-request "/api/thoughts" nil token-u1)
+            [response item] (get-request (str "/api/thoughts/" (:id memory)) nil token-u1)
             ]
         (is memory)
         (is (= 1 (:total query1)))
         (is (= 404 (:status invalid)))
         (is (= 204 (:status deleted)))
+        ;; Ensure that it's neither available through querying or direct GET
         (is (= 0 (:total query2)))
+        (is (= 404 (:status response)))
+        (is (nil? item))
+        ))
+    (testing "We cannot delete closed thoughts"
+      (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
+            ;; Force the date as if we created it a while ago
+            _ (tdb/update-thought-created! *db* (assoc memory :created (c/to-date (.minusMillis (t/now) memory/open-duration))))
+            ;; Query before valid delete
+            [_ query1] (get-request "/api/thoughts" nil token-u1)
+            ;; Delete and re-query
+            [response body] (del-request "/api/thoughts" (:id memory) token-u1)
+            [_ query2] (get-request "/api/thoughts" nil token-u1)]
+        (is memory)
+        (is (= 1 (:total query1)))
+        (is (= 403 (:status response)))
+        (is (= "Cannot delete closed thoughts" body))
+        (is (= 1 (:total query2)))
         ))
     ))

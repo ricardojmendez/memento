@@ -21,7 +21,6 @@ test:
   - psql -h postgres -U postgres < db-setup.sql
   - echo $DATABASE_URL
   - lein with-profile test run migrate
-  - lein test
   - lein cloverage --codecov
   - bash <(curl -s https://codecov.io/bash) -f target/coverage/codecov.json -t $CODECOV_KEY
 

@@ -48,17 +48,10 @@
     (let [url (str "/api/threads/" root-id)]
       (GET url {:headers       {:authorization (str "Token " (get-in db [:credentials :token]))}
                 :handler       #(dispatch [:thread-load-success %])
-                :error-handler #(dispatch [:thread-load-error %])}
+                ;; Not sure if we actually know which thread failed loading. Probably not if the call failed altogether.
+                ;; If we did, we could just assoc the thread to nil.
+                :error-handler #(dispatch [:state-error "Error loading thread" %])}
            ))
-    nil))
-
-(reg-event-fx
-  :thread-load-error
-  (fn [_ [_ result]]
-    ;; Not sure if we actually know which thread failed loading. Probably not if the call failed altogether.
-    ;; If we did, we could just assoc the thread to nil.
-    (timbre/error "Error loading thread" result)
-    (dispatch [:state-message (str "Error loading thread: " result) "alert-danger"])
     nil))
 
 (reg-event-db

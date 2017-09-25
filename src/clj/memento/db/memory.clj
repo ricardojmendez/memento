@@ -64,9 +64,15 @@
   [memory]
   (let [current (set-status (db/get-thought-by-id *db* memory))]
     (if (= :open (:status current))
-      (db/update-thought! *db* (clean-memory-text memory))
+      (set-status (db/update-thought! *db* (clean-memory-text memory)))
       {}
       )))
+
+
+(defn archive!
+  "Archives/de-archives a thought. The thought does not need to be open."
+  [memory]
+  (set-status (db/archive-thought! *db* memory)))
 
 
 (defn delete!
@@ -79,7 +85,6 @@
         [trans-conn *db*]
         (db/delete-reminders-for-thought! trans-conn {:id id})
         (db/delete-thought! trans-conn {:id id}))
-
       0)))
 
 
@@ -88,8 +93,10 @@
   ([username]
    (query username ""))
   ([^String username ^String query-str]
-   (query username query-str 0))
+   (query username query-str 0 false))
   ([^String username ^String query-str ^Integer offset]
+   (query username query-str offset false))
+  ([^String username ^String query-str ^Integer offset ^Boolean include-archived?]
    (let [query-str (-> (or query-str "")
                        (s/replace #"[,.;:]" " ")            ; Consider commas whitespace
                        (s/replace #"[$!&=\-\*|%&^]" "")     ; Remove characters which could cause it to barf
@@ -101,7 +108,8 @@
                     :username username
                     ;; Query won't be used in the case of get-thoughts, but bind it on let
                     ;; since we'll need it twice on search.
-                    :query    query-str}
+                    :query    query-str
+                    :all?     include-archived?}
          total     (if (empty? query-str)
                      (:count (db/get-thought-count *db* params))
                      (:count (db/search-thought-count *db* params)))
