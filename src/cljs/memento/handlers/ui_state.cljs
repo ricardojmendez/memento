@@ -49,6 +49,12 @@
     (assoc-in app-state [:ui-state :current-query] q)))
 
 (reg-event-db
+  :state-query-all?
+  (fn [app-state [_ archived?]]
+    (dispatch [:memories-load 0])
+    (assoc-in app-state [:ui-state :query-all?] archived?)))
+
+(reg-event-db
   :state-refine
   (fn [app-state [_ thought]]
     (dispatch [:state-browser-token :record])

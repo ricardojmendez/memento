@@ -124,16 +124,18 @@
     (GET "/search" []
       :summary "Searches the thoughts"
       :query-params [{q :- s/Str ""}
-                     {page :- s/Int 0}]
+                     {page :- s/Int 0}
+                     {all? :- s/Bool false}]
       :auth-data auth-data
-      (memory/query-thoughts (:username auth-data) q page))
+      (memory/query-thoughts (:username auth-data) q page all?))
 
     (GET "/thoughts" []
       :summary "Gets the first page of thoughts"
       :return ThoughtSearchResult
-      :query-params [{page :- s/Int 0}]
+      :query-params [{page :- s/Int 0}
+                     {all? :- s/Bool false}]
       :auth-data auth-data
-      (memory/query-thoughts (:username auth-data) nil page))
+      (memory/query-thoughts (:username auth-data) nil page all?))
 
     (GET "/thoughts/:id" []
       :summary "Gets a thought"

@@ -433,7 +433,7 @@
   (user/create! "user2" "password2")
   (let [token-u1 (invoke-login {:username "user1" :password "password1"})
         token-u2 (invoke-login {:username "user2" :password "password2"})]
-    (testing "We can archive a thought using POST to archive"
+    (testing "We can archive a thought using PUT to archive"
       (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
             [_ query1] (get-request "/api/thoughts" nil token-u1)
             [_ updated-1] (put-request "/api/thoughts" (:id memory) "archive" {:archived? true} token-u1)
@@ -453,8 +453,8 @@
         ;; Check the updated state
         (is (= "Memora" (:thought updated-1)))
         (is (:archived? updated-1))
-        ;; We still have only one record
-        (is (= 1 (:total query2)))
+        ;; We have no records, as it doesn't return archived thoughts by  default
+        (is (= 0 (:total query2)))
         ;; Verify that we couldn't update it with token-u2
         (is (= 404 (:status ru2)))
         (is (nil? data-ru2))
@@ -467,9 +467,73 @@
         ;; De-archiving is idempotent
         (is (= updated-2 updated-3))
         ))
-    ;; TODO: Test that:
-    ;; - Only one thought is affected
-    ;; - Archiving a thought in a thread does not affect its thread
+    (testing "Archiving thoughts on a thread does not affect the thread"
+      (let [[_ memory] (post-request "/api/thoughts" {:thought "To follow up"} token-u1)
+            [_ refine] (post-request "/api/thoughts" {:thought "Following up on an idea" :refine_id (:id memory)} token-u1)
+            [_ query1] (get-request "/api/thoughts" nil token-u1)
+            [_ updated-1] (put-request "/api/thoughts" (:id memory) "archive" {:archived? true} token-u1)
+            [_ query2] (get-request "/api/thoughts" nil token-u1)
+            [_ thread] (get-request (str "/api/threads/" (:id memory)) nil token-u1)
+            ]
+        ;; Check the original state
+        (is memory)
+        (is (false? (:archived? memory)))
+        (is (= "To follow up" (:thought memory)))
+        (is (= (:id memory) (:root_id refine)))
+        ;; Check the updated state
+        (is (:archived? updated-1))
+        ;; The result on query are as expected
+        (is (= 3 (:total query1)))
+        (is (= 2 (:total query2)))
+        ;; The follow-up thought wasn't affected
+        (is (false? (:archived? (memory/get-by-id (:id refine)))))
+        ;; The thread returns the archived thoughts
+        (is (= (map :id [memory refine])
+               (map :id (:results thread))))
+        (is (= [true false]
+               (map :archived? (:results thread))))
+        ))
+    ))
+
+(deftest test-query-archived-memories
+  (tdu/init-placeholder-data!)
+  (user/create! "user1" "password1")
+  (user/create! "user2" "password2")
+  (let [token-u1 (invoke-login {:username "user1" :password "password1"})
+        token-u2 (invoke-login {:username "user2" :password "password2"})]
+    (testing "We can archive a thought using PUT to archive"
+      (let [[_ memory] (post-request "/api/thoughts" {:thought "Memora"} token-u1)
+            [_ query1] (get-request "/api/thoughts" nil token-u1)
+            [_ updated-1] (put-request "/api/thoughts" (:id memory) "archive" {:archived? true} token-u1)
+            [_ query2] (get-request "/api/thoughts" nil token-u1)
+            ;; After we have updated it, check that we _aren't_ allowed to do PUT with an ID that does not belong to us
+            [ru2 data-ru2] (put-request "/api/thoughts" (:id memory) "archive" {:archived? false} token-u2)
+            [_ after-invalid] (get-request (str "/api/thoughts/" (:id updated-1)) nil token-u1)
+            ;; De-archive
+            [_ updated-2] (put-request "/api/thoughts" (:id memory) "archive" {:archived? false} token-u1)
+            [_ updated-3] (put-request "/api/thoughts" (:id memory) "archive" {:archived? false} token-u1)]
+        ;; Check the original state
+        (is memory)
+        (is (false? (:archived? memory)))
+        (is (= "Memora" (:thought memory)))
+        (is (= "Memora" (:thought (first (:results query1)))))
+        ;; Check the updated state
+        (is (= "Memora" (:thought updated-1)))
+        (is (:archived? updated-1))
+        ;; We have no records, as it doesn't return archived thoughts by  default
+        (is (= 0 (:total query2)))
+        ;; Verify that we couldn't update it with token-u2
+        (is (= 404 (:status ru2)))
+        (is (nil? data-ru2))
+        ;; Status should still be archived
+        (is (:archived? after-invalid))
+        (is (= updated-1 after-invalid))
+        ;; De-archiving a thought works as expected
+        (is (= updated-2
+               (assoc updated-1 :archived? false)))
+        ;; De-archiving is idempotent
+        (is (= updated-2 updated-3))
+        ))
     ))
 
 (deftest test-delete-memory

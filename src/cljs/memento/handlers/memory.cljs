@@ -34,27 +34,31 @@
 (reg-event-db
   :memories-load
   (fn [app-state [_ page-index]]
-    (let [q      (get-in app-state [:ui-state :current-query])
-          last-q (get-in app-state [:search-state :query])
-          list   (if (= q last-q)
-                   (get-in app-state [:search-state :list])
-                   [])
-          p      (or page-index (get-in app-state [:ui-state :results-page]))]
-      (if (or (not= q last-q)
+    (let [q         (get-in app-state [:ui-state :current-query])
+          last-q    (get-in app-state [:search-state :query])
+          all?      (or (get-in app-state [:ui-state :query-all?]) false)
+          last-all? (get-in app-state [:search-state :all?])
+          same?     (and (= q last-q)
+                         (= all? last-all?))
+          list      (if same?
+                      (get-in app-state [:search-state :list])
+                      [])
+          p         (or page-index (get-in app-state [:ui-state :results-page]))]
+      (if (or (not same?)
               (> p (or (get-in app-state [:search-state :page-index]) -1)))
-        (do
-          (GET "/api/search" {:params        {:q q :page p}
-                              :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
-                              :handler       #(dispatch [:memories-load-success %])
-                              :error-handler #(dispatch [:state-error "Error remembering" %])
-                              })
-          (-> app-state
-              (assoc-in [:ui-state :is-searching?] true)
-              (assoc :search-state {:query       q
-                                    :page-index  p
-                                    :list        list
-                                    :last-result (get-in app-state [:search-state :last-result])})
-              ))
+        (do (GET "/api/search" {:params        {:q q :page p :all? all?}
+                                :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
+                                :handler       #(dispatch [:memories-load-success %])
+                                :error-handler #(dispatch [:state-error "Error remembering" %])
+                                })
+            (-> app-state
+                (assoc-in [:ui-state :is-searching?] true)
+                (assoc :search-state {:query       q
+                                      :page-index  p
+                                      :all?        all?
+                                      :list        list
+                                      :last-result (get-in app-state [:search-state :last-result])})
+                ))
         app-state
         ))))
 

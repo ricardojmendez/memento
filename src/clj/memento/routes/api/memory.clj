@@ -8,9 +8,9 @@
 
 (defn query-thoughts
   "Gets the next set of memories for a username, potentially with a search query"
-  [username query page]
+  [username query page include-archived?]
   (let [offset (* page memory/result-limit)]
-    (ok (-> (memory/query username query offset)
+    (ok (-> (memory/query username query offset include-archived?)
             (assoc :current-page page)))))
 
 (defn save-thought

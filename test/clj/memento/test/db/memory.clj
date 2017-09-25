@@ -99,7 +99,7 @@
   (tdu/init-placeholder-data!)
   (testing "Test if we can get memories by id"
     (let [created (memory/create! {:username tdu/ph-username :thought "Just wondering"})
-          loaded (memory/get-by-id (:id created))]
+          loaded  (memory/get-by-id (:id created))]
       ;; We return only the number of records updated
       (is (map? loaded))
       (is (= created loaded))
@@ -107,7 +107,7 @@
       (is (= tdu/ph-username (:username loaded)))))
   (testing "Test get-if-owner"
     (let [created (memory/create! {:username tdu/ph-username :thought "Just wondering again"})
-          loaded (memory/get-if-owner tdu/ph-username (:id created))
+          loaded  (memory/get-if-owner tdu/ph-username (:id created))
           invalid (memory/get-if-owner "some-else" (:id created))]
       ;; We return only the number of records updated
       (is (map? loaded))
@@ -158,18 +158,16 @@
 ;;;
 
 
-;; Strictly speaking, the following belongs in the tests for db.core, but
-;; keeping it here since it's more related to querying.
 (deftest test-query-count
   (tdu/init-placeholder-data!)
   (user/create! "shortuser" "somepass")
   (import-placeholder-memories!)
   (import-placeholder-memories! "shortuser" "quotes2.txt")
   (testing "Getting an all-memory count returns the total memories"
-    (is (= {:count 22} (db/get-thought-count *db* {:username tdu/ph-username})))
-    (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser"}))))
+    (is (= {:count 22} (db/get-thought-count *db* {:username tdu/ph-username :all? false})))
+    (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser" :all? false}))))
   (testing "Getting an memory query count returns the count of matching memories"
-    (are [count q u] (= {:count count} (db/search-thought-count *db* {:username u :query q}))
+    (are [count q u] (= {:count count} (db/search-thought-count *db* {:username u :query q :all? false}))
                      3 "memory" tdu/ph-username
                      0 "memory" "shortuser"
                      4 "people" tdu/ph-username
@@ -177,7 +175,33 @@
                      0 "creativity|akira" tdu/ph-username
                      3 "creativity|akira" "shortuser"
                      1 "mistake" tdu/ph-username
-                     1 "mistake" "shortuser")))
+                     1 "mistake" "shortuser"))
+  (testing "Verify filtering options for archiving thoughts"
+    (let [to-archive-1         (memory/create! {:username "shortuser" :thought "To archive 1"})
+          to-archive-2         (memory/create! {:username "shortuser" :thought "To archive 2"})]
+      ;; Verify that the thought count includes them both
+      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? false})))
+      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
+      ;; Archive a thought, verify
+      (memory/archive! (assoc to-archive-1 :archived? true))
+      (is (= {:count 6} (db/get-thought-count *db* {:username "shortuser" :all? false})))
+      (is (= {:count 1} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
+      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true})))
+      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true})))
+      ;; Archive the second one, verify
+      (memory/archive! (assoc to-archive-2 :archived? true))
+      (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser" :all? false})))
+      (is (= {:count 0} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
+      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true})))
+      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true})))
+      ;; De-archive the first thought, verify
+      (memory/archive! to-archive-1)                        ; The original thought should have :archived? false
+      (is (= {:count 6} (db/get-thought-count *db* {:username "shortuser" :all? false})))
+      (is (= {:count 1} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
+      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true})))
+      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true})))
+      ))
+  )
 
 
 (deftest test-query-memories
@@ -246,6 +270,33 @@
       (doseq [m texts]
         (is (or (re-seq #"memory" m)
                 (re-seq #"second" m))))
+      ))
+  (testing "Verify filtering options for archived thoughts"
+    (let [to-archive-1         (memory/create! {:username tdu/ph-username :thought "To archive 1"})
+          to-archive-2         (memory/create! {:username tdu/ph-username :thought "To archive 2"})]
+      ;; Verify that the thought count includes them both
+      (is (= 6 (:total (memory/query tdu/ph-username))))
+      (is (= 2 (:total (memory/query tdu/ph-username "archive"))))
+      ;; Archive a thought, verify
+      (memory/archive! (assoc to-archive-1 :archived? true))
+      (is (= 5 (:total (memory/query tdu/ph-username))))
+      (is (= 1 (:total (memory/query tdu/ph-username "archive"))))
+      (is (empty? (filter #(= to-archive-1 %) (:results (memory/query tdu/ph-username "archive")))))
+      (is (= 6 (:total (memory/query tdu/ph-username "" 0 true))))
+      (is (= 2 (:total (memory/query tdu/ph-username "archive" 0 true))))
+      ;; Archive the second one, verify
+      (memory/archive! (assoc to-archive-2 :archived? true))
+      (is (= 4 (:total (memory/query tdu/ph-username))))
+      (is (= 0 (:total (memory/query tdu/ph-username "archive"))))
+      (is (= 6 (:total (memory/query tdu/ph-username "" 0 true))))
+      (is (= 2 (:total (memory/query tdu/ph-username "archive" 0 true))))
+      ;; De-archive the first thought, verify
+      (memory/archive! to-archive-1)                        ; The original thought should have :archived? false
+      (is (= 5 (:total (memory/query tdu/ph-username))))
+      (is (= 1 (:total (memory/query tdu/ph-username "archive"))))
+      (is (empty? (filter #(= to-archive-2 %) (:results (memory/query tdu/ph-username "archive")))))
+      (is (= 6 (:total (memory/query tdu/ph-username "" 0 true))))
+      (is (= 2 (:total (memory/query tdu/ph-username "archive" 0 true))))
       )))
 
 

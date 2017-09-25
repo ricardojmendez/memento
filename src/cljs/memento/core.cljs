@@ -87,6 +87,7 @@
                                  :show-thread?    false
                                  :section         :record
                                  :current-query   ""
+                                 :query-all?      false
                                  :results-page    0
                                  :memories        {:pages 0}
                                  :show-reminders? false
@@ -306,19 +307,33 @@
 (defn memory-query []
   ;; TODO: Try the new form
   ;; https://lambdaisland.com/blog/11-02-2017-re-frame-form-1-subscriptions
-  (let [query (subscribe [:ui-state :current-query])]
+  (let [query     (subscribe [:ui-state :current-query])
+        archived? (subscribe [:ui-state :query-all?])
+        tooltip   (reagent/as-element [Tooltip {:id :archived?} "Include archived thoughts"])]
     (fn []
       [:div {:class "form-horizontal"}
        [:div {:class "form-group"}
         [:label {:for "input-search" :class "col-md-1 control-label"} "Search:"]
-        [:div {:class "col-md-10"}
+        [:div {:class "col-md-9"}
          [initial-focus-wrapper
           [:input {:type      "text"
                    :class     "form-control"
                    :id        "input-search"
                    :value     @query
                    :on-change #(dispatch-sync [:state-current-query (-> % .-target .-value)])}]]
-         ]]])))
+
+         ]
+        [:div {:class "col-md-2"}
+         [OverlayTrigger
+          {:placement :left
+           :overlay   tooltip}
+          [:div {:class "checkbox"}
+           [:label
+            [:input {:type     "checkbox"
+                     :checked  @archived?
+                     :on-click #(dispatch-sync [:state-query-all? (not @archived?)])}]
+            [:i {:class "fa icon-margin-both fa-archive fa-lg fa-6x"}]]]]]
+        ]])))
 
 
 (defn memory-load-trigger []
@@ -389,7 +404,7 @@
          [:i [:small
               (helpers/format-date (:created memory))
               (when (:archived? memory)
-                [:i {:class (str "fa icon-margin-both fa-archive")}])]]]
+                [:i {:class "fa icon-margin-both fa-archive"}])]]]
         [:div {:class "col-sm-4 show-on-hover"
                :style {:text-align "right"}}
          (when (= :open (:status memory))
