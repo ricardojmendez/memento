@@ -64,21 +64,21 @@
         (is (= "Just a thought" (:thought item)))
         (is (:created item))
         (is (:id item))))
-    (testing "We can refine a memory through the API"
+    (testing "We can follow up on a thought through the API"
       (let [[_ {:keys [results]}] (get-request "/api/thoughts" nil token)
             m1  (first results)
-            _   (post-request "/api/thoughts" {:thought "Refining an idea" :refine_id (:id m1)} token)
+            _   (post-request "/api/thoughts" {:thought "Refining an idea" :follow-id (:id m1)} token)
             [_ {:keys [results]}] (get-request "/api/thoughts" nil token)
             m2  (first results)
             [_ data] (get-request (str "/api/threads/" (:id m1)) nil token)
             ; m1 became a root after m2 was created, so we will expect it to have a root_id when returned
-            m1r (assoc m1 :root_id (:id m1) :reminders [])
+            m1r (assoc m1 :root-id (:id m1) :reminders [])
             ]
         (is m1)
-        (is (nil? (:refine_id m1)))
-        (is (nil? (:root_id m1)))
-        (is (= (:id m1) (:refine_id m2)))
-        (is (= (:id m1) (:root_id m2)))
+        (is (nil? (:follow-id m1)))
+        (is (nil? (:root-id m1)))
+        (is (= (:id m1) (:follow-id m2)))
+        (is (= (:id m1) (:root-id m2)))
         (is (= {:id      (:id m1)
                 :results [m1r m2]}
                data))
@@ -469,7 +469,7 @@
         ))
     (testing "Archiving thoughts on a thread does not affect the thread"
       (let [[_ memory] (post-request "/api/thoughts" {:thought "To follow up"} token-u1)
-            [_ refine] (post-request "/api/thoughts" {:thought "Following up on an idea" :refine_id (:id memory)} token-u1)
+            [_ refine] (post-request "/api/thoughts" {:thought "Following up on an idea" :follow-id (:id memory)} token-u1)
             [_ query1] (get-request "/api/thoughts" nil token-u1)
             [_ updated-1] (put-request "/api/thoughts" (:id memory) "archive" {:archived? true} token-u1)
             [_ query2] (get-request "/api/thoughts" nil token-u1)
@@ -479,7 +479,7 @@
         (is memory)
         (is (false? (:archived? memory)))
         (is (= "To follow up" (:thought memory)))
-        (is (= (:id memory) (:root_id refine)))
+        (is (= (:id memory) (:root-id refine)))
         ;; Check the updated state
         (is (:archived? updated-1))
         ;; The result on query are as expected

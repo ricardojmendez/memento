@@ -1,7 +1,7 @@
 -- :name create-thought! :<! :1
 -- :doc Creates a new thought record
-INSERT INTO thoughts (created, username, thought, root_id, refine_id)
-VALUES (:created, :username, :thought, :root_id, :refine_id)
+INSERT INTO thoughts (created, username, thought, "root-id", "follow-id")
+VALUES (:created, :username, :thought, :root-id, :follow-id)
 RETURNING *;
 
 
@@ -13,7 +13,7 @@ WHERE id = :id;
 -- :name get-thread-by-root-id :? :*
 -- :doc Returns all thoughts matching a root id
 SELECT * FROM thoughts
-WHERE root_id = :id
+WHERE "root-id" = :id
 ORDER BY created ASC;
 
 
@@ -52,11 +52,11 @@ RETURNING *;
 
 
 -- :name make-root! :! :n
--- :doc  Marks a thought as a root by setting its root_id to itself.
+-- :doc  Marks a thought as a root by setting its "root-id" to itself.
 --  Ensures that the thought isn't refining any other thought before doing so.
 UPDATE thoughts
-SET root_id = id
-WHERE id = :id AND root_id IS NULL;
+SET "root-id" = id
+WHERE id = :id AND "root-id" IS NULL;
 
 
 -- :name delete-thought! :! :n

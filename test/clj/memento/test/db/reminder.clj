@@ -27,15 +27,15 @@
 (deftest test-create-reminder
   (tdu/init-placeholder-data!)
   (let [memory (memory/create! {:username tdu/ph-username :thought "Just wondering"})
-        result (reminder/create! {:thought_id (:id memory) :type_id "spaced"})]
+        result (reminder/create! {:thought-id (:id memory) :type-id "spaced"})]
     (is (map? result))
     (is (:id result))
     (is (:created result))
-    (is (= "spaced" (:type_id result)))
-    (is (:next_date result))
+    (is (= "spaced" (:type-id result)))
+    (is (:next-date result))
     (is (= 4 (count (get-in result [:properties :days]))))
     (is (zero? (get-in result [:properties :day-idx])))
-    (is (= (:id memory) (:thought_id result)))))
+    (is (= (:id memory) (:thought-id result)))))
 
 
 ;;;
@@ -45,8 +45,8 @@
 (deftest test-get-reminder
   (tdu/init-placeholder-data!)
   (let [memory  (memory/create! {:username tdu/ph-username :thought "Just wondering"})
-        created (reminder/create! {:thought_id (:id memory) :type_id "spaced"})
-        another (reminder/create! {:thought_id (:id memory) :type_id "once" :next_date (coerce/to-date (l/local-now))})
+        created (reminder/create! {:thought-id (:id memory) :type-id "spaced"})
+        another (reminder/create! {:thought-id (:id memory) :type-id "once" :next-date (coerce/to-date (l/local-now))})
         result  (reminder/get-by-id (:id created))]
     (is (map? result))
     (is (:id result))
@@ -56,7 +56,7 @@
 (deftest test-get-if-owner
   (tdu/init-placeholder-data!)
   (let [memory  (memory/create! {:username tdu/ph-username :thought "Just wondering"})
-        created (reminder/create! {:thought_id (:id memory) :type_id "spaced"})
+        created (reminder/create! {:thought-id (:id memory) :type-id "spaced"})
         item    (reminder/get-if-owner tdu/ph-username (:id created))
         invalid (reminder/get-if-owner "someone-else" (:id created))]
     (is (nil? invalid))

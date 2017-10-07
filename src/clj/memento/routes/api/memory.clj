@@ -20,7 +20,7 @@
     (if (not-empty trimmed)
       (let [record (memory/create! {:username  username
                                     :thought   trimmed
-                                    :refine_id refine-id})]
+                                    :follow-id refine-id})]
         (created (str "/api/thoughts/" (:id record))
                  record))
       (bad-request! "Cannot add empty thoughts"))))

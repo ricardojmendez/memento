@@ -21,15 +21,15 @@
       item)))
 
 (defn get-pending
-  "Retrieves all pending reminders. These are the ones where the :next_date
-  is before the current time. This means that we need the :next_date to
+  "Retrieves all pending reminders. These are the ones where the :next-date
+  is before the current time. This means that we need the :next-date to
   be set to nil when a reminder's last remind date has passed."
   ([username]
    (get-pending username (tc/to-sql-date (tm/now))))
   ([username min-date]
    (jdbc/with-db-transaction
      [trans-conn *db*]
-     (db/get-pending-reminders trans-conn {:username username :min_date min-date}))))
+     (db/get-pending-reminders trans-conn {:username username :min-date min-date}))))
 
 (defn add-days-to-now
   "Adds a number of days to the current date. If it receives nil, it returns nil."
@@ -50,7 +50,7 @@
 (defn- add-schedule-to-record
   "Adds a new schedule to reminder record based on its type. Expects a connection to use."
   [conn reminder]
-  (let [reminder-type (db/get-reminder-type conn {:id (:type_id reminder)})
+  (let [reminder-type (db/get-reminder-type conn {:id (:type-id reminder)})
         ;; TODO: Support other types, for now this will only expand to
         ;; a day schedule
         schedule      (->> (get-in reminder-type [:schedule :days])
@@ -64,7 +64,7 @@
     ;; - Not overwrite the next_date
     (merge reminder {:properties {:days    schedule
                                   :day-idx 0}
-                     :next_date  (add-random-days 1 (add-days-to-now (first schedule)))})))
+                     :next-date  (add-random-days 1 (add-days-to-now (first schedule)))})))
 
 (defn create!
   "Saves a new reminder associated with a memory."
@@ -80,7 +80,7 @@
   (jdbc/with-db-transaction
     [trans-conn *db*]
     (db/update-reminder-date! trans-conn {:id         id
-                                          :next_date  next-date
+                                          :next-date  next-date
                                           :properties properties})))
 
 (defn mark-as-viewed!
@@ -101,15 +101,15 @@
           day-idx    (inc (min (dec day-count)              ; Ensure it never goes past the index
                                (or (get-in item [:properties :day-idx])
                                    0)))
-          new-state  (condp = (:type_id item)
+          new-state  (condp = (:type-id item)
                        ;; One-off reminders. Not testing it yet, may end up discarding it.
-                       "once" (assoc item :properties nil :next_date nil)
+                       "once" (assoc item :properties nil :next-date nil)
                        ;; Spaced repetition
                        "spaced" (cond
                                   ;; If it already contains the days, then move it along
                                   (contains? properties :days)
                                   (-> item
-                                      (assoc :next_date
+                                      (assoc :next-date
                                              (->> (get-in item [:properties :days])
                                                   ;; I drop N elements instead of doing nth because
                                                   ;; this saves me from having to do exception handling
@@ -125,6 +125,6 @@
                                   ;; See issue #73.
                                   :else (add-schedule-to-record trans-conn item))
                        )]
-      (db/update-reminder-date! trans-conn (select-keys new-state [:id :next_date :properties])))))
+      (db/update-reminder-date! trans-conn (select-keys new-state [:id :next-date :properties])))))
 
 
