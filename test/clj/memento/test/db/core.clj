@@ -3,8 +3,7 @@
             [conman.core :as conman]
             [memento.db.core :refer [*db*] :as db]
             [memento.config :refer [env]]
-            [mount.core :as mount]
-            [luminus-migrations.core :as migrations]))
+            [mount.core :as mount]))
 
 
 ;;;;

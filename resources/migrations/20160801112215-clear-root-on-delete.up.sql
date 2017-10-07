@@ -11,7 +11,6 @@ BEGIN
 END
 ' LANGUAGE 'plpgsql';
 --;;
---;;
 CREATE TRIGGER thought_root_clear_trigger
 AFTER DELETE ON thoughts
 FOR EACH ROW

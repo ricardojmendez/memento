@@ -24,7 +24,7 @@
 (reg-event-db
   :memory-archive-success
   (fn [app-state [_ memory]]
-    (let [thread-id (:root_id memory)]
+    (let [thread-id (:root-id memory)]
       (thread/reload-if-cached app-state thread-id)
       (dispatch [:memories-load])
       (-> app-state
@@ -102,7 +102,7 @@
 (reg-event-db
   :memory-edit-save-success
   (fn [app-state [_ memory msg]]
-    (let [thread-id (:root_id memory)]
+    (let [thread-id (:root-id memory)]
       (dispatch [:state-message (str "Updated memory to: " msg) "alert-success"])
       (dispatch [:memories-load])
       (thread/reload-if-cached app-state thread-id)
@@ -128,7 +128,7 @@
   :memory-forget-success
   (fn [app-state [_ memory msg]]
     (dispatch [:state-message (str "Thought forgotten") "alert-success"])
-    (thread/reload-if-cached app-state (:root_id memory))
+    (thread/reload-if-cached app-state (:root-id memory))
     (dispatch [:memories-load])
     (-> app-state
         (assoc-in [:ui-state :is-busy?] false)
@@ -139,7 +139,7 @@
   :memory-save
   (fn [app-state _]
     (let [note (get-in app-state [:note :current-note])]
-      (POST "/api/thoughts" {:params        {:thought note :refine_id (get-in app-state [:note :focus :id])}
+      (POST "/api/thoughts" {:params        {:thought note :follow-id (get-in app-state [:note :focus :id])}
                              :headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
                              :handler       #(dispatch [:memory-save-success % note])
                              :error-handler #(dispatch [:state-error "Error saving thought" %])}))
@@ -149,7 +149,7 @@
   :memory-save-success
   (fn [app-state [_ result msg]]
     (dispatch [:state-message (str "Saved: " msg) "alert-success"])
-    (thread/reload-if-cached app-state (:root_id result))
+    (thread/reload-if-cached app-state (:root-id result))
     (-> app-state
         (assoc-in [:ui-state :is-busy?] false)
         (assoc-in [:note :current-note] "")

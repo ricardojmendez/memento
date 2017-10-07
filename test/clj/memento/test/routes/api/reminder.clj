@@ -42,7 +42,7 @@
         (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
         (is (map? record))
         (is (:id record))
-        (is (= "spaced" (:type_id record)))
+        (is (= "spaced" (:type-id record)))
         (is (= 4 (count (get-in record [:properties :days]))))
         (is (zero? (get-in record [:properties :day-idx])))
         (is (= (str "http://localhost/api/reminders/" (:id record)) (get-in response [:headers "Location"])))
@@ -109,9 +109,9 @@
         (is (= 204 (:status r-updated)))
         (is (empty? r-empty))                               ; Patch returns no content
         ;; Both reminders should be the same, other than the next_date
-        (is (= (dissoc initial :next_date)
-               (dissoc updated :next_date)))
-        (is (nil? (:next_date updated)))
+        (is (= (dissoc initial :next-date)
+               (dissoc updated :next-date)))
+        (is (nil? (:next-date updated)))
         ))
     (testing "We can set a string date for an existing reminder"
       (let [[r-initial initial] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} token)
@@ -123,9 +123,9 @@
         (is (= 204 (:status r-updated)))
         (is (empty? r-empty))                               ; Patch returns no content
         ;; Both reminders should be the same, other than the next_date
-        (is (= (dissoc initial :next_date)
-               (dissoc updated :next_date)))
-        (is (= (read-string "#inst \"2017-01-01\"") (:next_date updated)))
+        (is (= (dissoc initial :next-date)
+               (dissoc updated :next-date)))
+        (is (= (read-string "#inst \"2017-01-01\"") (:next-date updated)))
         ))
     (testing "Trying to set the date from someone other than the owner fails"
       (let [[r-initial initial] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} token)
@@ -258,10 +258,10 @@
                (map clear-thought r-list)))
         ;; The reminder itself was updated
         (is (not= rem-1 new-rem-1))
-        (is (= (dissoc rem-1 :next_date :properties)
-               (dissoc new-rem-1 :next_date :properties)))
-        (is (t/after? (c/to-date-time (:next_date new-rem-1))
-                      (c/to-date-time (:next_date rem-1))))
+        (is (= (dissoc rem-1 :next-date :properties)
+               (dissoc new-rem-1 :next-date :properties)))
+        (is (t/after? (c/to-date-time (:next-date new-rem-1))
+                      (c/to-date-time (:next-date rem-1))))
         (is (= 1 (get-in new-rem-1 [:properties :day-idx])))))
     (testing "A different user cannot mark the reminder as viewed"
       (user/create! "user2" "password")
@@ -283,7 +283,7 @@
                             {:status    (:status response)
                              :result    post-result
                              :index     i
-                             :next_date (:next_date new-rem)
+                             :next-date (:next-date new-rem)
                              :day-idx   (get-in new-rem [:properties :day-idx])}
                             ))]
         (doseq [item time-series]
@@ -291,9 +291,9 @@
           (is (= 200 (:status item)))
           (is (= 1 (:result item)))
           (if (< (:day-idx item) day-count)
-            (is (some? (:next_date item)) (str "Expected a date on " item))
+            (is (some? (:next-date item)) (str "Expected a date on " item))
             (do
-              (is (nil? (:next_date item)) (str "Did not expect a date for " item))
+              (is (nil? (:next-date item)) (str "Did not expect a date for " item))
               (is (= day-count (:day-idx item)) (str "Did not expect the day index to move after " day-count))))
           )
         ))
@@ -307,7 +307,7 @@
             new-rem-1 (reminder/get-by-id (:id rem-1))]
         ;; Ensure our setup went as expected
         (is (nil? (:properties legacy)))
-        (is (= minus-1s (:next_date legacy)))
+        (is (= minus-1s (:next-date legacy)))
         ;; API call returns what we expect
         (is (= 200 (:status response)))
         (is (= 1 post-result))
@@ -317,7 +317,7 @@
         ;; The call configured the reminder to for spaced repetition and moved the date
         ;; forward, but left it at the first index
         (is (zero? (get-in new-rem-1 [:properties :day-idx])))
-        (is (t/after? (c/to-date-time (:next_date new-rem-1))
+        (is (t/after? (c/to-date-time (:next-date new-rem-1))
                       (c/to-date-time minus-1s)))
         (is (< 0 (count (get-in new-rem-1 [:properties :days]))))))
     ))

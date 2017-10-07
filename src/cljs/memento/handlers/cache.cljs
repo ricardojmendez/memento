@@ -45,7 +45,7 @@
     ;; on the cached lists, so that the indicators change.
     ;; We don't touch the reminder list, since there's no reason to expect a
     ;; reminder would be immediately displayed.
-    (let [fn-add-reminder (fn [e] (if (= (:id e) (:thought_id item))
+    (let [fn-add-reminder (fn [e] (if (= (:id e) (:thought-id item))
                                     (assoc e :reminders (conj (:reminders e) item))
                                     e))
           new-search-list (map fn-add-reminder (get-in app-state [:search-state :list]))
@@ -61,7 +61,7 @@
   :cache-add-reminder-thought
   (fn [app-state [_ thought]]
     ;; Looks for the reminder associated with the thought, and add it
-    (let [fn-add-thought (fn [e] (if (= (:thought_id e) (:id thought))
+    (let [fn-add-thought (fn [e] (if (= (:thought-id e) (:id thought))
                                    (assoc e :thought-record thought)
                                    e))]
       (assoc-in app-state [:cache :reminders]

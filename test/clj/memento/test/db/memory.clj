@@ -119,28 +119,28 @@
   (tdu/init-placeholder-data!)
   (let [_      (memory/create! {:username tdu/ph-username :thought "Just wondering"})
         m1     (first (:results (memory/query tdu/ph-username)))
-        _      (memory/create! {:username tdu/ph-username :thought "Second memory" :refine_id (:id m1)})
+        _      (memory/create! {:username tdu/ph-username :thought "Second memory" :follow-id (:id m1)})
         m2     (first (:results (memory/query tdu/ph-username)))
-        _      (memory/create! {:username tdu/ph-username :thought "Third memory" :refine_id (:id m2)})
+        _      (memory/create! {:username tdu/ph-username :thought "Third memory" :follow-id (:id m2)})
         m3     (first (:results (memory/query tdu/ph-username)))
         m1r    (last (:results (memory/query tdu/ph-username))) ; Memories are returned in reverse date order on the default query
         _      (memory/create! {:username tdu/ph-username :thought "Unrelated memory, not for thread"})
         all    (memory/query tdu/ph-username)
-        thread (memory/query-thread (:root_id m3))]
+        thread (memory/query-thread (:root-id m3))]
     ;; First memory has on refine_id nor root_id
     (is m1)
-    (is (nil? (:root_id m1)))
-    (is (nil? (:refine_id m1)))
+    (is (nil? (:root-id m1)))
+    (is (nil? (:follow-id m1)))
     ;; First time we refine a memory, both refine_id and root_id point to the same
     (is m2)
-    (is (= (:id m1) (:root_id m2)))
-    (is (= (:id m1) (:refine_id m2)))
+    (is (= (:id m1) (:root-id m2)))
+    (is (= (:id m1) (:follow-id m2)))
     ;; If we refine an already-refined memory, the root points to the initial item
     (is m2)
-    (is (= (:id m1) (:root_id m3)))
-    (is (= (:id m2) (:refine_id m3)))
+    (is (= (:id m1) (:root-id m3)))
+    (is (= (:id m2) (:follow-id m3)))
     ;; After refining, m1 has the root_id assigned to itself
-    (is (= (:id m1r) (:root_id m1r)))
+    (is (= (:id m1r) (:root-id m1r)))
     (is (= (:id m1r) (:id m1)))
     ;; Check the thread
     (is thread)
@@ -493,21 +493,21 @@
     (tdu/init-placeholder-data!)
     (let [_      (memory/create! {:username tdu/ph-username :thought "Just wondering"})
           m1     (first (:results (memory/query tdu/ph-username)))
-          _      (memory/create! {:username tdu/ph-username :thought "Second memory" :refine_id (:id m1)})
+          _      (memory/create! {:username tdu/ph-username :thought "Second memory" :follow-id (:id m1)})
           m2     (first (:results (memory/query tdu/ph-username)))
-          _      (memory/create! {:username tdu/ph-username :thought "Third memory" :refine_id (:id m2)})
+          _      (memory/create! {:username tdu/ph-username :thought "Third memory" :follow-id (:id m2)})
           m3     (first (:results (memory/query tdu/ph-username)))
           m1r    (last (:results (memory/query tdu/ph-username))) ; Memories are returned in reverse date order on the default query
           _      (memory/create! {:username tdu/ph-username :thought "Unrelated memory, not for thread"})
-          thread (memory/query-thread (:root_id m3))]
+          thread (memory/query-thread (:root-id m3))]
       ; Thread includes the updated record for the first memory
       (is (= [m1r m2 m3] thread))
       ;; Deleting a memory does not clear the root_id from any of the other elements on the thread
       (is (= 1 (memory/delete! (:id m3))))
-      (is (every? #(= (:id m1) (:root_id %)) (memory/query-thread (:root_id m3))))
+      (is (every? #(= (:id m1) (:root-id %)) (memory/query-thread (:root-id m3))))
       ;; Deleting the last child from a memory thread clears that memory's own root_id
       (is (= 1 (memory/delete! (:id m2))))
-      (is (nil? (:root_id (memory/get-by-id (:id m1)))))
+      (is (nil? (:root-id (memory/get-by-id (:id m1)))))
       )
     )
   )

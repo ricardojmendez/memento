@@ -43,14 +43,14 @@
   [memory]
   (jdbc/with-db-transaction
     [trans-conn *db*]
-    (let [refine-id (:refine_id memory)
+    (let [refine-id (:follow-id memory)
           refined   (if refine-id (db/get-thought-by-id trans-conn {:id refine-id}))
-          root-id   (or (:root_id refined) refine-id)
+          root-id   (or (:root-id refined) refine-id)
           item      (clean-memory-text
                       (assoc memory :created (now)
                                     :username (s/lower-case (:username memory))
-                                    :refine_id refine-id
-                                    :root_id root-id))]
+                                    :follow-id refine-id
+                                    :root-id root-id))]
       (if refined
         (db/make-root! trans-conn {:id root-id}))
       (set-status (db/create-thought! trans-conn item))

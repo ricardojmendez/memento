@@ -244,9 +244,9 @@
                ;; Showing only the buttons for Elaborate and Thread. I don't want to get into the potential mess
                ;; of editing or removing a thought while the reminder is shown yet.
                [:span {:class "col-sm-8" :style {:text-align "right"}}
-                (if (:root_id thought)
+                (if (:root-id thought)
                   [:a {:class "btn btn-primary btn-xs"
-                       :href  (str "/thread/" (:root_id thought))}
+                       :href  (str "/thread/" (:root-id thought))}
                    [:i {:class "fa fa-list-ul icon-margin-both"}] "Train of thought"])
                 [:a {:class    "btn btn-primary btn-xs"
                      :on-click #(do (.scrollIntoView top-div-target)
@@ -354,8 +354,8 @@
       ^{:key (:id memory)}
       [:div {:class "col-sm-12 thought hover-wrapper"}
        [:div {:class "memory col-sm-12"}
-        [:span {:on-click #(when (and show-thread-btn? (:root_id memory))
-                             (r/match-and-set! (str "/thread/" (:root_id memory))))
+        [:span {:on-click #(when (and show-thread-btn? (:root-id memory))
+                             (r/match-and-set! (str "/thread/" (:root-id memory))))
                 :dangerouslySetInnerHTML
                           {:__html (:html memory)}}]]
        [:div
@@ -392,8 +392,8 @@
                                        (dispatch [:memory-edit-set memory]))}
               [:i {:class "fa fa-file-text icon-margin-both"}] "Edit"])
            ;; Do we have a thread?
-           (when (and show-thread-btn? (:root_id memory))
-             [MenuItem {:href (str "/thread/" (:root_id memory))}
+           (when (and show-thread-btn? (:root-id memory))
+             [MenuItem {:href (str "/thread/" (:root-id memory))}
               [:i {:class "fa fa-list-ul icon-margin-both"}] "Train of thought"])
            ;; We can always follow up on a thought, even if it's been archived
            [MenuItem {:on-click #(do (.scrollIntoView top-div-target)

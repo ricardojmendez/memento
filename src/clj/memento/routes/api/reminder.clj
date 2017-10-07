@@ -11,7 +11,7 @@
   belonging to the user."
   [username thought-id type-id]
   (if (memory/get-if-owner username thought-id)
-    (let [item (reminder/create! {:thought_id thought-id :type_id type-id})]
+    (let [item (reminder/create! {:thought-id thought-id :type-id type-id})]
       (created (str "/api/reminders/" (:id item))
                (assoc item :username username)))
     (not-found)))

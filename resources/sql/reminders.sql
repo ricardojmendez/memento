@@ -12,43 +12,43 @@ SELECT
   t.username,
   r.*
 FROM reminders r
-  INNER JOIN thoughts t ON r.thought_id = t.id
+  INNER JOIN thoughts t ON r."thought-id" = t.id
 WHERE r.id = :id;
 
 -- :name create-reminder! :<! :1
 -- :doc Creates a new reminder for a memory
-INSERT INTO reminders (type_id, thought_id, next_date, properties)
-VALUES (:type_id, :thought_id, :next_date, :properties)
+INSERT INTO reminders ("type-id", "thought-id", "next-date", properties)
+VALUES (:type-id, :thought-id, :next-date, :properties)
 RETURNING *;
 
 -- :name get-pending-reminders :? :*
--- :doc Returns all reminders for a user where the next_date is before a received data
+-- :doc Returns all reminders for a user where the "next-date" is before a received data
 SELECT
   t.username,
   t.thought,
   r.*
 FROM reminders r
-  INNER JOIN thoughts t ON r.thought_id = t.id
-WHERE r.next_date <= :min_date
+  INNER JOIN thoughts t ON r."thought-id" = t.id
+WHERE r."next-date" <= :min-date
       AND t.username = :username
-ORDER BY r.next_date;
+ORDER BY r."next-date";
 
 -- :name update-reminder-date! :! :n
 -- :doc Updates a reminder's next remind date. Returns the number of records updated.
 UPDATE reminders
-SET next_date = :next_date, properties = :properties
+SET "next-date" = :next-date, properties = :properties
 WHERE id = :id;
 
 -- :name get-active-reminders-for-thought :? :*
--- :doc Returns all reminders for a thought that are considered active (have a next_date). Will filter by username.
+-- :doc Returns all reminders for a thought that are considered active (have a "next-date"). Will filter by username.
 SELECT r.*
 FROM reminders r
-  INNER JOIN thoughts t ON r.thought_id = :id
-WHERE r.next_date IS NOT NULL
+  INNER JOIN thoughts t ON r."thought-id" = :id
+WHERE r."next-date" IS NOT NULL
       AND t.username = :username
-ORDER BY r.next_date;
+ORDER BY r."next-date";
 
 
 -- :name delete-reminders-for-thought! :! :n
 -- :doc  Deletes a thought's reminders
-DELETE FROM reminders WHERE thought_id = :id;
+DELETE FROM reminders WHERE "thought-id" = :id;

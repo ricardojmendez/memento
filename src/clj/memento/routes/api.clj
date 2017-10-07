@@ -39,10 +39,10 @@
 
 (s/defschema Reminder
   {:id                        s/Uuid
-   :type_id                   s/Str
-   :thought_id                s/Uuid
+   :type-id                   s/Str
+   :thought-id                s/Uuid
    :created                   s/Inst
-   :next_date                 (s/maybe s/Inst)
+   :next-date                 (s/maybe s/Inst)
    :properties                s/Any
    (s/optional-key :username) s/Str
    (s/optional-key :thought)  s/Str                         ; Returned when querying for pending reminders
@@ -54,8 +54,8 @@
    :thought                    s/Str
    :created                    s/Inst
    :archived?                  s/Bool
-   (s/optional-key :root_id)   (s/maybe s/Uuid)
-   (s/optional-key :refine_id) (s/maybe s/Uuid)
+   (s/optional-key :root-id)   (s/maybe s/Uuid)
+   (s/optional-key :follow-id) (s/maybe s/Uuid)
    (s/optional-key :status)    s/Keyword
    (s/optional-key :reminders) [Reminder]
    })
@@ -148,9 +148,9 @@
       :summary "Creates a new thought"
       :return Thought
       :body-params [thought :- s/Str
-                    {refine_id :- (s/maybe s/Uuid) nil}]
+                    {follow-id :- (s/maybe s/Uuid) nil}]
       :auth-data auth-data
-      (memory/save-thought (:username auth-data) thought refine_id))
+      (memory/save-thought (:username auth-data) thought follow-id))
 
     (PATCH "/thoughts/:id" []
       :summary "Updates an existing thought. Needs to be open."

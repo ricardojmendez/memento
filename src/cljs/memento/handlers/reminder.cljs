@@ -19,7 +19,7 @@
   :reminder-load-success
   (fn [app-state [_ result]]
     (doseq [item result]
-      (GET (str "/api/thoughts/" (:thought_id item))
+      (GET (str "/api/thoughts/" (:thought-id item))
            {:headers       {:authorization (str "Token " (get-in app-state [:credentials :token]))}
             :handler       #(dispatch [:cache-add-reminder-thought (helpers/add-html %)])
             :error-handler #(dispatch [:state-message (str "Error loading thought: " %) "alert-danger"])}))
