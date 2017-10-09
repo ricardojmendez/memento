@@ -28,9 +28,11 @@ Memento was meant as a place to record what I was thinking at a specific time, s
 - You can edit or delete thoughts for 24 hours after you've registered them;
 - After that, a thought is "closed" and you can no longer modify it.
 
-I set these in place to allow editing while avoiding second-guessing myself in the long run. 
+I set these in place to allow editing while avoiding second-guessing myself in the long run.
 
-I'm considering allowing you to archive thoughts that you no longer consider relevant. If you think that's an important feature, [feel free to vote or comment on the issue](https://gitlab.com/Numergent/memento/issues/34).
+### Archiving 
+
+If at any point in the future you consider a thought to no longer be relevant, you can then just archive it. This will remove it from the default searches while keeping it still available, as well as keeping it inside any trains of thought you had recorded.
 
 ### Reminders
 
