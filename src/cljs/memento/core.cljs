@@ -560,7 +560,7 @@
              (not= :login @section)
              (not= :signup @section))
       (dispatch-sync [:state-ui-section :login]))
-    (condp = @section
+    (case @section
       :record [write-section]
       :remember [memory-list]
       [login-form]
@@ -569,7 +569,7 @@
 
 (defn header []
   (let [state (subscribe [:ui-state :section])
-        label (condp = @state
+        label (case @state
                 :record "Record a new thought"
                 :remember "Remember"
                 "")]

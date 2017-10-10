@@ -101,7 +101,7 @@
           day-idx    (inc (min (dec day-count)              ; Ensure it never goes past the index
                                (or (get-in item [:properties :day-idx])
                                    0)))
-          new-state  (condp = (:type-id item)
+          new-state  (case (:type-id item)
                        ;; One-off reminders. Not testing it yet, may end up discarding it.
                        "once" (assoc item :properties nil :next-date nil)
                        ;; Spaced repetition
