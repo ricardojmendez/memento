@@ -3,6 +3,10 @@ image: clojure:lein-2.7.0
 variables:
   DATABASE_URL: "postgresql://memento:testdb@postgres:5432/memento_test"
 
+cache:
+  paths:
+    - ~/.m2/
+
 before_script:
   - export LEIN_SNAPSHOTS_IN_RELEASE=true
 
@@ -20,6 +24,8 @@ test:
   - apt-get install postgresql-client -y
   - psql -h postgres -U postgres < db-setup.sql
   - echo $DATABASE_URL
+  - lein deps
+  - ls ~/.m2
   - lein with-profile test run migrate
   - lein cloverage --codecov
   - bash <(curl -s https://codecov.io/bash) -f target/coverage/codecov.json -t $CODECOV_KEY
