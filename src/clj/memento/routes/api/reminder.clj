@@ -6,7 +6,7 @@
                                              no-content]]))
 
 
-(defn create-new
+(defn create!
   "Saves a new reminder for a thought. Returns not-found if it can't find a thought-id
   belonging to the user."
   [username thought-id type-id]

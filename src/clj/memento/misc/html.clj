@@ -1,18 +1,22 @@
 (ns memento.misc.html
-  (require [clojure.string :as string])
+  (require [clojure.string :as string]
+           [com.rpl.specter :refer [transform multi-path]])
   (import (org.jsoup Jsoup)))
 
 
 (defn remove-html
-  "Cleans HTML tags from a string while preserving new lines"
-  [^String s]
-  (let [no-nl (string/replace s #"\n" "\\\\n")
-        clean (.text (Jsoup/parse no-nl))]
-    (string/replace clean #"\\n" "\n"))
-  )
+  "Cleans HTML tags from a string while preserving new lines.
 
-(defn clean-memory-text
-  "Removes the HTML from a memory's thought.
+  Returns nil if it receives a nil value."
+  [^String s]
+  (when s
+    (let [no-nl (string/replace s #"\n" "\\\\n")
+          clean (.text (Jsoup/parse no-nl))]
+      (string/trim (string/replace clean #"\\n" "\n")))))
+
+(defn remove-html-from-vals
+  "Removes the HTML from several values on a hashmap.
+  
   Probably best suited for a memento.utils, but we don't have one of those yet"
-  [memory]
-  (update-in memory [:thought] remove-html))
+  [item & fields]
+  (transform (apply multi-path fields) remove-html item))

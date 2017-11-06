@@ -14,6 +14,7 @@
                  [cljsjs/react-bootstrap "0.30.2-0" :exclusions [org.webjars.bower/jquery]]
                  [org.clojure/tools.cli "0.3.5"]
                  [com.andrewmcveigh/cljs-time "0.5.1"]
+                 [com.rpl/specter "1.0.4"]
                  [com.taoensso/timbre "4.10.0"]
                  [compojure "1.6.0"]
                  [conman "0.6.8"]

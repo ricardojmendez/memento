@@ -4,7 +4,7 @@
             [clj-time.coerce :as tc]
             [clojure.string :as s]
             [memento.db.core :refer [*db*] :as db]
-            [memento.misc.html :refer [remove-html clean-memory-text]]
+            [memento.misc.html :refer [remove-html remove-html-from-vals]]
             [clojure.java.jdbc :as jdbc]
             [clj-time.coerce :as c]
             [clj-time.core :as t])
@@ -39,22 +39,22 @@
       existing)))
 
 (defn create!
-  "Saves a new memory, after removing HTML tags from the thought."
+  "Saves a new thought, after removing HTML tags from the text."
   [memory]
   (jdbc/with-db-transaction
     [trans-conn *db*]
     (let [refine-id (:follow-id memory)
           refined   (if refine-id (db/get-thought-by-id trans-conn {:id refine-id}))
           root-id   (or (:root-id refined) refine-id)
-          item      (clean-memory-text
+          item      (remove-html-from-vals
                       (assoc memory :created (now)
                                     :username (s/lower-case (:username memory))
                                     :follow-id refine-id
-                                    :root-id root-id))]
+                                    :root-id root-id)
+                      :thought)]
       (if refined
         (db/make-root! trans-conn {:id root-id}))
-      (set-status (db/create-thought! trans-conn item))
-      )))
+      (set-status (db/create-thought! trans-conn item)))))
 
 
 (defn update!
@@ -64,7 +64,7 @@
   [memory]
   (let [current (set-status (db/get-thought-by-id *db* memory))]
     (if (= :open (:status current))
-      (set-status (db/update-thought! *db* (clean-memory-text memory)))
+      (set-status (db/update-thought! *db* (remove-html-from-vals memory :thought)))
       {}
       )))
 

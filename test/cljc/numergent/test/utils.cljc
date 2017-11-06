@@ -5,8 +5,7 @@
                [clojure.test :refer :all])
      :cljs
      (:require [numergent.utils :refer [in-seq?]]
-               [cljs.test :refer-macros [deftest is]]))
-  )
+       [cljs.test :refer-macros [deftest is]])))
 
 (deftest test-in-seq
   (is (in-seq? [0 19 2 3 1 22] 1))
@@ -39,10 +38,40 @@
   (is (= "a < b nice try" (remove-html "a < b <a onclick='alert()'>nice try</a>")))
   )
 
-(deftest test-clean-memory-text
-  ;; Memory text is cleared up
-  (is (= {:thought "Hello\n world\n\n**some bold**"} (clean-memory-text {:thought "Hello\n<h1>world</h1>\n\n**some bold**"})))
-  ;; Id is retained
-  (is (= {:thought "Hello\n world\n\n**some bold**" :id 1} (clean-memory-text {:thought "Hello\n<h1>world</h1>\n\n**some bold**" :id 1})))
-  ;; Other values are preserved
-  (is (= {:thought "a < b nice try" :id 1 :ignored true} (clean-memory-text {:thought "a < b <a onclick='alert()'>nice try</a>" :id 1 :ignored true}))))
+(deftest test-remove-html-from-map
+  (testing "Can clean-up a single value"
+    (is (= {:thought "Hello\n world\n\n**some bold**"} (remove-html-from-vals {:thought "Hello\n<h1>world</h1>\n\n**some bold**"} :thought))))
+  (testing "We preserve the ID on clean-up"
+    (is (= {:thought "Hello\n world\n\n**some bold**" :id 1} (remove-html-from-vals {:thought "Hello\n<h1>world</h1>\n\n**some bold**" :id 1} :thought))))
+  (testing "We preserve other fields on clean-up"
+    (is (= {:thought "a < b nice try" :id 1 :ignored true} (remove-html-from-vals {:thought "a < b <a onclick='alert()'>nice try</a>" :id 1 :ignored true} :thought))))
+  (testing "We can clean-up arbitrary keys"
+    (is (= {:id          1
+            :thought     "Hello\n world\n\n**some bold**"
+            :idea        "Some text"
+            :passthrough "<script>do stuff</script>"}
+           (remove-html-from-vals {:thought     "Hello\n<h1>world</h1>\n\n**some bold**"
+                                   :id          1
+                                   :idea        "Some <script>bold</script> text"
+                                   :passthrough "<script>do stuff</script>"}
+                                  :thought :idea))))
+  (testing "Clean-up trims the string"
+    (is (= {:id          1
+            :thought     "Hello\n world\n\n**some bold**"
+            :idea        "Some text"
+            :passthrough "<script>do stuff</script>"}
+           (remove-html-from-vals {:thought     "  Hello\n<h1>world</h1>\n\n**some bold** "
+                                   :id          1
+                                   :idea        "Some <script>bold</script> text"
+                                   :passthrough "<script>do stuff</script>"}
+                                  :thought :idea))))
+  (testing "Cleaning up a nil field returns nil"
+    (is (= {:id          1
+            :thought     "Hello\n world\n\n**some bold**"
+            :idea        nil
+            :passthrough "<script>do stuff</script>"}
+           (remove-html-from-vals {:thought     "Hello\n<h1>world</h1>\n\n**some bold**"
+                                   :id          1
+                                   :idea        nil
+                                   :passthrough "<script>do stuff</script>"}
+                                  :thought :idea)))))

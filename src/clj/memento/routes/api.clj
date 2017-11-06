@@ -9,6 +9,7 @@
             [memento.routes.api.auth :as auth]
             [memento.routes.api.memory :as memory]
             [memento.routes.api.reminder :as reminder]
+            [memento.routes.api.resolution :as resolution]
             [ring.util.http-response :refer :all]
             [schema.core :as s]))
 
@@ -47,6 +48,17 @@
    (s/optional-key :username) s/Str
    (s/optional-key :thought)  s/Str                         ; Returned when querying for pending reminders
    })
+
+(s/defschema Resolution
+  {:id           s/Uuid
+   :username     s/Str
+   :created      s/Inst
+   :subject      s/Str
+   :description  s/Str
+   :alternatives (s/maybe s/Str)
+   :outcomes     (s/maybe s/Str)
+   :tags         (s/maybe s/Str)
+   :archived?    s/Bool})
 
 (s/defschema Thought
   {:id                         s/Uuid
@@ -198,7 +210,7 @@
       :body-params [thought-id :- s/Uuid
                     type-id :- s/Str]
       :auth-data auth-data
-      (reminder/create-new (:username auth-data) thought-id type-id))
+      (reminder/create! (:username auth-data) thought-id type-id))
 
     (GET "/reminders/:id" []
       :summary "Retrieves a specific reminder by id"
@@ -225,7 +237,38 @@
       :path-params [id :- s/Uuid]
       :return s/Int
       :auth-data auth-data
-      (reminder/mark-as-viewed! (:username auth-data) id))
-    )
+      (reminder/mark-as-viewed! (:username auth-data) id)))
 
-  )
+  (context "/api" []
+    :tags ["RESOLUTIONS"]
+
+    ;; You'll need to be authenticated for these
+    :middleware [token-auth-mw]
+    :auth-rules authenticated?
+    :header-params [authorization :- s/Str]
+
+    (POST "/resolutions" []
+      :summary "Creates a new resolution"
+      :return Resolution
+      :auth-data auth-data
+      :body-params [subject :- s/Str
+                    description :- s/Str
+                    {alternatives :- (s/maybe s/Str) nil}
+                    {outcomes :- (s/maybe s/Str) nil}
+                    {tags :- (s/maybe s/Str) nil}]
+      (resolution/create! (:username auth-data) subject description alternatives outcomes tags))
+
+    (GET "/resolutions" []
+      :summary "Gets all resolutions"
+      :return [Resolution]
+      :auth-data auth-data
+      (resolution/get-list (:username auth-data)))
+
+    (GET "/resolutions/:id" []
+      :summary "Retrieves a specific resolution by id"
+      :return Resolution
+      :path-params [id :- s/Uuid]
+      :auth-data auth-data
+      (resolution/get-one (:username auth-data) id))
+
+    ))

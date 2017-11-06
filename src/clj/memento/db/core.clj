@@ -10,8 +10,7 @@
            java.sql.Array
            clojure.lang.IPersistentMap
            clojure.lang.IPersistentVector
-           [java.sql BatchUpdateException
-                     Date
+           [java.sql Date
                      Timestamp
                      PreparedStatement]))
 
@@ -23,6 +22,7 @@
 (conman/bind-connection *db* "sql/users.sql")
 (conman/bind-connection *db* "sql/thoughts.sql")
 (conman/bind-connection *db* "sql/reminders.sql")
+(conman/bind-connection *db* "sql/resolutions.sql")
 
 (defn to-date [^java.sql.Date sql-date]
   (-> sql-date (.getTime) (java.util.Date.)))

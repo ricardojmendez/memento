@@ -10,7 +10,8 @@
             [memento.test.db.core :as tdb]
             [memento.test.db.user :as tdu]
             [numergent.utils :as u]
-            [mount.core :as mount]))
+            [mount.core :as mount]
+            [clojure.string :as string]))
 
 
 (use-fixtures
@@ -87,13 +88,20 @@
 
 (deftest test-save-memory
   (tdu/init-placeholder-data!)
-  (let [result (memory/create! {:username tdu/ph-username :thought "Just wondering"})]
-    ;; We return only the number of records updated
+  (testing "Can save a thought"
+    (let [result (memory/create! {:username tdu/ph-username :thought "Just wondering"})]
     (is (map? result))
     (is (:id result))
     (is (:created result))
     (is (= "Just wondering" (:thought result)))
     (is (= tdu/ph-username (:username result)))))
+  (testing "We clean the HTML from the thought when saving it"
+    (let [result (memory/create! {:username tdu/ph-username :thought "<p>No <script>text</script> tags!</p>"})]
+      (is (= "No tags!" (:thought result)))))
+  (testing "Username is converted to lowercase"
+    (let [result (memory/create! {:username (string/upper-case tdu/ph-username)
+                                  :thought "Another thought"})]
+      (is (= tdu/ph-username (:username result))))))
 
 (deftest test-get-memory
   (tdu/init-placeholder-data!)
