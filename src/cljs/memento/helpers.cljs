@@ -6,9 +6,7 @@
             [markdown.core :refer [md->html]]
             [markdown.transformers :as transformers]
             [markdown.lists :as mdlists]
-            [markdown.links :as mdlinks]
-            ))
-
+            [markdown.links :as mdlinks]))
 
 (defn paragraph-on-single-line
   "Adds a <p> even when we're at the end of the file and the last line is empty, so that
@@ -30,7 +28,7 @@
     :default
     [text state]))
 
-;; Transformer vector. We are excluding headings, since we use the hash as tags.
+;; Transformer vector. We are excluding headings, since we use the hash for tags.
 (def md-transformers
   [transformers/empty-line
    transformers/codeblock
