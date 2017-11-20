@@ -12,6 +12,7 @@
 
 (def routes ["/" {"record"   :record
                   "remember" :remember
+                  "resolve"  :resolve
                   "signup"   :signup
                   "login"    :login
                   "thread/"  {[:id] #(dispatch [:thread-display (:id %)])}

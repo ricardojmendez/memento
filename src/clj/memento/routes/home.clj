@@ -16,4 +16,6 @@
   (GET "/login" [] (home-page))
   (GET "/signup" [] (home-page))
   (GET "/remember" [] (home-page))
+  (GET "/resolve" [] (home-page))
+  (GET "/resolve/*" [] (home-page))
   (GET "/thread/*" [] (home-page)))

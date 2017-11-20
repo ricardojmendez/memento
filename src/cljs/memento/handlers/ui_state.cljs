@@ -13,8 +13,10 @@
   :state-ui-section
   (fn [app-state [_ section]]
     (timbre/trace :state-ui-section section)
-    (if (= :remember section)
-      (dispatch [:memories-load]))
+    (case section
+      :remember (dispatch [:memories-load])
+      :resolve (dispatch [:resolution-load])
+      nil)
     ; Do not associate nil sections
     (if (some? section)
       (assoc-in app-state [:ui-state :section] section)

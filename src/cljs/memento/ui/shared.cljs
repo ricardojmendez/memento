@@ -124,7 +124,8 @@
            [navbar-item "Sign up" :signup]]
           [Nav
            [navbar-item "Record" :record]
-           [navbar-item "Remember" :remember]])
+           [navbar-item "Remember" :remember]
+           [navbar-item "Resolve" :resolve]])
         [Nav {:pullRight true}
          [NavItem {:href "/about"} "About"]]]])))
 

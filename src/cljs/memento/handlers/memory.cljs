@@ -2,7 +2,6 @@
   (:require [ajax.core :refer [GET POST PUT PATCH DELETE]]
             [memento.handlers.auth :refer [clear-token-on-unauth]]
             [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
-            [taoensso.timbre :as timbre]
             [memento.handlers.thread :as thread]
             [memento.helpers :as helpers]))
 

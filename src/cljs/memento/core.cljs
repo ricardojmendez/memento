@@ -5,12 +5,14 @@
             [memento.handlers.cache]
             [memento.handlers.memory]
             [memento.handlers.reminder]
+            [memento.handlers.resolution]
             [memento.handlers.routing :as r]
             [memento.handlers.ui-state]
             [memento.handlers.thread]
             [memento.ui.login :refer [login-form]]
             [memento.ui.record :refer [write-section]]
             [memento.ui.remember :refer [memory-list]]
+            [memento.ui.resolve :refer [resolution-list]]
             [memento.ui.shared :refer [navbar alert]]
             [pushy.core :as pushy]
             [reagent.core :as reagent]
@@ -71,6 +73,7 @@
     (case @section
       :record [write-section]
       :remember [memory-list]
+      :resolve [resolution-list]
       [login-form])))
 
 (defn header []
@@ -78,6 +81,7 @@
         label (case @state
                 :record "Record a new thought"
                 :remember "Remember"
+                :resolve "Resolutions"
                 "")]
     (if (not-empty label)
       [:h1 {:id "forms"} label])))
