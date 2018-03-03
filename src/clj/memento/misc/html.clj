@@ -1,6 +1,6 @@
 (ns memento.misc.html
-  (require [clojure.string :as string])
-  (import (org.jsoup Jsoup)))
+  (:require [clojure.string :as string])
+  (:import [org.jsoup Jsoup]))
 
 
 (defn remove-html
