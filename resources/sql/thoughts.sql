@@ -34,6 +34,12 @@ FROM thoughts
 WHERE username = :username
       AND (:all? OR "archived?" = FALSE);
 
+-- :name filter-thoughts-owner :? :*
+-- :doc Returns the thought ids from a list which actually belong to a user
+SELECT id FROM thoughts
+WHERE username = :username
+      AND id IN (:v*:thought-ids);
+
 
 -- :name update-thought! :<! :1
 -- :doc Updates a thought's text and returns it

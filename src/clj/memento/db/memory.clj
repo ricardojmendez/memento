@@ -53,8 +53,7 @@
                                     :root-id root-id))]
       (if refined
         (db/make-root! trans-conn {:id root-id}))
-      (set-status (db/create-thought! trans-conn item))
-      )))
+      (set-status (db/create-thought! trans-conn item)))))
 
 
 (defn update!

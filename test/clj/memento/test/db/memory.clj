@@ -154,6 +154,34 @@
 
 
 ;;;
+;;; Filtering
+;;;
+
+
+(deftest test-filter-ownership
+  (tdu/init-placeholder-data!)
+  (import-placeholder-memories!)
+  (user/create! "shortuser" "somepass")
+  (let [query    (memory/query tdu/ph-username)
+        thoughts (:results query)]
+    (testing "Querying with the wrong user doesn't return any thought ids"
+      (is (empty? (db/filter-thoughts-owner {:username "shortuser" :thought-ids (map :id thoughts)}))))
+    (testing "Querying with the owner returns all the correct ids"
+      (let [ids (map :id thoughts)]
+        (is (= (set ids)
+               (set (map :id (db/filter-thoughts-owner {:username tdu/ph-username :thought-ids (map :id thoughts)})))))))
+    (testing "A user can only see his own thoughts"
+      (let [other-ids (map :id thoughts)
+            t1        (memory/create! {:username "shortuser" :thought "To archive 1"})
+            t2        (memory/create! {:username "shortuser" :thought "To archive 2"})
+            own-ids   (set [(:id t1) (:id t2)])]
+        (is (= own-ids
+               (set (map :id (db/filter-thoughts-owner {:username "shortuser"
+                                                        :thought-ids (concat other-ids
+                                                                             own-ids)})))))))))
+
+
+;;;
 ;;; Querying
 ;;;
 
@@ -177,8 +205,8 @@
                      1 "mistake" tdu/ph-username
                      1 "mistake" "shortuser"))
   (testing "Verify filtering options for archiving thoughts"
-    (let [to-archive-1         (memory/create! {:username "shortuser" :thought "To archive 1"})
-          to-archive-2         (memory/create! {:username "shortuser" :thought "To archive 2"})]
+    (let [to-archive-1 (memory/create! {:username "shortuser" :thought "To archive 1"})
+          to-archive-2 (memory/create! {:username "shortuser" :thought "To archive 2"})]
       ;; Verify that the thought count includes them both
       (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? false})))
       (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
@@ -272,8 +300,8 @@
                 (re-seq #"second" m))))
       ))
   (testing "Verify filtering options for archived thoughts"
-    (let [to-archive-1         (memory/create! {:username tdu/ph-username :thought "To archive 1"})
-          to-archive-2         (memory/create! {:username tdu/ph-username :thought "To archive 2"})]
+    (let [to-archive-1 (memory/create! {:username tdu/ph-username :thought "To archive 1"})
+          to-archive-2 (memory/create! {:username tdu/ph-username :thought "To archive 2"})]
       ;; Verify that the thought count includes them both
       (is (= 6 (:total (memory/query tdu/ph-username))))
       (is (= 2 (:total (memory/query tdu/ph-username "archive"))))
