@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.6 (Current, WIP)
+## 0.7 (Current, WIP)
+
+### 20180817
+
+- Initial support for thought clusters
+
+## 0.6
 
 ### 20170819
 
