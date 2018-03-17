@@ -10,6 +10,7 @@
             [markdown.core :refer [md->html]]
             [memento.handlers.auth :refer [clear-token-on-unauth]]
             [memento.handlers.cache]
+            [memento.handlers.cluster]
             [memento.handlers.memory]
             [memento.handlers.reminder]
             [memento.handlers.routing :as r]
@@ -253,9 +254,14 @@
                                     (dispatch [:state-refine thought]))}
                  [:i {:class "fa fa-pencil icon-margin-both"}] "Follow up"]
 
-                ]]
+                ]]]))
+         (when (< 1 (count @reminders))
+           [:div {:class "row reminder-item"}
+            [:div {:class "col-sm-12" :style {:text-align "right"}}
+             [:p [:a {:class    "btn btn-primary btn-xs"
+                      :on-click #(dispatch [:cluster-create (map :thought-id @reminders)])}
+                  [:i {:class "fa fa-plus icon-margin-both"}] "Save as a cluster"]]]])
 
-              ]))
          ]
         ;; Reminder notice
         (when (and (not-empty @reminders)
