@@ -2,6 +2,7 @@
   (:require [clojure.java.jdbc :as jdbc]
             [memento.config :refer [env]]
             [memento.db.core :refer [*db*] :as db]
+            [memento.db.memory :as thought]
             [memento.misc.html :refer [remove-html clean-memory-text]]
             [schema.core :as s])
   (:import (java.util UUID)))
@@ -26,9 +27,11 @@
 
 (defn get-thoughts
   "Gets the thoughts for a cluster id if the cluster belongs to the specified username.
-  Otherwise it returns nil."
-  [cluster-id username]
-  (not-empty (db/get-cluster-thoughts {:id cluster-id :username username})))
+  Otherwise it returns nil.
+
+  Will limit the thoughts returned at 1000"
+  [username cluster-id]
+  (thought/query username nil 0 true :limit 1000 :extra-joins (db/join-cluster-thoughts {:id cluster-id :username username})))
 
 
 (defn cluster-thoughts

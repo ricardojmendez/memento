@@ -8,7 +8,8 @@
             [memento.db.user :as user]
             [memento.test.db.user :as tdu]
             [mount.core :as mount]
-            [memento.test.db.memory :as tdm]))
+            [memento.test.db.memory :as tdm])
+  (:import [java.util UUID]))
 
 (use-fixtures
   :once
@@ -51,19 +52,26 @@
           query      (memory/query tdu/ph-username)
           thoughts   (take 4 (:results query))
           _          (tc/add-thoughts (:id cluster) (map :id thoughts))
-          get-result (tc/get-thoughts (:id cluster) tdu/ph-username)]
+          get-result (tc/get-thoughts tdu/ph-username (:id cluster))]
       (is cluster)
-      (is (= 4 (count get-result)))
+      (is (map? get-result))
+      (is (= 4 (count (:results get-result))))
       (is (= (set (map :id thoughts))
-             (set (map :thought-id get-result))))))
-  (testing "Cluster is nil if the owner does not match"
+             (set (map :id (:results get-result)))))))
+  (testing "Result is empty if the owner does not match"
     (let [cluster    (db/create-cluster! {:username tdu/ph-username})
           query      (memory/query tdu/ph-username)
           thoughts   (take 5 (:results query))
           _          (tc/add-thoughts (:id cluster) (map :id thoughts))
-          get-result (tc/get-thoughts (:id cluster) "other-id")]
+          get-result (tc/get-thoughts "other-id" (:id cluster))]
       (is cluster)
-      (is (nil? get-result)))))
+      (is (= {:total 0 :pages 0 :results []}
+             get-result))))
+  (testing "Result is empty if the cluster does not exist"
+    (is (= {:total 0 :pages 0 :results []}
+           (tc/get-thoughts "other-id" nil)
+           (tc/get-thoughts "other-id" (UUID/randomUUID))
+           (tc/get-thoughts tdu/ph-username (UUID/randomUUID))))))
 
 
 ;;;
@@ -76,11 +84,11 @@
   (let [query      (memory/query tdu/ph-username)
         thoughts   (take 6 (:results query))
         cluster    (tc/cluster-thoughts tdu/ph-username (map :id thoughts))
-        get-result (tc/get-thoughts (:id cluster) tdu/ph-username)]
+        get-result (tc/get-thoughts tdu/ph-username (:id cluster))]
     (is cluster)
-    (is (= 6 (count get-result)))
+    (is (= 6 (count (:results get-result))))
     (is (= (set (map :id thoughts))
-           (set (map :thought-id get-result))))))
+           (set (map :id (:results get-result)))))))
 
 (deftest test-get-clusters
   (tdu/init-placeholder-data!)
@@ -113,9 +121,9 @@
     (let [query      (memory/query tdu/ph-username)
           thoughts   (take 6 (:results query))
           cluster    (tc/cluster-thoughts "shortuser" (map :id thoughts))
-          get-result (tc/get-thoughts (:id cluster) tdu/ph-username)]
+          get-result (tc/get-thoughts tdu/ph-username (:id cluster))]
       (is (nil? cluster))
-      (is (= 0 (count get-result)))))
+      (is (= 0 (count (:results get-result))))))
   (testing "Thoughts that do not belong to the user are filtered out"
     (let [query      (memory/query tdu/ph-username)
           thoughts   (take 4 (:results query))
@@ -123,8 +131,7 @@
           own-ids    (map :id thoughts)
           all-ids    (conj own-ids (:id other))
           cluster    (tc/cluster-thoughts tdu/ph-username all-ids)
-          get-result (tc/get-thoughts (:id cluster) tdu/ph-username)]
+          get-result (tc/get-thoughts tdu/ph-username (:id cluster))]
       (is cluster)
-      (is (= 4 (count get-result)))
       (is (= (set own-ids)
-             (set (map :thought-id get-result)))))))
+             (set (map :id (:results get-result))))))))
