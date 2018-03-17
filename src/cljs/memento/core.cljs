@@ -144,11 +144,10 @@
            [navbar-item "Sign up" :signup]]
           [Nav
            [navbar-item "Record" :record]
-           [navbar-item "Remember" :remember]])
+           [navbar-item "Remember" :remember]
+           [navbar-item "Regard" :regard]])
         [Nav {:pullRight true}
-         [NavItem {:href "/about"} "About"]]
-        ]
-       ]
+         [NavItem {:href "/about"} "About"]]]]
       )))
 
 
@@ -450,7 +449,7 @@
         ]])))
 
 
-(defn memory-thread []
+(defn memory-thread [return-to]
   (let [show?     (subscribe [:ui-state :show-thread?])
         thread-id (subscribe [:ui-state :show-thread-id])
         ;; I subscribe to the whole thread cache because I can't just subscribe to [:threads @thread-id],
@@ -460,13 +459,13 @@
         thread    (reaction (get @threads @thread-id))
         ready?    (reaction (and (not-empty @thread) @show?))]
     (fn []
-      [Modal {:show @ready? :onHide #(dispatch [:state-show-thread false])}
+      [Modal {:show @ready? :onHide #(dispatch [:state-show-thread false return-to])}
        [ModalBody
         (list-memories @thread false)]
        [ModalFooter
         [:button {:type     "reset"
                   :class    "btn btn-default"
-                  :on-click #(dispatch [:state-show-thread false])} "Close"]]])))
+                  :on-click #(dispatch [:state-show-thread false return-to])} "Close"]]])))
 
 
 (defn memory-results []
@@ -480,15 +479,14 @@
         (if (empty? @results)
           [:p "Nothing."]
           (list-memories @results true))
-        [memory-load-trigger]
-        ]
+        [memory-load-trigger]]
        "panel-primary"])))
 
 (defn memory-list []
   (fn []
     [:span
      [edit-memory]
-     [memory-thread]
+     [memory-thread :remember]
      [memory-query]
      [memory-results]]))
 
@@ -558,6 +556,38 @@
       )))
 
 
+(defn list-clusters [results]
+  [:span
+   (for [cluster results]
+     ^{:key (:id cluster)}
+     [panel (helpers/format-date (:created cluster))
+      [:div {:class "col-sm-12 thought hover-wrapper"}
+       (when-let [thoughts (not-empty (:thoughts cluster))]
+         (list-memories thoughts true))]
+      "panel-primary"]
+     )])
+
+(defn cluster-results []
+  (let [results (subscribe [:cache :clusters])
+        busy?   (reaction (nil? @results))]
+    (fn []
+      (cond
+        @busy? [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]]
+        (empty? @results) [panel "No thought clusters to regard"
+                           [:div {:class "col-sm-12 thought hover-wrapper"}
+                            [:div {:class "memory col-sm-12"}
+                             [:p "Currently you can create a cluster out of a group of thoughts being shown on the reminders."]
+                             [:p "You should create some thought and add reminders. If a group of thoughts you're seeing strikes a spark, save it as a cluster!"]]]
+                           "panel-primary"]
+        :else (list-clusters (sort-by :created > (vals @results)))
+        ))))
+
+(defn cluster-list []
+  (fn []
+    [:span
+     [memory-thread :regrad]
+     [cluster-results]]))
+
 
 (defn content-section []
   (let [section (subscribe [:ui-state :section])
@@ -569,15 +599,16 @@
     (case @section
       :record [write-section]
       :remember [memory-list]
+      :regard [cluster-list]
       [login-form]
-      )
-    ))
+      )))
 
 (defn header []
   (let [state (subscribe [:ui-state :section])
         label (case @state
                 :record "Record a new thought"
                 :remember "Remember"
+                :regard "Regard"
                 "")]
     (if (not-empty label)
       [:h1 {:id "forms"} label])
