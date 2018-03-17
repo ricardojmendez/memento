@@ -95,20 +95,21 @@
    (query username query-str 0 false))
   ([^String username ^String query-str ^Integer offset]
    (query username query-str offset false))
-  ([^String username ^String query-str ^Integer offset ^Boolean include-archived?]
+  ([^String username ^String query-str ^Integer offset ^Boolean include-archived? & {:keys [extra-joins]}]
    (let [query-str (-> (or query-str "")
                        (s/replace #"[,.;:]" " ")            ; Consider commas whitespace
                        (s/replace #"[$!&=\-\*|%&^]" "")     ; Remove characters which could cause it to barf
                        s/trim
                        (s/replace #"\s+" "|")               ; Replace white space sequences with a single or operator
                        )
-         params    {:limit    result-limit
-                    :offset   offset
-                    :username username
+         params    {:limit       result-limit
+                    :offset      offset
+                    :username    username
                     ;; Query won't be used in the case of get-thoughts, but bind it on let
                     ;; since we'll need it twice on search.
-                    :query    query-str
-                    :all?     include-archived?}
+                    :query       query-str
+                    :all?        include-archived?
+                    :extra-joins extra-joins}
          total     (if (empty? query-str)
                      (:count (db/get-thought-count *db* params))
                      (:count (db/search-thought-count *db* params)))
@@ -117,12 +118,10 @@
                        (db/get-thoughts *db* params)
                        (db/search-thoughts *db* params))
                      (map #(assoc % :reminders (db/get-active-reminders-for-thought
-                                                 (select-keys % [:id :username]))))
-                     )]
+                                                 (select-keys % [:id :username])))))]
      {:total   total
       :pages   (int (Math/ceil (/ total result-limit)))
-      :results (map set-status results)}
-     )))
+      :results (map set-status results)})))
 
 (defn query-thread
   "Returns a list with all the memories belonging to a root id"

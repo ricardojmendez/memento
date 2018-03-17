@@ -176,7 +176,7 @@
             t2        (memory/create! {:username "shortuser" :thought "To archive 2"})
             own-ids   (set [(:id t1) (:id t2)])]
         (is (= own-ids
-               (set (map :id (db/filter-thoughts-owner {:username "shortuser"
+               (set (map :id (db/filter-thoughts-owner {:username    "shortuser"
                                                         :thought-ids (concat other-ids
                                                                              own-ids)})))))))))
 
@@ -192,10 +192,10 @@
   (import-placeholder-memories!)
   (import-placeholder-memories! "shortuser" "quotes2.txt")
   (testing "Getting an all-memory count returns the total memories"
-    (is (= {:count 22} (db/get-thought-count *db* {:username tdu/ph-username :all? false})))
-    (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser" :all? false}))))
+    (is (= {:count 22} (db/get-thought-count *db* {:username tdu/ph-username :all? false :extra-joins nil})))
+    (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser" :all? false :extra-joins nil}))))
   (testing "Getting an memory query count returns the count of matching memories"
-    (are [count q u] (= {:count count} (db/search-thought-count *db* {:username u :query q :all? false}))
+    (are [count q u] (= {:count count} (db/search-thought-count *db* {:username u :query q :all? false :extra-joins nil}))
                      3 "memory" tdu/ph-username
                      0 "memory" "shortuser"
                      4 "people" tdu/ph-username
@@ -208,26 +208,26 @@
     (let [to-archive-1 (memory/create! {:username "shortuser" :thought "To archive 1"})
           to-archive-2 (memory/create! {:username "shortuser" :thought "To archive 2"})]
       ;; Verify that the thought count includes them both
-      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? false})))
-      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
+      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? false :extra-joins nil})))
+      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false :extra-joins nil})))
       ;; Archive a thought, verify
       (memory/archive! (assoc to-archive-1 :archived? true))
-      (is (= {:count 6} (db/get-thought-count *db* {:username "shortuser" :all? false})))
-      (is (= {:count 1} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
-      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true})))
-      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true})))
+      (is (= {:count 6} (db/get-thought-count *db* {:username "shortuser" :all? false :extra-joins nil})))
+      (is (= {:count 1} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false :extra-joins nil})))
+      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true :extra-joins nil})))
+      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true :extra-joins nil})))
       ;; Archive the second one, verify
       (memory/archive! (assoc to-archive-2 :archived? true))
-      (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser" :all? false})))
-      (is (= {:count 0} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
-      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true})))
-      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true})))
+      (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser" :all? false :extra-joins nil})))
+      (is (= {:count 0} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false :extra-joins nil})))
+      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true :extra-joins nil})))
+      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true :extra-joins nil})))
       ;; De-archive the first thought, verify
       (memory/archive! to-archive-1)                        ; The original thought should have :archived? false
-      (is (= {:count 6} (db/get-thought-count *db* {:username "shortuser" :all? false})))
-      (is (= {:count 1} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
-      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true})))
-      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true})))
+      (is (= {:count 6} (db/get-thought-count *db* {:username "shortuser" :all? false :extra-joins nil})))
+      (is (= {:count 1} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false :extra-joins nil})))
+      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true :extra-joins nil})))
+      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true :extra-joins nil})))
       ))
   )
 
