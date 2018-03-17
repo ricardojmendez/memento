@@ -510,7 +510,7 @@
          ]
         [:div {:class "modal-content"}
          [:div {:class "modal-header"}
-          [:h4 {:clss "modal-title"} "Login"]]
+          [:h4 {:class "modal-title"} "Login"]]
          [:div {:class "modal-body"}
           (if @message
             [:div {:class (str "col-lg-12 alert " (:type @message))}
