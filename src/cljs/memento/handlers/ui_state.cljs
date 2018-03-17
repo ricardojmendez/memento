@@ -13,8 +13,10 @@
   :state-ui-section
   (fn [app-state [_ section]]
     (timbre/trace :state-ui-section section)
-    (if (= :remember section)
-      (dispatch [:memories-load]))
+    (condp = section
+      :remember (dispatch [:memories-load])
+      :regard (dispatch [:clusters-load-all])
+      nil)
     ; Do not associate nil sections
     (if (some? section)
       (assoc-in app-state [:ui-state :section] section)
@@ -69,8 +71,8 @@
 
 (reg-event-db
   :state-show-thread
-  (fn [app-state [_ show?]]
-    (when-not show? (dispatch [:state-browser-token :remember]))
+  (fn [app-state [_ show? return-to]]
+    (when-not show? (dispatch [:state-browser-token return-to]))
     (assoc-in app-state [:ui-state :show-thread?] show?)))
 
 (reg-event-db
