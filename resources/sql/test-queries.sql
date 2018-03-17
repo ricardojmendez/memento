@@ -4,6 +4,8 @@ DELETE FROM thoughts;
 
 -- :name wipe-database! :! :n
 -- :doc DELETES ALL USERS, THOUGHTS AND THEIR RECORDS
+DELETE FROM thought_clusters_thought;
+DELETE FROM thought_clusters;
 DELETE FROM reminders;
 DELETE FROM thoughts;
 DELETE FROM users_roles;

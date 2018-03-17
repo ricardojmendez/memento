@@ -7,9 +7,13 @@
 
 
 (defn query-thoughts
-  "Gets the next set of memories for a username, potentially with a search query"
+  "Gets the next set of memories for a username, potentially with a search query.
+
+  It will only use the default page limits."
   [username query page include-archived?]
-  (let [offset (* page memory/result-limit)]
+  ;; Calculate offset based on the default limit. Will need change if we
+  ;; want to support arbitrary limits.
+  (let [offset (* page memory/default-limit)]
     (ok (-> (memory/query username query offset include-archived?)
             (assoc :current-page page)))))
 
@@ -37,8 +41,7 @@
       (not existing) (not-found)
       (= :closed (:status existing)) (forbidden "Cannot update closed thoughts")
       (empty? trimmed) (forbidden "Cannot blank a thought's text")
-      :else (ok (memory/update! {:id id :thought trimmed}))
-      )))
+      :else (ok (memory/update! {:id id :thought trimmed})))))
 
 (defn archive-thought
   "Archived/de-archives a thought"

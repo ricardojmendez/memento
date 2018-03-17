@@ -9,6 +9,7 @@
             [memento.routes.api.auth :as auth]
             [memento.routes.api.memory :as memory]
             [memento.routes.api.reminder :as reminder]
+            [memento.routes.api.thought-cluster :as cluster]
             [ring.util.http-response :refer :all]
             [schema.core :as s]))
 
@@ -59,6 +60,11 @@
    (s/optional-key :status)    s/Keyword
    (s/optional-key :reminders) [Reminder]
    })
+
+(s/defschema ThoughtCluster
+  {:id       s/Uuid
+   :username s/Str
+   :created  s/Inst})
 
 (s/defschema ThoughtSearchResult
   {:total        s/Int
@@ -185,6 +191,35 @@
       (memory/get-thread (:username auth-data) id)))
 
   (context "/api" []
+    :tags ["CLUSTERS"]
+
+    ;; You'll need to be authenticated for these
+    :middleware [token-auth-mw]
+    :auth-rules authenticated?
+    :header-params [authorization :- s/Str]
+
+    (GET "/clusters" []
+      :summary "Gets the thoughts in a cluster"
+      :return [ThoughtCluster]
+      :auth-data auth-data
+      (cluster/get-list (:username auth-data)))
+
+    (GET "/clusters/:id" []
+      :summary "Gets the thoughts in a cluster"
+      :return ThoughtSearchResult
+      :path-params [id :- s/Uuid]
+      :auth-data auth-data
+      (cluster/get-cluster (:username auth-data) id))
+
+    (POST "/clusters" []
+      :summary "Creates a new thought cluster"
+      :return s/Int
+      :body-params [thought-ids :- [s/Uuid]]
+      :auth-data auth-data
+      (cluster/create-cluster (:username auth-data) thought-ids))
+    )
+
+  (context "/api" []
     :tags ["REMINDERS"]
 
     ;; You'll need to be authenticated for these
@@ -225,7 +260,4 @@
       :path-params [id :- s/Uuid]
       :return s/Int
       :auth-data auth-data
-      (reminder/mark-as-viewed! (:username auth-data) id))
-    )
-
-  )
+      (reminder/mark-as-viewed! (:username auth-data) id))))

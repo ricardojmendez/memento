@@ -19,20 +19,28 @@ ORDER BY created ASC;
 
 -- :name get-thoughts :? :*
 -- :doc Returns all thoughts for a username
-SELECT *
-FROM thoughts
-WHERE username = :username
-      AND (:all? OR "archived?" = FALSE)
-ORDER BY created DESC
+SELECT t.*
+FROM thoughts t
+:snip:extra-joins
+WHERE t.username = :username
+      AND (:all? OR t."archived?" = FALSE)
+ORDER BY t.created DESC
 LIMIT :limit
 OFFSET :offset;
 
 -- :name get-thought-count :? :1
 -- :doc Returns count of all thoughts for a username
-SELECT COUNT(*)
-FROM thoughts
+SELECT COUNT(t.*)
+FROM thoughts t
+:snip:extra-joins
+WHERE t.username = :username
+      AND (:all? OR t."archived?" = FALSE);
+
+-- :name filter-thoughts-owner :? :*
+-- :doc Returns the thought ids from a list which actually belong to a user
+SELECT id FROM thoughts
 WHERE username = :username
-      AND (:all? OR "archived?" = FALSE);
+      AND id IN (:v*:thought-ids);
 
 
 -- :name update-thought! :<! :1
@@ -71,6 +79,7 @@ SELECT t.*, ts_rank_cd(tl.lexemes, query) AS rank
 FROM to_tsquery('english', :query) AS query, thought_lexemes tl
 INNER JOIN thoughts t
   ON t.id = tl.id
+:snip:extra-joins
 WHERE t.username = :username
   AND (:all? OR t."archived?" = FALSE)
   AND tl.lexemes @@ query
@@ -86,6 +95,7 @@ SELECT COUNT(t.*)
 FROM to_tsquery('english', :query) AS query, thought_lexemes tl
   INNER JOIN thoughts t
     ON t.id = tl.id
+:snip:extra-joins
 WHERE t.username = :username
       AND tl.lexemes @@ query
       AND (:all? OR t."archived?" = FALSE);

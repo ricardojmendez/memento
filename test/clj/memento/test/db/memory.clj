@@ -56,7 +56,9 @@
 
 (defn extract-thought-idx
   "Receives what it expects to be a collection of thought lines, each one starting
-  with a value that can be converted to a number (likely an integer)"
+  with a value that can be converted to a number (likely an integer)
+
+  Indices will start with 1 because that's how the text file is."
   [coll]
   (->> coll
        (map #(split % #" "))
@@ -154,6 +156,34 @@
 
 
 ;;;
+;;; Filtering
+;;;
+
+
+(deftest test-filter-ownership
+  (tdu/init-placeholder-data!)
+  (import-placeholder-memories!)
+  (user/create! "shortuser" "somepass")
+  (let [query    (memory/query tdu/ph-username)
+        thoughts (:results query)]
+    (testing "Querying with the wrong user doesn't return any thought ids"
+      (is (empty? (db/filter-thoughts-owner {:username "shortuser" :thought-ids (map :id thoughts)}))))
+    (testing "Querying with the owner returns all the correct ids"
+      (let [ids (map :id thoughts)]
+        (is (= (set ids)
+               (set (map :id (db/filter-thoughts-owner {:username tdu/ph-username :thought-ids (map :id thoughts)})))))))
+    (testing "A user can only see his own thoughts"
+      (let [other-ids (map :id thoughts)
+            t1        (memory/create! {:username "shortuser" :thought "To archive 1"})
+            t2        (memory/create! {:username "shortuser" :thought "To archive 2"})
+            own-ids   (set [(:id t1) (:id t2)])]
+        (is (= own-ids
+               (set (map :id (db/filter-thoughts-owner {:username    "shortuser"
+                                                        :thought-ids (concat other-ids
+                                                                             own-ids)})))))))))
+
+
+;;;
 ;;; Querying
 ;;;
 
@@ -164,10 +194,10 @@
   (import-placeholder-memories!)
   (import-placeholder-memories! "shortuser" "quotes2.txt")
   (testing "Getting an all-memory count returns the total memories"
-    (is (= {:count 22} (db/get-thought-count *db* {:username tdu/ph-username :all? false})))
-    (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser" :all? false}))))
+    (is (= {:count 22} (db/get-thought-count *db* {:username tdu/ph-username :all? false :extra-joins nil})))
+    (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser" :all? false :extra-joins nil}))))
   (testing "Getting an memory query count returns the count of matching memories"
-    (are [count q u] (= {:count count} (db/search-thought-count *db* {:username u :query q :all? false}))
+    (are [count q u] (= {:count count} (db/search-thought-count *db* {:username u :query q :all? false :extra-joins nil}))
                      3 "memory" tdu/ph-username
                      0 "memory" "shortuser"
                      4 "people" tdu/ph-username
@@ -177,29 +207,29 @@
                      1 "mistake" tdu/ph-username
                      1 "mistake" "shortuser"))
   (testing "Verify filtering options for archiving thoughts"
-    (let [to-archive-1         (memory/create! {:username "shortuser" :thought "To archive 1"})
-          to-archive-2         (memory/create! {:username "shortuser" :thought "To archive 2"})]
+    (let [to-archive-1 (memory/create! {:username "shortuser" :thought "To archive 1"})
+          to-archive-2 (memory/create! {:username "shortuser" :thought "To archive 2"})]
       ;; Verify that the thought count includes them both
-      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? false})))
-      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
+      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? false :extra-joins nil})))
+      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false :extra-joins nil})))
       ;; Archive a thought, verify
       (memory/archive! (assoc to-archive-1 :archived? true))
-      (is (= {:count 6} (db/get-thought-count *db* {:username "shortuser" :all? false})))
-      (is (= {:count 1} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
-      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true})))
-      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true})))
+      (is (= {:count 6} (db/get-thought-count *db* {:username "shortuser" :all? false :extra-joins nil})))
+      (is (= {:count 1} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false :extra-joins nil})))
+      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true :extra-joins nil})))
+      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true :extra-joins nil})))
       ;; Archive the second one, verify
       (memory/archive! (assoc to-archive-2 :archived? true))
-      (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser" :all? false})))
-      (is (= {:count 0} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
-      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true})))
-      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true})))
+      (is (= {:count 5} (db/get-thought-count *db* {:username "shortuser" :all? false :extra-joins nil})))
+      (is (= {:count 0} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false :extra-joins nil})))
+      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true :extra-joins nil})))
+      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true :extra-joins nil})))
       ;; De-archive the first thought, verify
       (memory/archive! to-archive-1)                        ; The original thought should have :archived? false
-      (is (= {:count 6} (db/get-thought-count *db* {:username "shortuser" :all? false})))
-      (is (= {:count 1} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false})))
-      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true})))
-      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true})))
+      (is (= {:count 6} (db/get-thought-count *db* {:username "shortuser" :all? false :extra-joins nil})))
+      (is (= {:count 1} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? false :extra-joins nil})))
+      (is (= {:count 7} (db/get-thought-count *db* {:username "shortuser" :all? true :extra-joins nil})))
+      (is (= {:count 2} (db/search-thought-count *db* {:username "shortuser" :query "archive" :all? true :extra-joins nil})))
       ))
   )
 
@@ -272,8 +302,8 @@
                 (re-seq #"second" m))))
       ))
   (testing "Verify filtering options for archived thoughts"
-    (let [to-archive-1         (memory/create! {:username tdu/ph-username :thought "To archive 1"})
-          to-archive-2         (memory/create! {:username tdu/ph-username :thought "To archive 2"})]
+    (let [to-archive-1 (memory/create! {:username tdu/ph-username :thought "To archive 1"})
+          to-archive-2 (memory/create! {:username tdu/ph-username :thought "To archive 2"})]
       ;; Verify that the thought count includes them both
       (is (= 6 (:total (memory/query tdu/ph-username))))
       (is (= 2 (:total (memory/query tdu/ph-username "archive"))))
@@ -360,8 +390,39 @@
       (is (= 5 (:pages result)))
       ;; Thoughts come in inverse date order by default... meaning
       ;; we'll get them in reverse number order
-      (is (= indices (reverse (range 32 42))))
-      ))
+      (is (= indices (reverse (range 32 42))))))
+  (testing "We can pass arbitrary limits"
+    (let [result   (memory/query tdu/ph-username "" 2 false :limit 3)
+          thoughts (map :thought (:results result))
+          indices  (extract-thought-idx thoughts)]
+      (is (= 43 (:total result)))
+      (is (= 3 (count thoughts)))
+      (is (= 15 (:pages result)))
+      ;; Thoughts come in inverse date order by default... meaning
+      ;; we'll get them in reverse number order
+      (is (= indices (reverse (range 39 42))))))
+  (testing "Passing a limit higher than the number of elements and no offset returns all"
+    (let [result   (memory/query tdu/ph-username "" 0 false :limit 1000)
+          thoughts (map :thought (:results result))
+          indices  (extract-thought-idx thoughts)]
+      ;; Total number of records is higher than the number returned because of offset
+      (is (= 43 (:total result)))
+      (is (= 43 (count thoughts)))
+      (is (= 1 (:pages result)))
+      ;; Thoughts come in inverse date order by default... meaning
+      ;; we'll get them in reverse number order
+      (is (= indices (reverse (range 1 44))))))
+  (testing "Passing a limit higher than the number of elements returns all records after the offset"
+    (let [result   (memory/query tdu/ph-username "" 2 false :limit 1000)
+          thoughts (map :thought (:results result))
+          indices  (extract-thought-idx thoughts)]
+      ;; Total number of records is higher than the number returned because of offset
+      (is (= 43 (:total result)))
+      (is (= 41 (count thoughts)))
+      (is (= 1 (:pages result)))
+      ;; Thoughts come in inverse date order by default... meaning
+      ;; we'll get them in reverse number order
+      (is (= indices (reverse (range 1 42))))))
   (testing "Querying with too far an offset returns fewer records"
     (let [result   (memory/query tdu/ph-username "" 39)
           thoughts (map :thought (:results result))

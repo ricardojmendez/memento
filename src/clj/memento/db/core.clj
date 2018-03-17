@@ -23,6 +23,7 @@
 (conman/bind-connection *db* "sql/users.sql")
 (conman/bind-connection *db* "sql/thoughts.sql")
 (conman/bind-connection *db* "sql/reminders.sql")
+(conman/bind-connection *db* "sql/thought-clusters.sql")
 
 (defn to-date [^java.sql.Date sql-date]
   (-> sql-date (.getTime) (java.util.Date.)))

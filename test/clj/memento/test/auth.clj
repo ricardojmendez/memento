@@ -1,7 +1,6 @@
 (ns memento.test.auth
   (:require [clojure.test :refer :all]
             [clj-time.core :as t]
-            [luminus-migrations.core :as migrations]
             [memento.config :refer [env]]
             [memento.test.db.core :as tdb]
             [memento.db.user :as user]

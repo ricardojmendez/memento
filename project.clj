@@ -2,40 +2,40 @@
   :description "Memento mori"
   :url "https://mementoapp.herokuapp.com/"
 
-  :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.9.908" :scope "provided"]
-                 [org.clojure/core.async "0.3.443"]
-                 [bidi "2.1.2" :exclusions [ring/ring-core]]
-                 [buddy/buddy-auth "1.4.1"]
-                 [buddy/buddy-hashers "1.2.0"]
-                 [buddy/buddy-sign "1.5.0"]
-                 [clj-time "0.14.0"]
-                 [cljs-ajax "0.7.1"]
-                 [cljsjs/react-bootstrap "0.30.2-0" :exclusions [org.webjars.bower/jquery]]
+  :dependencies [[org.clojure/clojure "1.9.0"]
+                 [org.clojure/clojurescript "1.10.145" :scope "provided"]
+                 [org.clojure/core.async "0.4.474"]
+                 [bidi "2.1.3" :exclusions [ring/ring-core]]
+                 [buddy/buddy-auth "2.1.0"]
+                 [buddy/buddy-hashers "1.3.0"]
+                 [buddy/buddy-sign "2.2.0"]
+                 [clj-time "0.14.2"]
+                 [cljs-ajax "0.7.3"]
+                 [cljsjs/react-bootstrap "0.31.5-0" :exclusions [org.webjars.bower/jquery]]
                  [org.clojure/tools.cli "0.3.5"]
-                 [com.andrewmcveigh/cljs-time "0.5.1"]
+                 [com.andrewmcveigh/cljs-time "0.5.2"]
                  [com.taoensso/timbre "4.10.0"]
                  [compojure "1.6.0"]
-                 [conman "0.6.8"]
+                 [conman "0.7.6"]
                  [cprop "0.1.11"]
-                 [jayq "2.5.4"]
+                 [jayq "2.5.5"]
                  [kibu/pushy "0.3.8"]
-                 [luminus-immutant "0.2.3"]
-                 [luminus-migrations "0.4.0"]
+                 [luminus-immutant "0.2.4"]
+                 [luminus-migrations "0.5.0"]
                  [luminus-nrepl "0.1.4"]
-                 [markdown-clj "0.9.99"]
-                 [metosin/compojure-api "1.1.11"]
-                 [metosin/muuntaja "0.3.2"]
+                 [markdown-clj "1.0.2"]
+                 [metosin/compojure-api "1.1.12"]
+                 [metosin/muuntaja "0.5.0"]
                  [metosin/ring-http-response "0.9.0"]
-                 [mount "0.1.11"]
-                 [org.jsoup/jsoup "1.10.3"]                 ; For cleaning out HTML tags
-                 [org.postgresql/postgresql "42.1.4"]
-                 [re-frame "0.9.4"]
-                 [reagent-utils "0.2.1"]                    ; Used for reagent.cookies
+                 [mount "0.1.12"]
+                 [org.jsoup/jsoup "1.11.2"]                 ; For cleaning out HTML tags
+                 [org.postgresql/postgresql "42.2.1"]
+                 [re-frame "0.10.5"]
+                 [reagent-utils "0.3.1"]                    ; Used for reagent.cookies
                  [ring/ring-defaults "0.3.1"]               ; Used for anti-forgery
                  [ring-webjars "0.2.0"]
                  [ring/ring-defaults "0.3.1"]
-                 [selmer "1.11.0"]]
+                 [selmer "1.11.7"]]
 
   :min-lein-version "2.0.0"
   :jvm-opts ["-server" "-Dconf=.lein-env"]
@@ -101,16 +101,16 @@
    :dev          [:project/dev :profiles/dev]
    :test         [:project/test :profiles/test]
 
-   :project/dev  {:dependencies   [[binaryage/devtools "0.9.4"]
-                                   [prone "1.1.4"]
-                                   [ring/ring-mock "0.3.1"]
-                                   [ring/ring-devel "1.6.2"]
-                                   [pjstadig/humane-test-output "0.8.2"]
-                                   [figwheel-sidecar "0.5.13"]
+   :project/dev  {:dependencies   [[binaryage/devtools "0.9.9"]
+                                   [prone "1.5.0"]
+                                   [ring/ring-mock "0.3.2"]
+                                   [ring/ring-devel "1.6.3"]
+                                   [pjstadig/humane-test-output "0.8.3"]
+                                   [figwheel-sidecar "0.5.15"]
                                    [com.cemerick/piggieback "0.2.2"]]
                   :source-paths   ["env/dev/clj"]
                   :resource-paths ["env/dev/resources"]
-                  :plugins        [[lein-figwheel "0.5.13" :exclusions [org.clojure/clojure]]]
+                  :plugins        [[lein-figwheel "0.5.15" :exclusions [org.clojure/clojure]]]
                   :cljsbuild      {:builds {:app {:source-paths ["env/dev/cljs"]
                                                   :compiler     {:main "memento.app"}}}}
                   :figwheel       {:http-server-root "public"
@@ -123,7 +123,7 @@
                                    (pjstadig.humane-test-output/activate!)]
                   }
    :project/test {:source-paths   ["env/test/clj" "test/clj" "test/cljc" "test/cljs"]
-                  :dependencies   [[ring/ring-mock "0.3.1"]] ; Added so I can run individual tests on a test REPL
+                  :dependencies   [[ring/ring-mock "0.3.2"]] ; Added so I can run individual tests on a test REPL
                   ; :hooks          [leiningen.cljsbuild]
                   :resource-paths ["env/dev/resources" "env/test/resources"]
                   :cljsbuild      {:builds {:test {:source-paths ["src/cljs"]
@@ -133,5 +133,4 @@
                                                                   :optimizations :whitespace
                                                                   :pretty-print  true
                                                                   :output-to     "target/test/memento-tests.js"}}}}
-                  }
-   })
+                  }})
