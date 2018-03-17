@@ -11,7 +11,19 @@ stages:
   - build
   - deploy
 
+.lein-cache: &lein-cache
+  # GitLab CI only caches files in the current (app) folder, but lein expects everything in `~/.m2`.
+  # So we copy the stuff between the two folders.
+  before_script:
+    - cp -r ./.local-m2 ~/.m2 || mkdir .local-m2
+  after_script:
+    - rm -rf ./.local-m2 && cp -r ~/.m2 ./.local-m2
+  cache:
+    paths:
+      - .local-m2
+
 test:
+  <<: *lein-cache
   stage: test
   services:
     - postgres:latest
@@ -25,6 +37,7 @@ test:
   - bash <(curl -s https://codecov.io/bash) -f target/coverage/codecov.json -t $CODECOV_KEY
 
 uberjar:
+  <<: *lein-cache
   stage: build
   script:
   - lein uberjar
@@ -35,6 +48,7 @@ uberjar:
   - tags
 
 production:
+  <<: *lein-cache
   stage: deploy
   script:
   - lein uberjar

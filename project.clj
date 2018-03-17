@@ -1,4 +1,4 @@
-(defproject memento "0.6"
+(defproject memento "0.7"
   :description "Memento mori"
   :url "https://mementoapp.herokuapp.com/"
 
