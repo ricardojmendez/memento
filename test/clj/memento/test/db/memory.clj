@@ -56,7 +56,9 @@
 
 (defn extract-thought-idx
   "Receives what it expects to be a collection of thought lines, each one starting
-  with a value that can be converted to a number (likely an integer)"
+  with a value that can be converted to a number (likely an integer)
+
+  Indices will start with 1 because that's how the text file is."
   [coll]
   (->> coll
        (map #(split % #" "))
@@ -388,8 +390,39 @@
       (is (= 5 (:pages result)))
       ;; Thoughts come in inverse date order by default... meaning
       ;; we'll get them in reverse number order
-      (is (= indices (reverse (range 32 42))))
-      ))
+      (is (= indices (reverse (range 32 42))))))
+  (testing "We can pass arbitrary limits"
+    (let [result   (memory/query tdu/ph-username "" 2 false :limit 3)
+          thoughts (map :thought (:results result))
+          indices  (extract-thought-idx thoughts)]
+      (is (= 43 (:total result)))
+      (is (= 3 (count thoughts)))
+      (is (= 15 (:pages result)))
+      ;; Thoughts come in inverse date order by default... meaning
+      ;; we'll get them in reverse number order
+      (is (= indices (reverse (range 39 42))))))
+  (testing "Passing a limit higher than the number of elements and no offset returns all"
+    (let [result   (memory/query tdu/ph-username "" 0 false :limit 1000)
+          thoughts (map :thought (:results result))
+          indices  (extract-thought-idx thoughts)]
+      ;; Total number of records is higher than the number returned because of offset
+      (is (= 43 (:total result)))
+      (is (= 43 (count thoughts)))
+      (is (= 1 (:pages result)))
+      ;; Thoughts come in inverse date order by default... meaning
+      ;; we'll get them in reverse number order
+      (is (= indices (reverse (range 1 44))))))
+  (testing "Passing a limit higher than the number of elements returns all records after the offset"
+    (let [result   (memory/query tdu/ph-username "" 2 false :limit 1000)
+          thoughts (map :thought (:results result))
+          indices  (extract-thought-idx thoughts)]
+      ;; Total number of records is higher than the number returned because of offset
+      (is (= 43 (:total result)))
+      (is (= 41 (count thoughts)))
+      (is (= 1 (:pages result)))
+      ;; Thoughts come in inverse date order by default... meaning
+      ;; we'll get them in reverse number order
+      (is (= indices (reverse (range 1 42))))))
   (testing "Querying with too far an offset returns fewer records"
     (let [result   (memory/query tdu/ph-username "" 39)
           thoughts (map :thought (:results result))

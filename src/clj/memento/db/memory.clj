@@ -1,7 +1,5 @@
 (ns memento.db.memory
   (:require [memento.config :refer [env]]
-            [clj-time.format :as tf]
-            [clj-time.coerce :as tc]
             [clojure.string :as s]
             [memento.db.core :refer [*db*] :as db]
             [memento.misc.html :refer [remove-html clean-memory-text]]
@@ -11,7 +9,7 @@
   (:import (java.util Date UUID)))
 
 (defn now [] (Date.))
-(def result-limit 10)
+(def default-limit 10)
 
 ;; TODO Consider making this configurable
 (def open-duration (* 24 60 60 1000))
@@ -95,14 +93,15 @@
    (query username query-str 0 false))
   ([^String username ^String query-str ^Integer offset]
    (query username query-str offset false))
-  ([^String username ^String query-str ^Integer offset ^Boolean include-archived? & {:keys [extra-joins]}]
+  ([^String username ^String query-str ^Integer offset ^Boolean include-archived?
+    & {:keys [extra-joins limit] :or {extra-joins nil limit default-limit}}]
    (let [query-str (-> (or query-str "")
                        (s/replace #"[,.;:]" " ")            ; Consider commas whitespace
                        (s/replace #"[$!&=\-\*|%&^]" "")     ; Remove characters which could cause it to barf
                        s/trim
                        (s/replace #"\s+" "|")               ; Replace white space sequences with a single or operator
                        )
-         params    {:limit       result-limit
+         params    {:limit       limit
                     :offset      offset
                     :username    username
                     ;; Query won't be used in the case of get-thoughts, but bind it on let
@@ -120,7 +119,7 @@
                      (map #(assoc % :reminders (db/get-active-reminders-for-thought
                                                  (select-keys % [:id :username])))))]
      {:total   total
-      :pages   (int (Math/ceil (/ total result-limit)))
+      :pages   (int (Math/ceil (/ total limit)))
       :results (map set-status results)})))
 
 (defn query-thread
