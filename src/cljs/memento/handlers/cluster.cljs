@@ -1,5 +1,5 @@
 (ns memento.handlers.cluster
-  (:require [ajax.core :refer [GET POST PUT PATCH]]
+  (:require [ajax.core :refer [GET POST PUT DELETE]]
             [re-frame.core :refer [dispatch reg-sub reg-event-db reg-event-fx subscribe dispatch-sync]]
             [taoensso.timbre :as timbre]
             [memento.helpers :as helpers]))
@@ -35,8 +35,19 @@
     ;; Convert the list to a dictionary so that we can more easily assoc-in later.
     (assoc-in db [:cache :clusters] (reduce #(assoc %1 (:id %2) %2) {} clusters))))
 
+
 (reg-event-db
   :cluster-loaded
   (fn [db [_ cluster-id thoughts]]
     (assoc-in db [:cache :clusters cluster-id :thoughts]
               (helpers/add-html-to-thoughts (:results thoughts)))))
+
+
+(reg-event-fx
+  :cluster-remove-thought
+  (fn [{:keys [db]} [_ cluster-id thought-id]]
+    (DELETE  (str "/api/clusters/" cluster-id "/" thought-id)
+             {:headers       {:authorization (str "Token " (get-in db [:credentials :token]))}
+              :handler       #(dispatch [:clusters-load-all %])
+              :error-handler #(dispatch [:state-message (str "Error removing thought: " %) "alert-danger"])})
+    nil))
