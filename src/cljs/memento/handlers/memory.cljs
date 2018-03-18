@@ -149,6 +149,7 @@
   :memory-save-success
   (fn [app-state [_ result msg]]
     (dispatch [:state-message (str "Saved: " msg) "alert-success"])
+    (dispatch [:reminder-create result "spaced"])
     (thread/reload-if-cached app-state (:root-id result))
     (-> app-state
         (assoc-in [:ui-state :is-busy?] false)

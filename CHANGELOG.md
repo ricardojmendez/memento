@@ -5,6 +5,7 @@
 ### 20180817
 
 - Initial support for thought clusters
+- The front end now creates a new reminder for every new thought (#99)
 
 ## 0.6
 
