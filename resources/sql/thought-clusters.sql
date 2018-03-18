@@ -24,3 +24,19 @@ AND tc.username = :username
 SELECT * from thought_clusters
 WHERE username = :username
 ORDER BY created DESC;
+
+-- :name remove-thought-from-cluster! :! :n
+-- :doc Removes a thought from a cluster only if the cluster belongs to a user
+DELETE FROM thought_clusters_thought tct
+USING thought_clusters tc
+WHERE tct."thought-id" = :thought-id
+  AND tc.id = :cluster-id
+  AND tc.id = tct."cluster-id"
+  AND tc.username = :username;
+
+-- :name delete-cluster-if-empty! :! :n
+-- :doc Removes a cluster if it's empty. Doesn't validate against the user because we don't want empty clusters anyway.
+DELETE FROM thought_clusters tc
+WHERE tc.id = :id
+AND (SELECT count(*) FROM thought_clusters_thought tct
+     WHERE tct."cluster-id" = :id) = 0;

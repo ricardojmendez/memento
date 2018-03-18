@@ -217,6 +217,13 @@
       :body-params [thought-ids :- [s/Uuid]]
       :auth-data auth-data
       (cluster/create-cluster (:username auth-data) thought-ids))
+
+    (DELETE "/clusters/:cluster-id/:thought-id" []
+      :summary "Deletes a thought from a cluster"
+      :path-params [cluster-id :- s/Uuid
+                    thought-id :- s/Uuid]
+      :auth-data auth-data
+      (cluster/remove-thought (:username auth-data) cluster-id thought-id))
     )
 
   (context "/api" []
