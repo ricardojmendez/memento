@@ -353,7 +353,7 @@
            [:i {:class "fa fa-ellipsis-h" :id "load-trigger"}])]))))
 
 
-(defn list-memories [results show-thread-btn?]
+(defn list-memories [results show-thread-btn? & {:keys [fn-row-control]}]
   (let [tooltip (reagent/as-element [Tooltip {:id :forget-thought} [:strong "Forget thought"]])]
     (for [memory results]
       ^{:key (:id memory)}
@@ -412,15 +412,15 @@
                 [:i {:class "fa icon-margin-both fa-archive"}])]]]
         [:div {:class "col-sm-4 show-on-hover"
                :style {:text-align "right"}}
+         (when fn-row-control
+           (fn-row-control memory))
          (when (= :open (:status memory))
            [OverlayTrigger
             {:placement :top
              :overlay   tooltip}
             [:span {:class    "btn btn-danger btn-xs icon-margin-left"
                     :on-click #(dispatch [:memory-forget memory])}
-             [:i {:class "fa fa-remove"}]]
-            ])]
-
+             [:i {:class "fa fa-remove"}]]])]
         ]])))
 
 
@@ -557,16 +557,25 @@
 
 
 (defn list-clusters [results]
-  [:span
-   (for [cluster results]
-     ^{:key (:id cluster)}
-     [panel (helpers/format-date (:created cluster))
-      [:div {:class "col-sm-12 thought hover-wrapper"}
-       (if-let [thoughts (not-empty (:thoughts cluster))]
-         (list-memories thoughts true)
-         [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]])]
-      "panel-primary"]
-     )])
+  (let [tooltip (reagent/as-element [Tooltip {:id :remove-thought} [:strong "Remove from cluster"]])
+        fn-row  (fn [cluster memory]
+                  [OverlayTrigger
+                   {:placement :top
+                    :overlay   tooltip}
+                   [:span {:class    "btn btn-danger btn-xs icon-margin-left"
+                           :on-click #(when (js/confirm "Are you sure yu want to remove the thought/")
+                                        (dispatch [:cluster-remove-thought (:id cluster) (:id memory)]))}
+                    [:i {:class "fa fa-minus"}]]])]
+    [:span
+     (for [cluster results]
+       ^{:key (:id cluster)}
+       [panel (helpers/format-date (:created cluster))
+        [:div {:class "col-sm-12 thought"}
+         (if-let [thoughts (not-empty (:thoughts cluster))]
+           (list-memories thoughts true :fn-row-control #(fn-row cluster %))
+           [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]])]
+        "panel-primary"]
+       )]))
 
 (defn cluster-results []
   (let [results (subscribe [:cache :clusters])
@@ -575,13 +584,12 @@
       (cond
         @busy? [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]]
         (empty? @results) [panel "No thought clusters to regard"
-                           [:div {:class "col-sm-12 thought hover-wrapper"}
+                           [:div {:class "col-sm-12 thought"}
                             [:div {:class "memory col-sm-12"}
                              [:p "Currently you can create a cluster out of a group of thoughts being shown on the reminders."]
                              [:p "You should create some thought and add reminders. If a group of thoughts you're seeing strikes a spark, save it as a cluster!"]]]
                            "panel-primary"]
-        :else (list-clusters (sort-by :created > (vals @results)))
-        ))))
+        :else (list-clusters (sort-by :created > (vals @results)))))))
 
 (defn cluster-list []
   (fn []

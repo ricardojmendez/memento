@@ -65,10 +65,10 @@
           _          (tc/add-thoughts (:id cluster) (map :id thoughts))
           get-result (tc/get-thoughts "other-id" (:id cluster))]
       (is cluster)
-      (is (= {:total 0 :pages 0 :results []}
+      (is (= tdm/empty-query
              get-result))))
   (testing "Result is empty if the cluster does not exist"
-    (is (= {:total 0 :pages 0 :results []}
+    (is (= tdm/empty-query
            (tc/get-thoughts "other-id" nil)
            (tc/get-thoughts "other-id" (UUID/randomUUID))
            (tc/get-thoughts tdu/ph-username (UUID/randomUUID))))))
@@ -135,3 +135,49 @@
       (is cluster)
       (is (= (set own-ids)
              (set (map :id (:results get-result))))))))
+
+
+(deftest test-remove-thought
+  (tdu/init-placeholder-data!)
+  (tdm/import-placeholder-memories!)
+  (testing "We can remove a thought from a cluster"
+    (let [query     (memory/query tdu/ph-username)
+          group-1   (take 6 (:results query))
+          cluster-1 (tc/cluster-thoughts tdu/ph-username (map :id group-1))
+          to-delete (:id (second group-1))
+          result    (tc/remove-thought tdu/ph-username (:id cluster-1) to-delete)
+          after-del (tc/get-thoughts tdu/ph-username (:id cluster-1))]
+      (is (= 1 result))
+      (is (= 5 (count (:results after-del))))
+      ;; The next two are equivalent, but when running on the REPL, Cursive
+      ;; evaluates the first one properly as a test when running it on the REPL,
+      ;; but for the second one it outputs instead of running a test.
+      ;;
+      ;; See https://gitlab.com/Numergent/memento/issues/112#note_63788223
+      #_(is (empty? (filter #(= (:id to-delete) (:id %)) (:results after-del))))
+      (is (not-any? #(= (:id to-delete) (:id %)) (:results after-del)))))
+  (testing "If we remove all thoughts from a cluster, it ends up empty"
+    (let [query           (memory/query tdu/ph-username)
+          group-1         (take 6 (:results query))
+          cluster-1       (tc/cluster-thoughts tdu/ph-username (map :id group-1))
+          clusters-before (tc/get-clusters tdu/ph-username)
+          ;; Remove all thoughts
+          _               (doseq [thought group-1]
+                            (tc/remove-thought tdu/ph-username (:id cluster-1) (:id thought)))
+          clusters-after  (tc/get-clusters tdu/ph-username)
+          thoughts-after  (tc/get-thoughts tdu/ph-username (:id cluster-1))]
+      (is (= tdm/empty-query thoughts-after))
+      (is (= 2 (count clusters-before)))
+      (is (= 1 (count clusters-after)))
+      (is (not= [cluster-1] clusters-after))))
+  (testing "The thoughts aren't removed if the username does not match"
+    (let [clusters-before (tc/get-clusters tdu/ph-username)
+          cluster         (first clusters-before)
+          thoughts-before (tc/get-thoughts tdu/ph-username (:id cluster))
+          ;; Remove all thoughts
+          _               (doseq [thought (:results thoughts-before)]
+                            (tc/remove-thought "someone-else" (:id cluster) (:id thought)))
+          clusters-after  (tc/get-clusters tdu/ph-username)
+          thoughts-after  (tc/get-thoughts tdu/ph-username (:id cluster))]
+      (is (= thoughts-before thoughts-after))
+      (is (= clusters-before clusters-after)))))

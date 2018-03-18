@@ -29,9 +29,12 @@
   "Gets the thoughts for a cluster id if the cluster belongs to the specified username.
   Otherwise it returns nil.
 
-  Will limit the thoughts returned at 1000"
+  Will limit the thoughts returned at 1000. Does not do pagination,
+  current page will always be 0."
   [username cluster-id]
-  (thought/query username nil 0 true :limit 1000 :extra-joins (db/join-cluster-thoughts {:id cluster-id :username username})))
+  (assoc (thought/query username nil 0 true :limit 1000
+                        :extra-joins (db/join-cluster-thoughts {:id cluster-id :username username}))
+    :current-page 0))
 
 
 (defn cluster-thoughts
@@ -51,3 +54,14 @@
         (do
           (jdbc/db-set-rollback-only! trans-conn)
           nil)))))
+
+(defn remove-thought
+  "Deletes a thought from a user's cluster"
+  [username cluster-id thought-id]
+  (jdbc/with-db-transaction
+    [trans-conn *db*]
+    (let [result (db/remove-thought-from-cluster! trans-conn {:username   username
+                                                              :cluster-id cluster-id
+                                                              :thought-id thought-id})]
+      (db/delete-cluster-if-empty! trans-conn {:id cluster-id})
+      result)))

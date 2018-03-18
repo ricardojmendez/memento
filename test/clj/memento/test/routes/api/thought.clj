@@ -576,5 +576,4 @@
         (is (= 403 (:status response)))
         (is (= "Cannot delete closed thoughts" body))
         (is (= 1 (:total query2)))
-        ))
-    ))
+        ))))

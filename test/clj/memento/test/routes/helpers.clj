@@ -90,8 +90,10 @@
 (defn del-request
   "Makes a delete request to a URL with a body, under a specific path. Returns
   a vector with the response and the translated body."
-  [^String url id auth-token]
-  (req-with-body :delete url id nil nil auth-token))
+  ([^String url id auth-token]
+   (req-with-body :delete url id nil nil auth-token))
+  ([^String url id path auth-token]
+   (req-with-body :delete url id path nil auth-token)))
 
 
 (defn invoke-login

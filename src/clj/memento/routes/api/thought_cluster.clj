@@ -18,7 +18,7 @@
   than the creation date."
   [username id]
   (if-let [result (cluster/get-thoughts username id)]
-    (ok (assoc result :current-page 0))
+    (ok result)
     (not-found)))
 
 (defn create-cluster
@@ -28,3 +28,10 @@
     (created (str "/api/clusters/" (:id record))
              record)
     (bad-request! "Cannot create an empty cluster")))
+
+(defn remove-thought
+  "Removes a thought from a cluster"
+  [username cluster-id thought-id]
+  (if (= 1 (cluster/remove-thought username cluster-id thought-id))
+    (no-content)
+    (not-found)))

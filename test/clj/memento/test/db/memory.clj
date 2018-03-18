@@ -28,6 +28,7 @@
 (def test-base-path (-> "." java.io.File. .getCanonicalPath))
 (def test-file-path (str "file://" test-base-path "/test/files/"))
 
+(def empty-query {:total 0 :pages 0 :current-page 0 :results []})
 
 ;;;;
 ;;;; Helper functions

@@ -4,7 +4,7 @@
 
 ### 20180817
 
-- Initial support for thought clusters
+- [Initial support for thought clusters](https://gitlab.com/Numergent/memento/milestones/13). We can create clusters from reminders and remove thoughts from a cluster later.
 - The front end now creates a new reminder for every new thought (#99)
 
 ## 0.6
