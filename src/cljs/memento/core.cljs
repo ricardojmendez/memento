@@ -562,8 +562,9 @@
      ^{:key (:id cluster)}
      [panel (helpers/format-date (:created cluster))
       [:div {:class "col-sm-12 thought hover-wrapper"}
-       (when-let [thoughts (not-empty (:thoughts cluster))]
-         (list-memories thoughts true))]
+       (if-let [thoughts (not-empty (:thoughts cluster))]
+         (list-memories thoughts true)
+         [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]])]
       "panel-primary"]
      )])
 
