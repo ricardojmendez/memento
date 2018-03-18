@@ -55,7 +55,6 @@
           {:params        {:thought-id (:id thought) :type-id type}
            :headers       {:authorization (str "Token " (get-in db [:credentials :token]))}
            :handler       #(do
-                             (timbre/info "Reminder created" %)
                              (dispatch [:cache-add-reminder %])
                              (dispatch [:state-message "Created reminder" "alert-success"]))
            :error-handler #(dispatch [:state-message (str "Error creating reminder: " %) "alert-danger"])})

@@ -10,9 +10,7 @@
     (POST "/api/clusters"
           {:params        {:thought-ids thought-ids}
            :headers       {:authorization (str "Token " (get-in db [:credentials :token]))}
-           :handler       #(do
-                             (timbre/info "Saved cluster" %)
-                             (dispatch [:state-message "Created cluster" "alert-success"]))
+           :handler       #(dispatch [:state-message "Created cluster" "alert-success"])
            :error-handler #(dispatch [:state-message (str "Error creating thought cluster: " %) "alert-danger"])})
     nil))
 
