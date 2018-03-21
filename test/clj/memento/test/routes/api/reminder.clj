@@ -37,15 +37,15 @@
       (let [[response _] (post-request "/api/reminder" {:thought-id (:id record) :type-id "spaced"} nil)]
         (is (= 400 (:status response)))))
     (testing "We can add a new reminder to a thought"
-      (let [[response record] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} token)]
+      (let [[response item] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} token)]
         (is (= 201 (:status response)))
         (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
-        (is (map? record))
-        (is (:id record))
-        (is (= "spaced" (:type-id record)))
-        (is (= 4 (count (get-in record [:properties :days]))))
-        (is (zero? (get-in record [:properties :day-idx])))
-        (is (= (str "http://localhost/api/reminders/" (:id record)) (get-in response [:headers "Location"])))
+        (is (map? item))
+        (is (:id item))
+        (is (= "spaced" (:type-id item)))
+        (is (= 4 (count (get-in item [:properties :days]))))
+        (is (zero? (get-in item [:properties :day-idx])))
+        (is (= (str "http://localhost/api/reminders/" (:id item)) (get-in response [:headers "Location"])))
         ))
     (testing "After adding a reminder, we can retrieve it"
       (let [[_ item] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} token)
@@ -53,6 +53,13 @@
         (is (= 200 (:status response)))
         (is (= "application/transit+json" (get-in response [:headers "Content-Type"])))
         (is (= item item-2))))
+    (testing "If we query for thoughts with a reminder, we get a single thought with the two reminders we created"
+      (let [[_ response] (get-request "/api/thoughts" nil token)]
+        (is (= 1
+               (:total response)
+               (:pages response)
+               (count (:results response))))
+        (is (= 2 (count (:reminders (first (:results response))))))))
     ;; Security concerns
     (testing "Trying to retrieve a reminder from someone other than the owner fails"
       (let [[_ item] (post-request "/api/reminders" {:thought-id (:id record) :type-id "spaced"} token)

@@ -43,9 +43,10 @@ WHERE id = :id;
 -- :doc Returns all reminders for a thought that are considered active (have a "next-date"). Will filter by username.
 SELECT r.*
 FROM reminders r
-  INNER JOIN thoughts t ON r."thought-id" = :id
+  INNER JOIN thoughts t ON r."thought-id" = t.id
 WHERE r."next-date" IS NOT NULL
       AND t.username = :username
+      AND t.id = :id
 ORDER BY r."next-date";
 
 
