@@ -62,3 +62,20 @@
     (is (nil? invalid))
     (is (some? item))
     (is (= created (dissoc item :username)))))
+
+;;;
+;;; Getting active reminders for a thought
+;;;
+
+(deftest test-active-reminders-for-thought
+  (tdu/init-placeholder-data!)
+  (testing "We get only one reminder when there's one on the database"
+    (let [thought   (memory/create! {:username tdu/ph-username :thought "Just wondering"})
+        created   (reminder/create! {:thought-id (:id thought) :type-id "spaced"})
+        reminders (db/get-active-reminders-for-thought {:id (:id thought) :username tdu/ph-username})]
+    (is (= [created] reminders))))
+  (testing "We get only one reminder even when a different thought has other reminders"
+    (let [thought   (memory/create! {:username tdu/ph-username :thought "Wondering again"})
+          created   (reminder/create! {:thought-id (:id thought) :type-id "spaced"})
+          reminders (db/get-active-reminders-for-thought {:id (:id thought) :username tdu/ph-username})]
+      (is (= [created] reminders)))))
