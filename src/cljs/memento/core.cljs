@@ -374,15 +374,17 @@
            ;; We can always follow up on a thought, even if it's been archived
            [MenuItem {:on-click #(do (.scrollIntoView top-div-target)
                                      (dispatch [:state-refine memory]))}
-            [:i {:class "fa fa-pencil icon-margin-both"}] "Follow up"]
-           ]]
+            [:i {:class "fa fa-pencil icon-margin-both"}] "Follow up"]]]
          ;; Time stamp and other indicators
          [:i [:small
               (helpers/format-date (:created memory))
               (when (:archived? memory)
-                [:i {:class "fa icon-margin-both fa-archive"}])]]]
+                [:i {:class "fa icon-margin-both-wide fa-archive"}])]]]
         [:div {:class "col-sm-4 show-on-hover"
                :style {:text-align "right"}}
+         [:i [:small
+              (when (and show-thread-btn? (:root-id memory))
+                [:i {:class "fa fa-list-ul icon-margin-both-wide"}])]]
          (when fn-row-control
            (fn-row-control memory))
          (when (= :open (:status memory))
