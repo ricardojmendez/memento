@@ -353,8 +353,21 @@
            [:i {:class "fa fa-ellipsis-h" :id "load-trigger"}])]))))
 
 
+(defn reminder-button
+  "Creates a reminder button based on user parameters"
+  [{:keys [tooltip style event]}]
+  [OverlayTrigger
+   {:placement :top
+    :overlay   tooltip}
+   [Button {:bsStyle  style
+            :bsSize   "xsmall"
+            :on-click event}
+    [:i {:class "fa fa-bell icon-margin-both"}]]])
+
 (defn list-memories [results show-thread-btn? & {:keys [fn-row-control]}]
-  (let [tooltip (reagent/as-element [Tooltip {:id :forget-thought} [:strong "Forget thought"]])]
+  (let [tt-forget  (reagent/as-element [Tooltip {:id :forget-thought} [:strong "Forget thought"]])
+        tt-new-rem (reagent/as-element [Tooltip {:id :reminder-create} [:strong "Create reminder"]])
+        tt-can-rem (reagent/as-element [Tooltip {:id :reminder-cancel} [:strong "Cancel reminder"]])]
     (for [memory results]
       ^{:key (:id memory)}
       [:div {:class "col-sm-12 thought hover-wrapper"}
@@ -366,17 +379,12 @@
        [:div
         [:div {:class "col-sm-8"}
          [ButtonGroup
-          (if (empty? (:reminders memory))
-            [Button {:bsStyle  "primary"
-                     :bsSize   "xsmall"
-                     :on-click #(dispatch [:reminder-create memory "spaced"])}
-             [:i {:class "fa fa-bell icon-margin-both"}] "Remind"]
-            [Button {:bsStyle  "danger"
-                     :bsSize   "xsmall"
-                     ;; doseq since a thought may have multiple reminders
-                     :on-click #(doseq [item (:reminders memory)]
-                                  (dispatch [:reminder-cancel item]))}
-             [:i {:class "fa fa-bell icon-margin-both"}] "Cancel"])
+          ;; Reminder button
+          (reminder-button (if (empty? (:reminders memory))
+                             {:style "primary" :tooltip tt-new-rem :event #(dispatch [:reminder-create memory "spaced"])}
+                             {:style "danger" :tooltip tt-can-rem :event #(doseq [item (:reminders memory)]
+                                                                            (dispatch [:reminder-cancel item]))}))
+          ;; Dropdown menu
           [DropdownButton {:title   "..."
                            :bsSize  "xsmall"
                            :class   "btn-primary"
@@ -417,7 +425,7 @@
          (when (= :open (:status memory))
            [OverlayTrigger
             {:placement :top
-             :overlay   tooltip}
+             :overlay   tt-forget}
             [:span {:class    "btn btn-danger btn-xs icon-margin-left"
                     :on-click #(dispatch [:memory-forget memory])}
              [:i {:class "fa fa-remove"}]]])]
