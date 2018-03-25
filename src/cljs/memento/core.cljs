@@ -602,7 +602,7 @@
 (defn cluster-list []
   (fn []
     [:span
-     [memory-thread :regrad]
+     [memory-thread :regard]
      [cluster-results]]))
 
 
