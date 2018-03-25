@@ -1,11 +1,7 @@
 (ns memento.core
-  (:require [ajax.core :refer [GET POST PUT]]
-            [bidi.bidi :as bidi]
+  (:require [bidi.bidi :as bidi]
             [clojure.string :refer [trim split]]
             [cljsjs.react-bootstrap]
-            [reagent.cookies :as cookies]
-            [reagent.core :as reagent :refer [atom]]
-            [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
             [jayq.core :refer [$]]
             [markdown.core :refer [md->html]]
             [memento.handlers.auth :refer [clear-token-on-unauth]]
@@ -16,9 +12,11 @@
             [memento.handlers.routing :as r]
             [memento.handlers.ui-state]
             [memento.handlers.thread]
-            [memento.helpers :as helpers]
+            [memento.helpers :as helpers :refer [<sub]]
             [pushy.core :as pushy]
-            [ajax.core :refer [GET POST PUT DELETE]]
+            [reagent.cookies :as cookies]
+            [reagent.core :as reagent :refer [atom]]
+            [re-frame.core :refer [dispatch reg-sub reg-event-db subscribe dispatch-sync]]
             [taoensso.timbre :as timbre
              :refer-macros [log trace debug info warn error fatal report
                             logf tracef debugf infof warnf errorf fatalf reportf
@@ -127,175 +125,149 @@
 
 
 (defn navbar []
-  (let [token (subscribe [:credentials :token])]
-    (fn []
-      [Navbar {:collapseOnSelect true
-               :fixedTop         true}
-       [Navbar.Header
-        ;; Oddly, if the :a is inside the Navbar.Brand, it ends up being converted to a span
-        ;; Not quite sure what the hiccup rule is in that case
-        [:a {:href "/about"}
-         [Navbar.Brand "Memento"]]
-        [Navbar.Toggle]]
-       [Navbar.Collapse
-        (if (nil? @token)
-          [Nav
-           [navbar-item "Login" :login]
-           [navbar-item "Sign up" :signup]]
-          [Nav
-           [navbar-item "Record" :record]
-           [navbar-item "Remember" :remember]
-           [navbar-item "Regard" :regard]])
-        [Nav {:pullRight true}
-         [NavItem {:href "/about"} "About"]]]]
-      )))
+  [Navbar {:collapseOnSelect true
+           :fixedTop         true}
+   [Navbar.Header
+    ;; Oddly, if the :a is inside the Navbar.Brand, it ends up being converted to a span
+    ;; Not quite sure what the hiccup rule is in that case
+    [:a {:href "/about"}
+     [Navbar.Brand "Memento"]]
+    [Navbar.Toggle]]
+   [Navbar.Collapse
+    (if (nil? (<sub [:credentials :token]))
+      [Nav
+       [navbar-item "Login" :login]
+       [navbar-item "Sign up" :signup]]
+      [Nav
+       [navbar-item "Record" :record]
+       [navbar-item "Remember" :remember]
+       [navbar-item "Regard" :regard]])
+    [Nav {:pullRight true}
+     [NavItem {:href "/about"} "About"]]]])
 
 
 (defn alert []
-  (let [msg (subscribe [:ui-state :last-message])]
-    (fn []
-      (if (not-empty (:text @msg))
-        [:div {:class (str "alert " (:class @msg))}
-         [:button {:type :button :class "close" :on-click #(dispatch [:state-message ""])} "x"]
-         (:text @msg)]
-        )
-      )))
+  (let [msg (<sub [:ui-state :last-message])]
+    (when (not-empty (:text msg))
+      [:div {:class (str "alert " (:class msg))}
+       [:button {:type :button :class "close" :on-click #(dispatch [:state-message ""])} "x"]
+       (:text msg)])))
 
 
 (defn focused-thought []
-  (let [focus (subscribe [:note :focus])]
-    (if @focus
-      [:div {:class "col-sm-10 col-sm-offset-1"}
-       [:div {:class "panel panel-default"}
-        [:div {:class "panel-heading"} "Following up ... " [:i [:small "(from " (helpers/format-date (:created @focus)) ")"]]
-         [:button {:type "button" :class "close" :aria-hidden "true" :on-click #(dispatch [:state-refine nil])} "×"]]
-        [:div {:class "panel-body"}
-         [:p {:dangerouslySetInnerHTML {:__html (:html @focus)}}]
-         ]]])
-    ))
+  (when-let [focus (<sub [:note :focus])]
+    [:div {:class "col-sm-10 col-sm-offset-1"}
+     [:div {:class "panel panel-default"}
+      [:div {:class "panel-heading"} "Following up ... " [:i [:small "(from " (helpers/format-date (:created focus)) ")"]]
+       [:button {:type "button" :class "close" :aria-hidden "true" :on-click #(dispatch [:state-refine nil])} "×"]]
+      [:div {:class "panel-body"}
+       [:p {:dangerouslySetInnerHTML {:__html (:html focus)}}]]]]))
 
 
 (defn thought-edit-box [note-id]
-  (let [note (subscribe [:note note-id])]
-    (fn []
-      [:div {:class "form-group"}
-       [focused-thought]
-       [:div {:class "col-sm-12"}
-        [initial-focus-wrapper
-         [:textarea {:class       "form-control"
-                     :id          "thought-area"
-                     :placeholder "I was thinking..."
-                     :rows        12
-                     :style       {:font-size "18px"}
-                     :on-change   #(dispatch-sync [:state-note note-id (-> % .-target .-value)])
-                     :value       @note
-                     }]]
-        ]]))
-  )
+  [:div {:class "form-group"}
+   [focused-thought]
+   [:div {:class "col-sm-12"}
+    [initial-focus-wrapper
+     [:textarea {:class       "form-control"
+                 :id          "thought-area"
+                 :placeholder "I was thinking..."
+                 :rows        12
+                 :style       {:font-size "18px"}
+                 :on-change   #(dispatch-sync [:state-note note-id (-> % .-target .-value)])
+                 :value       (<sub [:note note-id])
+                 }]]]])
+
+
+(defn reminder-list [reminders]
+  [:div {:id "reminder-list" :class "well well-sm"}
+   [:a {:on-click #(dispatch [:state-show-reminders false])}
+    [:i {:style {:top       "0px"
+                 :right     "5px"
+                 :font-size "24px"
+                 :z-index   999
+                 :position  "absolute"}
+         :class "fa fa-window-close"}]]
+   (for [item (sort-by :created reminders)]
+     ;; Need to figure out if the reminder has a day-idx in its schedule,
+     ;; since legacy reminders will not.  See #73.
+     (let [day-idx    (get-in item [:properties :day-idx])
+           days       (get-in item [:properties :days])
+           total-days (count days)
+           days-left? (and (some? day-idx)                  ; Could be nil
+                           (< day-idx (dec total-days)))
+           next-leap  (when days-left?
+                        (nth days (inc day-idx)))
+           label      (cond next-leap "Viewed"
+                            (nil? day-idx) "Viewed"         ; Thought about labeling it differently, let's not confuse users
+                            :else "Done")
+           thought    (:thought-record item)]
+       ;; TODO: Would be ideal to display a tooltip with the number of
+       ;; days until the next reminder, but OverlayTrigger/Tooltip are
+       ;; barfing with an error. Tabling.
+       ^{:key (:id item)}
+       [:div {:class "row reminder-item hover-wrapper"}
+        [:div {:class "col-sm-12"}
+         [:span {:dangerouslySetInnerHTML {:__html (:html item)}}]]
+        [:div {:class "col-sm-12 show-on-hover"}
+         [:div {:class "show-on-hover col-sm-4"}
+          [:span {:class    "btn btn-success btn-xs icon-margin-left"
+                  :on-click #(dispatch [:reminder-viewed item])}
+           [:i {:class "fa fa-check"} " " label]]
+          (when (or next-leap (nil? day-idx))
+            [:span {:class    "btn btn-danger btn-xs icon-margin-left"
+                    :on-click #(dispatch [:reminder-cancel item])}
+             [:i {:class "fa fa-trash"} "Cancel"]])]
+         ;; Showing only the buttons for Elaborate and Thread. I don't want to get into the potential mess
+         ;; of editing or removing a thought while the reminder is shown yet.
+         [:span {:class "col-sm-8" :style {:text-align "right"}}
+          (if (:root-id thought)
+            [:a {:class "btn btn-primary btn-xs"
+                 :href  (str "/thread/" (:root-id thought))}
+             [:i {:class "fa fa-list-ul icon-margin-both"}] "Train of thought"])
+          [:a {:class    "btn btn-primary btn-xs"
+               :on-click #(do (.scrollIntoView top-div-target)
+                              (dispatch [:state-refine thought]))}
+           [:i {:class "fa fa-pencil icon-margin-both"}] "Follow up"]]]]))
+   (when (< 1 (count reminders))
+     [:div {:class "row reminder-item"}
+      [:div {:class "col-sm-12" :style {:text-align "right"}}
+       [:p [:a {:class    "btn btn-primary btn-xs"
+                :on-click #(dispatch [:cluster-create (map :thought-id reminders)])}
+            [:i {:class "fa fa-plus icon-margin-both"}] "Save as a cluster"]]]])])
+
 
 (defn reminder-section [is-focused?]
-  (let [reminders (subscribe [:cache :reminders])
-        showing?  (subscribe [:ui-state :show-reminders?])]
-    (fn []
-      ;; We will only show the reminder notification when we aren't focused
-      ;; on elaborating a thought
-      (if (and @reminders @showing?)
-        ;; Reminder list
-        ;; TODO Should probably extract to a component
-        [:div {:id "reminder-list" :class "well well-sm"}
-         [:a {:on-click #(dispatch [:state-show-reminders false])}
-          [:i {:style {:top       "0px"
-                       :right     "5px"
-                       :font-size "24px"
-                       :z-index   999
-                       :position  "absolute"}
-               :class "fa fa-window-close"}]]
-         (for [item (sort-by :created @reminders)]
-           ;; Need to figure out if the reminder has a day-idx in its schedule,
-           ;; since legacy reminders will not.  See #73.
-           (let [day-idx    (get-in item [:properties :day-idx])
-                 days       (get-in item [:properties :days])
-                 total-days (count days)
-                 days-left? (and (some? day-idx)            ; Could be nil
-                                 (< day-idx (dec total-days)))
-                 next-leap  (when days-left?
-                              (nth days (inc day-idx)))
-                 label      (cond
-                              next-leap "Viewed"
-                              (nil? day-idx) "Viewed"       ; Thought about labeling it differently, let's not confuse users
-                              :else "Done")
-                 thought    (:thought-record item)]
-             ;; TODO: Would be ideal to display a tooltip with the number of
-             ;; days until the next reminder, but OverlayTrigger/Tooltip are
-             ;; barfing with an error. Tabling.
-             ^{:key (:id item)}
-             [:div {:class "row reminder-item hover-wrapper"}
-              [:div {:class "col-sm-12"}
-               [:span {:dangerouslySetInnerHTML {:__html (:html item)}}]]
-              [:div {:class "col-sm-12 show-on-hover"}
-               [:div {:class "show-on-hover col-sm-4"}
-                [:span {:class    "btn btn-success btn-xs icon-margin-left"
-                        :on-click #(dispatch [:reminder-viewed item])}
-                 [:i {:class "fa fa-check"} " " label]]
-                (when (or next-leap (nil? day-idx))
-                  [:span {:class    "btn btn-danger btn-xs icon-margin-left"
-                          :on-click #(dispatch [:reminder-cancel item])}
-                   [:i {:class "fa fa-trash"} "Cancel"]])]
-               ;; Showing only the buttons for Elaborate and Thread. I don't want to get into the potential mess
-               ;; of editing or removing a thought while the reminder is shown yet.
-               [:span {:class "col-sm-8" :style {:text-align "right"}}
-                (if (:root-id thought)
-                  [:a {:class "btn btn-primary btn-xs"
-                       :href  (str "/thread/" (:root-id thought))}
-                   [:i {:class "fa fa-list-ul icon-margin-both"}] "Train of thought"])
-                [:a {:class    "btn btn-primary btn-xs"
-                     :on-click #(do (.scrollIntoView top-div-target)
-                                    (dispatch [:state-refine thought]))}
-                 [:i {:class "fa fa-pencil icon-margin-both"}] "Follow up"]
-
-                ]]]))
-         (when (< 1 (count @reminders))
-           [:div {:class "row reminder-item"}
-            [:div {:class "col-sm-12" :style {:text-align "right"}}
-             [:p [:a {:class    "btn btn-primary btn-xs"
-                      :on-click #(dispatch [:cluster-create (map :thought-id @reminders)])}
-                  [:i {:class "fa fa-plus icon-margin-both"}] "Save as a cluster"]]]])
-
-         ]
-        ;; Reminder notice
-        (when (and (not-empty @reminders)
-                   (not @is-focused?))
-          [:div {:class    "alert alert-info"
-                 :on-click #(dispatch [:state-show-reminders true])}
-           [:p
-            [:strong "Hi!"]
-            " "
-            "You have some thoughts you wanted to be reminded of."]
-           [:p
-            [:b "Click this section when you are ready to read them."]]]))
-
-      )))
+  (let [reminders (<sub [:cache :reminders])
+        showing?  (<sub [:ui-state :show-reminders?])]
+    ;; We will only show the reminder notification when we aren't focused
+    ;; on elaborating a thought
+    (if (and reminders showing?)
+      ;; Reminder list
+      (reminder-list reminders)
+      ;; Reminder notice
+      (when (and (not-empty reminders)
+                 (not is-focused?))
+        [:div {:class    "alert alert-info"
+               :on-click #(dispatch [:state-show-reminders true])}
+         [:p [:strong "Hi!"] " " "You have some thoughts you wanted to be reminded of."]
+         [:p [:b "Click this section when you are ready to read them."]]]))))
 
 (defn write-section []
-  (let [note        (subscribe [:note :current-note])
-        is-busy?    (subscribe [:ui-state :is-busy?])
-        focus       (subscribe [:note :focus])
+  (let [focus       (subscribe [:note :focus])
         is-focused? (reaction (not-empty @focus))]
-    (dispatch-sync [:reminder-load])
-    (fn []
-      [:div
-       [reminder-section is-focused?]
-       [:fielset
-        [:div {:class "form-horizontal"}
-         [thought-edit-box :current-note]
-         [:div {:class "form-group"}
-          [:div {:class "col-sm-12" :style {:text-align "right"}}
-           [:button {:type     "submit"
-                     :disabled (or @is-busy? (empty? @note))
-                     :class    "btn btn-primary"
-                     :on-click #(dispatch [:memory-save])}
-            "Record"]
-           ]]]]])))
+    [:div
+     [reminder-section @is-focused?]
+     [:fieldset
+      [:div {:class "form-horizontal"}
+       [thought-edit-box :current-note]
+       [:div {:class "form-group"}
+        [:div {:class "col-sm-12" :style {:text-align "right"}}
+         [:button {:type     "submit"
+                   :disabled (or (<sub [:ui-state :is-busy?]) (empty? (<sub [:note :current-note])))
+                   :class    "btn btn-primary"
+                   :on-click #(dispatch [:memory-save])}
+          "Record"]]]]]]))
 
 (defn panel [title msg class]
   [:div {:class (str "panel " class)}
@@ -305,52 +277,43 @@
 
 
 (defn dispatch-on-press-enter [e d]
-  (if (= 13 (.-which e))
+  (when (= 13 (.-which e))
     (dispatch d)))
 
 
 (defn memory-query []
-  ;; TODO: Try the new form
-  ;; https://lambdaisland.com/blog/11-02-2017-re-frame-form-1-subscriptions
-  (let [query     (subscribe [:ui-state :current-query])
-        archived? (subscribe [:ui-state :query-all?])
+  (let [archived? (<sub [:ui-state :query-all?])
         tooltip   (reagent/as-element [Tooltip {:id :archived?} "Include archived thoughts"])]
-    (fn []
-      [:div {:class "form-horizontal"}
-       [:div {:class "form-group"}
-        [:label {:for "input-search" :class "col-md-1 control-label"} "Search:"]
-        [:div {:class "col-md-9"}
-         [initial-focus-wrapper
-          [:input {:type      "text"
-                   :class     "form-control"
-                   :id        "input-search"
-                   :value     @query
-                   :on-change #(dispatch-sync [:state-current-query (-> % .-target .-value)])}]]
-
-         ]
-        [:div {:class "col-md-2"}
-         [OverlayTrigger
-          {:placement :left
-           :overlay   tooltip}
-          [:div {:class "checkbox"}
-           [:label
-            [:input {:type     "checkbox"
-                     :checked  @archived?
-                     :on-click #(dispatch-sync [:state-query-all? (not @archived?)])}]
-            [:i {:class "fa icon-margin-both fa-archive fa-lg fa-6x"}]]]]]
-        ]])))
+    [:div {:class "form-horizontal"}
+     [:div {:class "form-group"}
+      [:label {:for "input-search" :class "col-md-1 control-label"} "Search:"]
+      [:div {:class "col-md-9"}
+       [initial-focus-wrapper
+        [:input {:type      "text"
+                 :class     "form-control"
+                 :id        "input-search"
+                 :value     (<sub [:ui-state :current-query])
+                 :on-change #(dispatch-sync [:state-current-query (-> % .-target .-value)])}]]]
+      [:div {:class "col-md-2"}
+       [OverlayTrigger
+        {:placement :left
+         :overlay   tooltip}
+        [:div {:class "checkbox"}
+         [:label
+          [:input {:type     "checkbox"
+                   :checked  archived?
+                   :on-click #(dispatch-sync [:state-query-all? (not archived?)])}]
+          [:i {:class "fa icon-margin-both fa-archive fa-lg fa-6x"}]]]]]]]))
 
 
 (defn memory-load-trigger []
-  (let [searching?  (subscribe [:ui-state :is-searching?])
-        page-index  (subscribe [:search-state :page-index])
-        total-pages (reaction (:pages @(subscribe [:search-state :last-result])))]
-    (fn []
-      (if (< @page-index (dec @total-pages))
-        [:div {:style {:text-align "center"}}
-         (if @searching?
-           [:i {:class "fa fa-spinner fa-spin"}]
-           [:i {:class "fa fa-ellipsis-h" :id "load-trigger"}])]))))
+  (let [total-pages (reaction (:pages (<sub [:search-state :last-result])))]
+    (when (< (<sub [:search-state :page-index])
+             (dec @total-pages))
+      [:div {:style {:text-align "center"}}
+       (if (<sub [:ui-state :is-searching?])
+         [:i {:class "fa fa-spinner fa-spin"}]
+         [:i {:class "fa fa-ellipsis-h" :id "load-trigger"}])])))
 
 
 (defn reminder-button
@@ -428,140 +391,125 @@
              :overlay   tt-forget}
             [:span {:class    "btn btn-danger btn-xs icon-margin-left"
                     :on-click #(dispatch [:memory-forget memory])}
-             [:i {:class "fa fa-remove"}]]])]
-        ]])))
+             [:i {:class "fa fa-remove"}]]])]]])))
 
 
-(defn edit-memory []
-  (let [edit-memory (subscribe [:note :edit-memory])
-        note        (subscribe [:note :edit-note])
-        is-busy?    (subscribe [:ui-state :is-busy?])
+(defn edit-memory-modal []
+  (let [editing (<sub [:note :edit-memory])
         ;; On the next one, we can't use not-empty because (= nil (not-empty nil)), and :show expects true/false,
         ;; not a truth-ish value.
-        show?       (reaction (not (empty? @edit-memory)))]
-    (fn []
-      [Modal {:show @show? :onHide #(dispatch [:memory-edit-set nil])}
-       [ModalBody
-        [:div {:class "col-sm-12 thought"}
-         [thought-edit-box :edit-note]]]
-       [ModalFooter
-        [:button {:type     "submit"
-                  :class    "btn btn-primary"
-                  :disabled (or @is-busy? (empty? @note))
-                  :on-click #(dispatch [:memory-edit-save])} "Save"]
-        ;; May want to add a style to show the Cancel button only on mobile, as the same functionality can
-        ;; easily be triggered on desktop by pressing Esc
-        [:button {:type     "reset"
-                  :class    "btn btn-default"
-                  :on-click #(dispatch [:memory-edit-set nil])} "Cancel"]
-        ]])))
+        show?   (reaction (not (empty? editing)))]
+    [Modal {:show @show? :onHide #(dispatch [:memory-edit-set nil])}
+     [ModalBody
+      [:div {:class "col-sm-12 thought"}
+       [thought-edit-box :edit-note]]]
+     [ModalFooter
+      [:button {:type     "submit"
+                :class    "btn btn-primary"
+                :disabled (or (<sub [:ui-state :is-busy?]) (empty? (<sub [:note :edit-note])))
+                :on-click #(dispatch [:memory-edit-save])} "Save"]
+      ;; May want to add a style to show the Cancel button only on mobile, as the same functionality can
+      ;; easily be triggered on desktop by pressing Esc
+      [:button {:type     "reset"
+                :class    "btn btn-default"
+                :on-click #(dispatch [:memory-edit-set nil])} "Cancel"]]]))
 
 
 (defn memory-thread [return-to]
-  (let [show?     (subscribe [:ui-state :show-thread?])
-        thread-id (subscribe [:ui-state :show-thread-id])
+  (let [thread-id (<sub [:ui-state :show-thread-id])
         ;; I subscribe to the whole thread cache because I can't just subscribe to [:threads @thread-id],
         ;; as it'd only be evaluated once. I tried to do a reaction with the path, then subscribe
         ;; to the @path... but the subscription is not refreshed when the @path changes.
-        threads   (subscribe [:cache :threads])
-        thread    (reaction (get @threads @thread-id))
-        ready?    (reaction (and (not-empty @thread) @show?))]
-    (fn []
-      [Modal {:show @ready? :onHide #(dispatch [:state-show-thread false return-to])}
-       [ModalBody
-        (list-memories @thread false)]
-       [ModalFooter
-        [:button {:type     "reset"
-                  :class    "btn btn-default"
-                  :on-click #(dispatch [:state-show-thread false return-to])} "Close"]]])))
+        threads   (<sub [:cache :threads])
+        thread    (reaction (get threads thread-id))
+        ready?    (reaction (and (not-empty @thread) (<sub [:ui-state :show-thread?])))]
+    [Modal {:show @ready? :onHide #(dispatch [:state-show-thread false return-to])}
+     [ModalBody
+      (list-memories @thread false)]
+     [ModalFooter
+      [:button {:type     "reset"
+                :class    "btn btn-default"
+                :on-click #(dispatch [:state-show-thread false return-to])} "Close"]]]))
 
 
 (defn memory-results []
-  (let [busy?   (subscribe [:ui-state :is-searching?])
-        results (subscribe [:search-state :list])]
-    (fn []
-      [panel (if @busy?
-               [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]]
-               "Thoughts")
-       [:span
-        (if (empty? @results)
-          [:p "Nothing."]
-          (list-memories @results true))
-        [memory-load-trigger]]
-       "panel-primary"])))
+  [panel
+   (if (<sub [:ui-state :is-searching?])
+     [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]]
+     "Thoughts")
+   [:span
+    (let [results (<sub [:search-state :list])]
+      (if (empty? results)
+        [:p "Nothing."]
+        (list-memories results true)))
+    [memory-load-trigger]]
+   "panel-primary"])
 
 (defn memory-list []
-  (fn []
-    [:span
-     [edit-memory]
-     [memory-thread :remember]
-     [memory-query]
-     [memory-results]]))
+  [:span
+   [edit-memory-modal]
+   [memory-thread :remember]
+   [memory-query]
+   [memory-results]])
 
 (defn login-form []
-  (let [username  (subscribe [:credentials :username])
-        password  (subscribe [:credentials :password])
-        confirm   (subscribe [:credentials :password2])
-        message   (subscribe [:credentials :message])
-        section   (subscribe [:ui-state :section])
-        wip?      (subscribe [:ui-state :wip-login?])
-        signup?   (reaction (= :signup @section))
-        u-class   (reaction (if (and @signup? (empty? @username)) " has-error"))
-        pw-class  (reaction (if (and @signup? (> 5 (count @password))) " has-error"))
-        pw2-class (reaction (if (not= @password @confirm) " has-error"))]
-    (fn []
-      [:div {:class "modal"}
-       [:div {:class "modal-dialog"}
-        [:div {:class "jumbotron"}
-         [:h3 "Welcome!"]
-         [:p "Memento is an experimental note-taking application "
-          "for thoughts and ideas you may want to revisit."]
-         [:p [:a {:class "btn btn-primary"
-                  :href  "/about"}
-              "Learn more"]]
-         ]
-        [:div {:class "modal-content"}
-         [:div {:class "modal-header"}
-          [:h4 {:class "modal-title"} "Login"]]
-         [:div {:class "modal-body"}
-          (if @message
-            [:div {:class (str "col-lg-12 alert " (:type @message))}
-             [:p (:text @message)]])
-          [:div {:class (str "form-group" @u-class)}
-           [:label {:for "inputLogin" :class "col-sm-2 control-label"} "Username"]
-           [:div {:class "col-sm-10"}
-            [:input {:type         "text"
-                     :class        "formControl col-sm-8"
-                     :id           "inputLogin"
-                     :placeholder  "user name"
-                     :on-change    #(dispatch-sync [:state-credentials :username (-> % .-target .-value)])
-                     :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
-                     :value        @username}]]]
-          [:div {:class (str "form-group" @pw-class)}
-           [:label {:for "inputPassword" :class "col-sm-2 control-label"} "Password"]
-           [:div {:class "col-sm-10"}
+  (let [username  (<sub [:credentials :username])
+        password  (<sub [:credentials :password])
+        confirm   (<sub [:credentials :password2])
+        message   (<sub [:credentials :message])
+        section   (<sub [:ui-state :section])
+        signup?   (reaction (= :signup section))
+        u-class   (reaction (if (and @signup? (empty? username)) " has-error"))
+        pw-class  (reaction (if (and @signup? (> 5 (count password))) " has-error"))
+        pw2-class (reaction (if (not= password confirm) " has-error"))]
+    [:div {:class "modal"}
+     [:div {:class "modal-dialog"}
+      [:div {:class "jumbotron"}
+       [:h3 "Welcome!"]
+       [:p "Memento is an experimental note-taking application "
+        "for thoughts and ideas you may want to revisit."]
+       [:p [:a {:class "btn btn-primary"
+                :href  "/about"}
+            "Learn more"]]
+       ]
+      [:div {:class "modal-content"}
+       [:div {:class "modal-header"}
+        [:h4 {:class "modal-title"} "Login"]]
+       [:div {:class "modal-body"}
+        (when message
+          [:div {:class (str "col-lg-12 alert " (:type message))}
+           [:p (:text message)]])
+        [:div {:class (str "form-group" @u-class)}
+         [:label {:for "inputLogin" :class "col-sm-2 control-label"} "Username"]
+         [:div {:class "col-sm-10"}
+          [:input {:type         "text"
+                   :class        "formControl col-sm-8"
+                   :id           "inputLogin"
+                   :placeholder  "user name"
+                   :on-change    #(dispatch-sync [:state-credentials :username (-> % .-target .-value)])
+                   :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
+                   :value        username}]]]
+        [:div {:class (str "form-group" @pw-class)}
+         [:label {:for "inputPassword" :class "col-sm-2 control-label"} "Password"]
+         [:div {:class "col-sm-10"}
+          [:input {:type         "password"
+                   :class        "formControl col-sm-8"
+                   :id           "inputPassword"
+                   :on-change    #(dispatch-sync [:state-credentials :password (-> % .-target .-value)])
+                   :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
+                   :value        password}]]]
+        (if @signup?
+          [:div {:class (str "form-group" @pw2-class)}
+           [:label {:for "inputPassword2" :class "col-sm-2 col-lg-2 control-label"} "Confirm:"]
+           [:div {:class "col-sm-10 col-lg-10"}
             [:input {:type         "password"
-                     :class        "formControl col-sm-8"
-                     :id           "inputPassword"
-                     :on-change    #(dispatch-sync [:state-credentials :password (-> % .-target .-value)])
+                     :class        "formControl col-sm-8 col-lg-8"
+                     :id           "inputPassword2"
+                     :on-change    #(dispatch-sync [:state-credentials :password2 (-> % .-target .-value)])
                      :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
-                     :value        @password}]]]
-          (if @signup?
-            [:div {:class (str "form-group" @pw2-class)}
-             [:label {:for "inputPassword2" :class "col-sm-2 col-lg-2 control-label"} "Confirm:"]
-             [:div {:class "col-sm-10 col-lg-10"}
-              [:input {:type         "password"
-                       :class        "formControl col-sm-8 col-lg-8"
-                       :id           "inputPassword2"
-                       :on-change    #(dispatch-sync [:state-credentials :password2 (-> % .-target .-value)])
-                       :on-key-press #(dispatch-on-press-enter % [:auth-request @signup?])
-                       :value        @confirm}]]])
-
-          ]
-         [:div {:class "modal-footer"}
-          [:button {:type "button" :class "btn btn-primary" :disabled @wip? :on-click #(dispatch [:auth-request @signup?])} "Submit"]]
-         ]]]
-      )))
+                     :value        confirm}]]])]
+       [:div {:class "modal-footer"}
+        [:button {:type "button" :class "btn btn-primary" :disabled (<sub [:ui-state :wip-login?]) :on-click #(dispatch [:auth-request @signup?])} "Submit"]]]]]))
 
 
 (defn list-clusters [results]
@@ -586,33 +534,32 @@
        )]))
 
 (defn cluster-results []
-  (let [results (subscribe [:cache :clusters])
-        busy?   (reaction (nil? @results))]
-    (fn []
-      (cond
-        @busy? [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]]
-        (empty? @results) [panel "No thought clusters to regard"
-                           [:div {:class "col-sm-12 thought"}
-                            [:div {:class "memory col-sm-12"}
-                             [:p "Currently you can create a cluster out of a group of thoughts being shown on the reminders."]
-                             [:p "You should create some thought and add reminders. If a group of thoughts you're seeing strikes a spark, save it as a cluster!"]]]
-                           "panel-primary"]
-        :else (list-clusters (sort-by :created > (vals @results)))))))
+  (let [results (<sub [:cache :clusters])
+        busy?   (reaction (nil? results))]
+    (cond
+      @busy? [:span "Loading..." [:i {:class "fa fa-spin fa-space fa-circle-o-notch"}]]
+      (empty? results) [panel "No thought clusters to regard"
+                        [:div {:class "col-sm-12 thought"}
+                         [:div {:class "memory col-sm-12"}
+                          [:p "Currently you can create a cluster out of a group of thoughts being shown on the reminders."]
+                          [:p "You should create some thought and add reminders. If a group of thoughts you're seeing strikes a spark, save it as a cluster!"]]]
+                        "panel-primary"]
+      :else (list-clusters (sort-by :created > (vals results))))))
 
 (defn cluster-list []
-  (fn []
-    [:span
-     [memory-thread :regard]
-     [cluster-results]]))
+  [:span
+   [memory-thread :regard]
+   [cluster-results]])
 
 
 (defn content-section []
   (let [section (subscribe [:ui-state :section])
         token   (subscribe [:credentials :token])]
-    (if (and (nil? @token)
-             (not= :login @section)
-             (not= :signup @section))
+    (when (and (nil? @token)
+               (not= :login @section)
+               (not= :signup @section))
       (dispatch-sync [:state-ui-section :login]))
+    ;; Only renders the section, any dispatch should have happened on the :state-ui-section handler
     (case @section
       :record [write-section]
       :remember [memory-list]
@@ -633,8 +580,8 @@
 
 
 
-;; -------------------------
-;; Initialize app
+;;; -------------------------
+;;; Initialize app
 
 
 (defn add-on-appear-handler

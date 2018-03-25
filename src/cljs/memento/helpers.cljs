@@ -79,3 +79,6 @@
   (tf/unparse (tf/formatters :date-hour-minute)
               (tc/from-date d)))
 
+
+(def <sub (comp deref re-frame.core/subscribe))
+(def >evt re-frame.core/dispatch)

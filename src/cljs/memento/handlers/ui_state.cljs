@@ -14,6 +14,7 @@
   (fn [app-state [_ section]]
     (timbre/trace :state-ui-section section)
     (condp = section
+      :record (dispatch [:reminder-load])
       :remember (dispatch [:memories-load])
       :regard (dispatch [:clusters-load-all])
       nil)
@@ -36,8 +37,7 @@
   (fn [app-state [_ compare-msg new-msg]]
     (if (= compare-msg (get-in app-state [:ui-state :last-message]))
       (assoc-in app-state [:ui-state :last-message] new-msg)
-      app-state
-      )))
+      app-state)))
 
 (reg-event-db
   :state-note
