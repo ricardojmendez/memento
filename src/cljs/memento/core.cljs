@@ -521,7 +521,7 @@
                    {:placement :top
                     :overlay   tooltip}
                    [:span {:class    "btn btn-danger btn-xs icon-margin-left"
-                           :on-click #(when (js/confirm "Are you sure you want to remove the thought/")
+                           :on-click #(when (js/confirm "Are you sure you want to remove the thought from the cluster?")
                                         (dispatch [:cluster-remove-thought (:id cluster) (:id memory)]))}
                     [:i {:class "fa fa-minus"}]]])]
     [:span
