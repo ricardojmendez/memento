@@ -48,6 +48,10 @@ You will need [Leiningen][1] 2.0 or above installed.
 
 You'll need also need a PostgreSQL 9.4.4 database running. The default configuration assumes it's on localhost.
 
+### Using the basic configuration
+
+The repository provides `dev-config.default.edn` and `test-config.default.edn` on the `resources` folder. Copy them to the root and rename them to `dev-config.edn` and `test-config.edn` if you want to use the default settings.
+
 ### Creating the test and dev databases
 
 Let's use the provided script to set up the database:
