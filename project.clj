@@ -38,7 +38,7 @@
                  [selmer "1.11.7"]]
 
   :min-lein-version "2.0.0"
-  :jvm-opts ["-server" "-Dconf=.lein-env"]
+  :jvm-opts ["-server"]
 
   :heroku {:app-name      "mementoapp"
            :include-files ["target/uberjar/memento.jar"]}
@@ -48,8 +48,7 @@
   ;; Necessary at a global level for uberjar deployments to Heroku
   :uberjar-name "memento.jar"
 
-  :plugins [[lein-cprop "1.0.3"]
-            [lein-cljsbuild "1.1.7"]
+  :plugins [[lein-cljsbuild "1.1.7"]
             [lein-cloverage "1.0.9"]
             [lein-heroku "0.5.3"]
             [migratus-lein "0.5.0"]]
@@ -101,7 +100,8 @@
    :dev          [:project/dev :profiles/dev]
    :test         [:project/test :profiles/test]
 
-   :project/dev  {:dependencies   [[binaryage/devtools "0.9.9"]
+   :project/dev  {:jvm-opts       ["-server" "-Dconf=dev-config.edn"]
+                  :dependencies   [[binaryage/devtools "0.9.9"]
                                    [prone "1.5.0"]
                                    [ring/ring-mock "0.3.2"]
                                    [ring/ring-devel "1.6.3"]
@@ -122,7 +122,8 @@
                   :injections     [(require 'pjstadig.humane-test-output)
                                    (pjstadig.humane-test-output/activate!)]
                   }
-   :project/test {:source-paths   ["env/test/clj" "test/clj" "test/cljc" "test/cljs"]
+   :project/test {:jvm-opts       ["-server" "-Dconf=test-config.edn"]
+                  :source-paths   ["env/test/clj" "test/clj" "test/cljc" "test/cljs"]
                   :dependencies   [[ring/ring-mock "0.3.2"]] ; Added so I can run individual tests on a test REPL
                   ; :hooks          [leiningen.cljsbuild]
                   :resource-paths ["env/dev/resources" "env/test/resources"]
@@ -133,4 +134,5 @@
                                                                   :optimizations :whitespace
                                                                   :pretty-print  true
                                                                   :output-to     "target/test/memento-tests.js"}}}}
+
                   }})

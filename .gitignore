@@ -13,3 +13,5 @@ pom.xml.asc
 *.log
 resources/public/js/
 memento.out
+dev-config.edn
+test-config.edn

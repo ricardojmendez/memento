@@ -14,11 +14,14 @@ stages:
 .lein-cache: &lein-cache
   # GitLab CI only caches files in the current (app) folder, but lein expects everything in `~/.m2`.
   # So we copy the stuff between the two folders.
+  # Tries to create ~/.m2 as cp would fail if it doesn't exist.
   before_script:
+    - mkdir -p ~/.m2
     - cp -r ./.local-m2 ~/.m2 || mkdir .local-m2
   after_script:
     - rm -rf ./.local-m2 && cp -r ~/.m2 ./.local-m2
   cache:
+    key: all-y-all
     paths:
       - .local-m2
 
@@ -32,8 +35,9 @@ test:
   - apt-get install postgresql-client -y
   - psql -h postgres -U postgres < db-setup.sql
   - echo $DATABASE_URL
+  - cp resources/test-config.default.edn ./test-config.edn
   - lein with-profile test run migrate
-  - lein cloverage --codecov
+  - lein with-profile test cloverage --codecov
   - bash <(curl -s https://codecov.io/bash) -f target/coverage/codecov.json -t $CODECOV_KEY
 
 uberjar:
