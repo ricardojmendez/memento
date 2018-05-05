@@ -10,8 +10,7 @@
            java.sql.Array
            clojure.lang.IPersistentMap
            clojure.lang.IPersistentVector
-           [java.sql BatchUpdateException
-                     Date
+           [java.sql Date
                      Timestamp
                      PreparedStatement]))
 
