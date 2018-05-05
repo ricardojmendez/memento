@@ -29,7 +29,6 @@
 ;;;; Data and helpers
 ;;;;------------------------------
 
-
 (adapt-bootstrap Button)
 (adapt-bootstrap ButtonGroup)
 (adapt-bootstrap DropdownButton)
@@ -56,6 +55,7 @@
 
 (def top-div-target (find-dom-elem :#header))
 
+(def max-reminders 5)
 
 ;;;;------------------------------
 ;;;; Queries
@@ -238,7 +238,10 @@
 
 
 (defn reminder-section [is-focused?]
-  (let [reminders (<sub [:cache :reminders])
+  ;; Take the maximum number of reminders here, instead of when we call for the
+  ;; list, because this allows me to display more as the user marks them as viewed
+  ;; without having to make a backend call.
+  (let [reminders (take max-reminders (<sub [:cache :reminders]))
         showing?  (<sub [:ui-state :show-reminders?])]
     ;; We will only show the reminder notification when we aren't focused
     ;; on elaborating a thought
